@@ -81,7 +81,7 @@ def main():
         result = api_request("/chat/completions", key, {
             "model": model,
             "messages": [{"role": "user", "content": "Reply with one short sentence confirming that this API connection works."}],
-            "max_tokens": 128,
+            "max_tokens": 1024,
             "stream": False,
             "provider": {"max_price": {"prompt": 0, "completion": 0}},
         })
