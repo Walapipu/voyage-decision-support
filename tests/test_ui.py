@@ -20,14 +20,21 @@ class UITests(unittest.TestCase):
         next(b for b in app.button if b.label == "New conversation").click().run()
         self.assertEqual(len(app.chat_message), 0)
 
-    def test_direct_calculator_table(self):
+    def test_dashboard_selection_theme_and_navigation(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
-        app.radio[0].set_value("Voyage calculator").run()
-        self.assertEqual(app.selectbox[1].value, "2026-03")
-        next(b for b in app.button if b.label == "Compare four managed vessels").click().run()
+        self.assertEqual(app.selectbox(key="price_period").value, "2026-03")
         self.assertFalse(app.exception)
-        self.assertEqual(len(app.dataframe), 1)
-        self.assertEqual(len(app.dataframe[0].value), 4)
+        self.assertTrue(app.toggle(key="dark_mode").value)
+        app.toggle(key="dark_mode").set_value(False).run()
+        self.assertFalse(app.toggle(key="dark_mode").value)
+        app.selectbox(key="selected_cargo").set_value("CC-01").run()
+        self.assertEqual(app.number_input(key="selected_lift").value, 178000)
+        self.assertTrue(any("infeasible" in warning.value for warning in app.warning))
+        next(r for r in app.radio if r.label == "Navigation").set_value("Voyages").run()
+        self.assertFalse(app.exception)
+        next(r for r in app.radio if r.label == "Navigation").set_value("Analytics").run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any("threshold" in w.value for w in app.warning))
 
 
 if __name__ == "__main__":

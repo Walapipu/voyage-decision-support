@@ -21,7 +21,7 @@ flowchart TD
 
 | Layer | Files | Responsibility |
 |---|---|---|
-| Interface | `app.py`, `voyage/ui.py` | Messages, manual calculator, session history, tables and charts |
+| Interface | `app.py`, `voyage/dashboard.py`, `voyage/dashboard_data.py`, `voyage/dashboard.css`, `voyage/chat_view.py`, `voyage/ui.py` | Dashboard, dark/light themes, selection controls, chat, tables, charts and exports |
 | Interaction | `voyage/chat.py`, `voyage/tools.py`, `voyage/openrouter.py` | Prompt, model calls, schema validation, allowlisted tools |
 | Decision and calculation | `voyage/decision.py`, `voyage/engine.py` | Feasibility, comparison, Decimal calculations, structured output |
 | Data | `voyage/data.py`, `data/raw/` | Read-only records, unique keys, required joins, baseline price coverage |
@@ -32,7 +32,7 @@ Decision and calculation are separate modules within layer 3. This preserves the
 
 User asks: “Compare managed vessels for CC-02 at 164,000 tonnes.” The first model call requests `compare_vessels` with the cargo and lift. Python validates the arguments and calculates four voyages. The second model call explains the returned results. Streamlit renders those same results into tables and charts. No model-generated code executes.
 
-General terminology questions may use one model call without tools. Calculations use at most two model calls and four tool requests. If the explanation fails, computed evidence is still displayed. No automatic API retries consume quota. The manual calculator works without a key.
+General terminology questions may use one model call without tools. Calculations use at most two model calls and four tool requests. If the explanation fails, computed evidence is still displayed. No automatic API retries consume quota. Dashboard selections and voyage calculations work without a key. The chat receives the current UI selection as context and must still call Python tools for numeric answers.
 
 ## Implemented scope
 

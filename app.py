@@ -1,105 +1,141 @@
-"""Run with: python -m streamlit run app.py"""
-
+"""OceanFlow dashboard. Run: python -m streamlit run app.py"""
+from pathlib import Path
+import pandas as pd
 import streamlit as st
 
-from voyage.openrouter import load_settings
-from voyage.chat import chat_reply
 from voyage.data import load_tables
-from voyage.decision import compare_vessels
+from voyage.dashboard_data import dashboard_case
+from voyage.dashboard import (apply_theme, ship_svg, heading, summary_cards, fleet_panel,
+    route_map, freight_panel, voyage_summary, comparison_table, economics, timeline,
+    requirements_notice, result_frame)
+from voyage.chat_view import render_chat, clear_chat
+from voyage.decision import CONVENTIONS
+from voyage.openrouter import load_settings
 from voyage.ui import render_evidence
 
-st.set_page_config(page_title="Voyage Assistant", page_icon="🚢", layout="centered")
+st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
+for key, value in {"dark_mode":True, "selected_vessel":"MF-02", "selected_cargo":"CC-02", "selected_lift":164000, "price_period":"2026-03"}.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "pending" not in st.session_state:
-    st.session_state.pending = None
-if "chat_error" not in st.session_state:
-    st.session_state.chat_error = None
+def reset_lift():
+    row = next(c for c in load_tables()["committed_cargoes"] if c["cargo_id"] == st.session_state.selected_cargo)
+    st.session_state.selected_lift = int(row["nominal_quantity_tonnes"])
 
 with st.sidebar:
-    st.title("Voyage Assistant")
-    st.caption("Yi Heng · Project 3")
-    page = st.radio("View", ["Chat", "Voyage calculator"])
-    st.write("Ask about voyage planning or compare managed vessels for a committed cargo.")
-    st.caption("Your messages are sent to OpenRouter and its model provider. Chat history stays in this browser session's server memory.")
-    if st.button("New conversation", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.pending = None
-        st.session_state.chat_error = None
-        st.rerun()
-    with st.expander("Connection"):
-        try:
-            _, configured_model = load_settings()
-            st.caption("API key configured locally.")
-            st.code(configured_model, language=None)
-            st.caption("Free models only. Availability and response speed can vary.")
-        except ValueError as exc:
-            st.error(str(exc))
+    st.html('<div class="brand"><div class="brandmark">≈</div><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
+    page = st.radio("Navigation", ["Dashboard", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
+    st.html('<div class="sidebar-art"><h4>Smarter decisions.<br>Clearer voyages.</h4><p>Frozen synthetic teaching case<br>4 managed vessels · 3 commitments<br>11 market vessels · 8 opportunities</p></div>')
+    st.image(ship_svg(), width="stretch")
+    st.caption("Yi Heng · Project 3 prototype")
 
-if page == "Voyage calculator":
-    st.title("Compare voyages")
-    st.caption("This form calls the Python engine directly. No AI request is needed.")
-    with st.form("voyage_calculator"):
-        cargo = st.selectbox("Committed cargo", ["CC-01", "CC-02", "CC-03"], index=1)
-        lift = st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, value=164000, step=500)
-        periods = sorted({r["period"] for r in load_tables()["bunker_forward_curve"]})
-        period = st.selectbox("Bunker price month", periods, index=periods.index("2026-03"))
-        run = st.form_submit_button("Compare four managed vessels")
-    st.caption("CC = committed cargo; MF = managed vessel. Market vessels and cargoes need hire/freight quotes before economic comparisons.")
-    if run:
-        try:
-            st.session_state.calculator_result = compare_vessels(cargo, lift, period)
-        except ValueError as exc:
-            st.session_state.pop("calculator_result", None)
-            st.error(str(exc))
-    if "calculator_result" in st.session_state:
-        render_evidence([{"tool": "compare_vessels", "result": st.session_state.calculator_result}])
-    st.stop()
+tables = load_tables()
+with st.container(key="topbar"):
+    search_col, period_col, theme_col, user_col = st.columns([5, 2, 1.2, 1.7], vertical_alignment="center")
+    with search_col:
+        query = st.text_input("Search vessels, ports or cargoes", placeholder="Search vessels, ports or cargoes…", label_visibility="collapsed").strip().lower()
+    with period_col:
+        st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
+    with theme_col:
+        st.toggle("Dark mode", key="dark_mode")
+    with user_col:
+        st.html('<div class="profile"><span class="avatar">YH</span><div>Yi Heng<small>Freight decision support</small></div></div>')
+apply_theme(st.session_state.dark_mode)
 
-st.title("Let's talk voyages")
-st.caption("Understand the terms. Explore the decisions.")
-st.info("Ask for a voyage calculation or comparison with a cargo lift in tonnes. Review the Python results and assumptions below the AI explanation.")
+with st.container(key="workspace"):
+    vessel_col, cargo_col, lift_col, note_col = st.columns([1.2, 1.2, 1.4, 3], vertical_alignment="bottom")
+    with vessel_col:
+        st.selectbox("Selected vessel", [v["vessel_id"] for v in tables["managed_vessels"]], key="selected_vessel")
+    with cargo_col:
+        st.selectbox("Committed cargo", [c["cargo_id"] for c in tables["committed_cargoes"]], key="selected_cargo", on_change=reset_lift)
+    with lift_col:
+        st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, step=500, key="selected_lift")
+    with note_col:
+        st.caption("Frozen case · economical speeds · USD\n\nAll calculated panels follow this selection. March 2026 is the validated baseline month.")
 
-if not st.session_state.messages and not st.session_state.pending:
-    st.markdown("Try **‘Compare the managed vessels for CC-02 at 164,000 tonnes’** or **‘What is the difference between TCE and contribution?’**")
+case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel)
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-        if message.get("model"):
-            st.caption("Answered by " + message["model"])
-        if message.get("truncated"):
-            st.warning("The answer reached its response limit and may be incomplete.")
-        render_evidence(message.get("evidence", []))
+if page == "Dashboard":
+    summary_cards(case)
+    with st.container(key="dashboard_grid"):
+        fleet, assistant, planning = st.columns([1.05, 2.65, 1.4], gap="small")
+        with fleet, st.container(border=True, key="fleet_panel"):
+            fleet_panel(case, query)
+        with assistant, st.container(border=True, key="assistant_panel"):
+            title, new = st.columns([4,1])
+            with title:
+                heading("AI Voyage Assistant", "Python engine + OpenRouter")
+            with new:
+                st.button("New conversation", on_click=clear_chat)
+            voyage_summary(case)
+            comparison_table(case)
+            with st.expander("Revenue, costs and bunker consumption"):
+                economics(case)
+            render_chat(case, compact=True)
+        with planning:
+            route_map(case)
+            with st.container(border=True, key="freight_panel"):
+                freight_panel(case, query)
+            requirements_notice()
+    with st.container(border=True, key="timeline_panel"):
+        timeline(case)
 
-retry = False
-if st.session_state.pending:
-    with st.chat_message("user"):
-        st.markdown(st.session_state.pending)
-    if st.session_state.chat_error:
-        st.error(st.session_state.chat_error)
-        retry = st.button("Retry question")
-        if st.button("Discard question"):
-            st.session_state.pending = None
-            st.session_state.chat_error = None
-            st.rerun()
+elif page == "AI Assistant":
+    heading("AI Voyage Assistant", "Grounded in Python tool results")
+    st.button("New conversation", on_click=clear_chat)
+    render_chat(case)
 
-prompt = st.chat_input("Ask a shipping question…", max_chars=4000, disabled=bool(st.session_state.pending))
-if prompt and prompt.strip():
-    st.session_state.pending = prompt.strip()
-    st.session_state.chat_error = None
-    st.rerun()
+elif page == "Voyages":
+    heading("Voyage economics", "Selected voyage and managed alternatives")
+    voyage_summary(case)
+    comparison_table(case)
+    with st.container(border=True):
+        economics(case)
+    with st.container(border=True, key="timeline_panel"):
+        timeline(case)
+    with st.expander("Full engine output and methodology"):
+        st.json({"result":case["row"], "conventions": CONVENTIONS})
 
-if st.session_state.pending and (not st.session_state.chat_error or retry):
-    question = {"role": "user", "content": st.session_state.pending}
-    history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+elif page in ("Fleet", "Freight", "Ports"):
+    heading(page + " data", "Original frozen source records")
+    table_names = {"Fleet":["managed_vessels","market_vessels"], "Freight":["committed_cargoes","market_cargoes"], "Ports":["ports"]}[page]
+    if page == "Freight":
+        st.info("Market freight rates of zero are unquoted inputs, not free freight. No booking or completion statuses are supplied.")
+    for name in table_names:
+        st.subheader(name.replace("_", " ").title())
+        frame = pd.DataFrame(tables[name])
+        if name == "market_cargoes":
+            frame["contract_freight_rate_usd_per_tonne"] = "Quote needed"
+        if query:
+            frame = frame[frame.astype(str).apply(lambda row: query in " ".join(row).lower(), axis=1)]
+        st.html('<div class="table-wrap" style="max-height:550px;overflow:auto">'+frame.to_html(index=False, escape=True, classes="ocean-table", border=0)+'</div>')
+
+elif page == "Analytics":
+    heading("Voyage comparisons", "Current cargo, lift and price month")
+    render_evidence([{"tool":"compare_vessels", "result":case["comparison"]}])
+    requirements_notice()
+    st.warning("Bunker-price shocks, port-delay scenarios and recommendation-switch thresholds are required by the brief and remain to be built. The month selector changes frozen forward prices; it is not a substitute for scenario analysis.")
+
+elif page == "Reports":
+    heading("Export calculated results", "Includes feasibility flags and pricing period")
+    comparison_table(case)
+    st.download_button("Download voyage comparison CSV", result_frame(case).to_csv(index=False).encode("utf-8"), file_name=f'{st.session_state.selected_cargo}_{st.session_state.price_period}_comparison.csv', mime="text/csv")
+    st.download_button("Download methodology", "\n".join(f'{k}: {v}' for k,v in CONVENTIONS.items()), file_name="voyage_methodology.txt")
+
+elif page == "Documents":
+    heading("Project documentation", "Requirements and calculation conventions")
+    doc = st.selectbox("Document", ["Metric coverage", "Architecture", "Source dictionary"])
+    paths = {"Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md"}
+    st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))
+
+elif page == "Settings":
+    heading("Settings and assumptions")
+    st.write("Use the Dark mode toggle in the top bar to switch themes. Your selection persists for this browser session.")
     try:
-        with st.spinner("Waiting for the free model…"):
-            answer = chat_reply(history + [question])
-        st.session_state.messages.extend([question, {"role": "assistant", **answer}])
-        st.session_state.pending = None
-        st.session_state.chat_error = None
+        _, model = load_settings()
+        st.success("OpenRouter key configured on the server.")
+        st.code(model)
     except ValueError as exc:
-        st.session_state.chat_error = str(exc)
-    st.rerun()
+        st.error(str(exc))
+    st.json(CONVENTIONS)
+    st.caption("The API key is excluded from Git and is not exposed by this screen. Market economics, sensitivity analysis and fleet allocation are not enabled yet.")
