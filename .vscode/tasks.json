@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Check OpenRouter key",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": ["${workspaceFolder}/check_openrouter.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Send free OpenRouter test message",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": ["${workspaceFolder}/check_openrouter.py", "--chat"],
+      "problemMatcher": []
+    }
+  ]
+}
