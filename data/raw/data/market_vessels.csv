@@ -1,0 +1,12 @@
+vessel_id,dwt_tonnes,ballast_draft_m,summer_draft_m,warranted_laden_speed_knots,warranted_laden_vlsfo_tpd,warranted_laden_mgo_tpd,warranted_ballast_speed_knots,warranted_ballast_vlsfo_tpd,warranted_ballast_mgo_tpd,economical_laden_speed_knots,economical_laden_vlsfo_tpd,economical_laden_mgo_tpd,economical_ballast_speed_knots,economical_ballast_vlsfo_tpd,economical_ballast_mgo_tpd,port_idle_vlsfo_tpd,port_working_vlsfo_tpd,current_port,available_from_utc,vlsfo_rob_tonnes,mgo_rob_tonnes,vessel_class,hire_offer_status
+MV-01,181480,8.4,18.1,13.7,59.0,2.0,14.5,54.5,2.0,12.2,42.0,2.0,12.8,38.5,2.0,1.9,3.0,INPPT,2026-03-05T00:00:00Z,548.0,44.0,Capesize,student decision
+MV-02,181920,8.5,18.2,13.5,57.5,1.9,14.2,52.5,1.9,12.1,41.0,1.9,12.6,37.0,1.9,1.9,3.0,CNCFD,2026-03-01T00:00:00Z,452.0,58.0,Capesize,student decision
+MV-03,180180,8.3,18.0,13.3,56.5,2.0,14.0,51.0,2.0,11.8,39.0,2.0,12.2,35.5,2.0,2.0,3.1,NLRTM,2026-03-08T00:00:00Z,624.0,48.0,Capesize,student decision
+MV-04,179760,8.2,17.9,13.6,59.5,1.8,14.4,55.0,1.8,12.3,42.5,1.8,12.8,38.0,1.8,1.8,3.0,CNXMN,2026-03-06T00:00:00Z,506.0,62.0,Capesize,student decision
+MV-05,181360,8.4,18.1,13.8,60.5,1.9,14.6,55.5,1.9,12.4,43.0,1.9,12.9,39.0,1.9,2.0,3.1,INKDL,2026-03-03T00:00:00Z,562.0,50.0,Capesize,student decision
+MV-06,182260,8.5,18.2,13.4,58.0,2.1,14.1,52.5,2.1,11.9,40.0,2.1,12.4,36.5,2.1,2.1,3.2,GBPTB,2026-03-12T00:00:00Z,402.0,66.0,Capesize,student decision
+MV-07,180640,8.3,18.0,13.2,56.0,2.0,13.9,51.5,2.0,12.0,41.0,2.0,12.5,37.0,2.0,2.0,3.1,KRGWG,2026-03-09T00:00:00Z,576.0,38.0,Capesize,student decision
+MV-08,181120,8.4,18.1,13.7,59.5,1.8,14.4,54.5,1.8,12.5,43.0,1.8,12.9,38.5,1.8,1.8,3.0,INMUN,2026-03-02T00:00:00Z,522.0,51.0,Capesize,student decision
+MV-09,179540,8.2,17.8,13.3,56.0,2.0,14.0,51.0,2.0,11.9,39.5,2.0,12.4,36.0,2.0,2.0,3.1,CNJTG,2026-03-07T00:00:00Z,458.0,36.0,Capesize,student decision
+MV-10,182740,8.6,18.3,13.8,60.0,1.9,14.5,55.0,1.9,12.3,42.5,1.9,12.8,38.0,1.9,1.9,3.1,INVTZ,2026-03-10T00:00:00Z,538.0,49.0,Capesize,student decision
+MV-11,180420,8.3,18.0,13.4,57.5,2.0,14.1,52.0,2.0,12.1,41.0,2.0,12.6,37.0,2.0,2.0,3.0,SAJUB,2026-03-04T00:00:00Z,424.0,59.0,Capesize,student decision

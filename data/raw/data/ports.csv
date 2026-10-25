@@ -1,0 +1,37 @@
+port_code,port_name,country,coursework_max_draft_m,region,bunker_pricing_location,draft_reference,bunker_price_basis
+CNRIZ,Rizhao,China,20.0,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+THLCH,Laem Chabang,Thailand,16.0,Southeast Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+KRGWG,Gwangyang,South Korea,20.5,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNJTG,Jingtang,China,18.5,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+INPPT,Paradip,India,18.5,South Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNCFD,Caofeidian,China,20.5,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+NLRTM,Rotterdam,Netherlands,20.0,Europe,NLRTM,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNXMN,Xiamen,China,17.5,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+INKDL,Kandla,India,15.5,South Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+GBPTB,Port Talbot,United Kingdom,17.0,Europe,NLRTM,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+INMUN,Mundra,India,18.0,South Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+INVTZ,Visakhapatnam,India,18.0,South Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+SAJUB,Jubail,Saudi Arabia,18.0,Middle East,AEFUJ,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+GNKMS,Kamsar Anchorage,Guinea,21.0,West Africa,GIGIB,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+AUPHE,Port Hedland,Australia,18.3,Australia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+BRIGI,Itaguai,Brazil,18.0,South America,ZADUR,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+AUDAM,Dampier,Australia,18.2,Australia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+BRPDM,Ponta da Madeira,Brazil,23.0,South America,ZADUR,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+ZASDB,Saldanha Bay,South Africa,21.5,Southern Africa,ZARCB,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+IDTAB,Taboneo Anchorage,Indonesia,20.0,Southeast Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CAVAN,Vancouver,Canada,18.5,North America,GIGIB,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+BRTUB,Tubarao,Brazil,22.0,South America,ZADUR,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNQDG,Qingdao,China,20.0,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNLYG,Lianyungang,China,18.5,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNTNJ,Tianjin,China,18.5,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+INKRI,Krishnapatnam,India,18.5,South Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNFAN,Fangcheng,China,19.0,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+INMNG,Mangalore,India,16.5,South Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+MYTPR,Teluk Rubiah,Malaysia,20.0,Southeast Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+SGSIN,Singapore,Singapore,16.5,Southeast Asia,SGSIN,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+AEFUJ,Fujairah,United Arab Emirates,18.0,Middle East,AEFUJ,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+ZADUR,Durban,South Africa,18.0,Southern Africa,ZARCB,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+GIGIB,Gibraltar,Gibraltar,18.0,Europe,NLRTM,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+MUPLU,Port Louis,Mauritius,16.5,Indian Ocean,MUPLU,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+CNSHA,Shanghai,China,18.0,East Asia,CNSHA,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation
+ZARCB,Richards Bay,South Africa,19.0,Southern Africa,ZARCB,Coursework screening value; verify berth and tidal restrictions independently,Regional coursework price proxy; not a bunkering recommendation

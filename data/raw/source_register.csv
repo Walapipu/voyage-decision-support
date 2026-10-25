@@ -1,0 +1,5 @@
+source_name,url,included_as_file,application,limitation
+Course case specification,,no,Defines the Capesize portfolio structure and required decisions.,The distributed records do not reproduce company identifiers or commercial figures.
+NGA World Port Index,https://msi.nga.mil/Publications/WPI,no,Public port identity reference.,"Coordinates are not distributed. Draft values are coursework screening inputs, not live berth limits."
+Eurostat SeaRoute,https://github.com/eurostat/searoute,no,Directional reasonableness reference for route distances.,Distances are rounded scenario inputs and are not navigation routes.
+Baltic Exchange route definitions,https://www.balticexchange.com/en/data-services/market-information0/dry-services.html,no,Route-code and unit context for the coursework FFA reference table.,The pack does not reproduce a live or licensed market assessment.

@@ -1,0 +1,12 @@
+cargo_id,origin_port,destination_port,route_distance_nm,distance_basis
+CC-01,GNKMS,CNQDG,10925,Rounded coursework route distance; not for navigation
+CC-02,AUPHE,CNLYG,3525,Rounded coursework route distance; not for navigation
+CC-03,BRIGI,CNQDG,10775,Rounded coursework route distance; not for navigation
+MC-01,AUDAM,CNQDG,3575,Rounded coursework route distance; not for navigation
+MC-02,BRPDM,CNCFD,10950,Rounded coursework route distance; not for navigation
+MC-03,ZASDB,CNTNJ,10475,Rounded coursework route distance; not for navigation
+MC-04,IDTAB,INKRI,3050,Rounded coursework route distance; not for navigation
+MC-05,CAVAN,CNFAN,6225,Rounded coursework route distance; not for navigation
+MC-06,GNKMS,INMNG,7975,Rounded coursework route distance; not for navigation
+MC-07,AUPHE,KRGWG,3275,Rounded coursework route distance; not for navigation
+MC-08,BRTUB,MYTPR,9950,Rounded coursework route distance; not for navigation

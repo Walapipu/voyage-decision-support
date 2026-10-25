@@ -1,51 +1,44 @@
 # Voyage Decision Support
 
-Step 1: connect Python to OpenRouter. The voyage engine and Streamlit interface will be added later.
+Streamlit chat and calculator for the frozen Capesize case. OpenRouter interprets a question, Python tools calculate the voyage, and a second model call explains it. Charts read Python results directly.
 
-## Run in VS Code (Windows)
+See [the architecture and Mermaid diagram](docs/architecture.md) for the four layers, assumptions and current boundaries.
 
-Requires Python 3.11 or newer. This first step uses only Python's standard library.
+## Run locally in VS Code
 
-1. Open this project folder in VS Code.
-2. Create the local Python environment, if it does not already exist:
+Requires Python 3.11+ (developed with 3.12).
 
-   ```powershell
-   python -m venv .venv
-   ```
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-3. Copy `.streamlit/secrets.example.toml` to `.streamlit/secrets.toml` if missing.
-4. Paste your existing OpenRouter API key between the quotes for `OPENROUTER_API_KEY` and save.
-5. In the VS Code terminal, verify authentication:
+Copy `.streamlit/secrets.example.toml` to `.streamlit/secrets.toml` only if missing. Add your key locally. Do not overwrite a saved key or commit it. `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` environment variables can override the file.
 
-   ```powershell
-   .\.venv\Scripts\python.exe check_openrouter.py
-   ```
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run app.py --server.address 127.0.0.1
+```
 
-6. Send one small test message to a free model:
+Open http://localhost:8501 or use **Terminal > Run Task > Start Streamlit chatbot**. The Voyage calculator needs no API calls. Example chat: **Compare the managed vessels for CC-02 at 164,000 tonnes.**
 
-   ```powershell
-   .\.venv\Scripts\python.exe check_openrouter.py --chat
-   ```
+## Verify
 
-Alternatively, use **Terminal > Run Task** and select the matching task.
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe check_openrouter.py
+.\.venv\Scripts\python.exe check_openrouter.py --chat
+```
 
-The first command only checks authentication. The second consumes a free inference request. Free models may be rate limited or unavailable. `openrouter/free` is suitable for this connection check; select and evaluate a specific tool-capable model later for the voyage assistant.
+Tests mock model replies and do not use API quota. The connection check authenticates; `--chat` sends one real free-model request. A tool-based chat uses up to two requests. Free providers can be rate limited or unavailable; failed requests may consume quota too.
 
-## Secrets
+## Scope
 
-- `.streamlit/secrets.toml` is ignored by Git. Only the blank example belongs in the repository.
-- Never paste the key into a chat message or commit it.
-- `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` environment variables can override the local file.
-- Future Streamlit deployment can use the same settings in Community Cloud Secrets.
+The catalog contains 15 vessels and 11 cargoes. Calculations currently cover four managed vessels and three committed cargoes at a specified lift. Python checks quantity, laycan, draft and deadweight, and returns TCE before hire and contribution after hire. Source files are preserved in `data/raw/`. The single supplied validation row is regression tested; MF-02's comparison is derived, not a second official reference.
 
-## Next milestones
+Market quote inputs, market calculations, sensitivities and fleet allocation optimisation are not yet implemented. See the architecture notes for provisional draft, pricing-month and canal conventions. No live prices replace frozen data.
 
-1. Validate the frozen CSV inputs and reference voyage.
-2. Build the calculation, recommendation and scenario modules.
-3. Add the Streamlit dashboard and connect the model to validated Python tools.
+## Secrets and deployment
 
-## API references
+The local secrets file, virtual environment and logs are ignored by Git. Only the blank example is committed. API calls run server-side. Chat and requested tool results are sent to OpenRouter/model providers.
 
-- https://openrouter.ai/docs/quickstart
-- https://openrouter.ai/docs/api_reference/authentication
-- https://openrouter.ai/docs/guides/routing/routers/free-router
+Future Streamlit Community Cloud deployment can use this repository, branch `main`, entry point `app.py`, and Cloud Secrets. The app is currently local, not publicly deployed.

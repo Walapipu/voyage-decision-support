@@ -1,0 +1,5 @@
+vessel_id,dwt_tonnes,ballast_draft_m,summer_draft_m,hire_rate_usd_per_day,warranted_laden_speed_knots,warranted_laden_vlsfo_tpd,warranted_laden_mgo_tpd,warranted_ballast_speed_knots,warranted_ballast_vlsfo_tpd,warranted_ballast_mgo_tpd,economical_laden_speed_knots,economical_laden_vlsfo_tpd,economical_laden_mgo_tpd,economical_ballast_speed_knots,economical_ballast_vlsfo_tpd,economical_ballast_mgo_tpd,port_idle_vlsfo_tpd,port_working_vlsfo_tpd,current_port,available_from_utc,vlsfo_rob_tonnes,mgo_rob_tonnes,vessel_class
+MF-01,181240,8.4,18.1,12450,13.4,58.5,1.9,14.3,53.5,1.9,12.0,41.0,1.9,12.6,37.0,1.9,1.9,3.0,CNRIZ,2026-03-02T00:00:00Z,438.0,52.0,Capesize
+MF-02,180760,8.3,18.0,15200,13.7,60.0,1.8,14.6,55.0,1.8,12.2,42.5,1.8,12.8,39.0,1.8,1.8,3.1,THLCH,2026-03-06T00:00:00Z,312.0,70.0,Capesize
+MF-03,182080,8.5,18.2,14350,13.3,57.5,2.0,14.1,52.5,2.0,12.1,43.0,2.0,12.7,39.5,2.0,2.0,3.0,KRGWG,2026-03-14T00:00:00Z,648.0,86.0,Capesize
+MF-04,179620,8.2,17.9,13600,13.1,56.5,2.0,13.9,51.5,2.0,11.9,40.0,2.0,12.4,36.0,2.0,1.9,3.1,CNJTG,2026-03-11T00:00:00Z,742.0,30.0,Capesize

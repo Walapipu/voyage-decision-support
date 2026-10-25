@@ -1,0 +1,21 @@
+route_code,period,reference_value,unit,use
+5TC_USD_PER_DAY,2026-02,15250,USD/day,Market context only; students must state their own quotation or hire offer
+5TC_USD_PER_DAY,2026-03,18900,USD/day,Market context only; students must state their own quotation or hire offer
+5TC_USD_PER_DAY,2026-Q2,22800,USD/day,Market context only; students must state their own quotation or hire offer
+5TC_USD_PER_DAY,2026-Q3,25500,USD/day,Market context only; students must state their own quotation or hire offer
+5TC_USD_PER_DAY,2026-Q4,25150,USD/day,Market context only; students must state their own quotation or hire offer
+C3_USD_PER_TONNE,2026-02,18.3,USD/tonne,Market context only; students must state their own quotation or hire offer
+C3_USD_PER_TONNE,2026-03,21.4,USD/tonne,Market context only; students must state their own quotation or hire offer
+C3_USD_PER_TONNE,2026-Q2,21.9,USD/tonne,Market context only; students must state their own quotation or hire offer
+C3_USD_PER_TONNE,2026-Q3,23.6,USD/tonne,Market context only; students must state their own quotation or hire offer
+C3_USD_PER_TONNE,2026-Q4,23.2,USD/tonne,Market context only; students must state their own quotation or hire offer
+C5_USD_PER_TONNE,2026-02,6.9,USD/tonne,Market context only; students must state their own quotation or hire offer
+C5_USD_PER_TONNE,2026-03,9.05,USD/tonne,Market context only; students must state their own quotation or hire offer
+C5_USD_PER_TONNE,2026-Q2,9.3,USD/tonne,Market context only; students must state their own quotation or hire offer
+C5_USD_PER_TONNE,2026-Q3,9.55,USD/tonne,Market context only; students must state their own quotation or hire offer
+C5_USD_PER_TONNE,2026-Q4,9.35,USD/tonne,Market context only; students must state their own quotation or hire offer
+C7_USD_PER_TONNE,2026-02,10.9,USD/tonne,Market context only; students must state their own quotation or hire offer
+C7_USD_PER_TONNE,2026-03,12.2,USD/tonne,Market context only; students must state their own quotation or hire offer
+C7_USD_PER_TONNE,2026-Q2,12.55,USD/tonne,Market context only; students must state their own quotation or hire offer
+C7_USD_PER_TONNE,2026-Q3,12.85,USD/tonne,Market context only; students must state their own quotation or hire offer
+C7_USD_PER_TONNE,2026-Q4,13.1,USD/tonne,Market context only; students must state their own quotation or hire offer
