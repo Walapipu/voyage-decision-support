@@ -59,4 +59,3 @@ def api_request(path, key, payload=None):
         raise ValueError("Could not reach OpenRouter. Check your internet connection and try again.") from None
     except (json.JSONDecodeError, UnicodeDecodeError):
         raise ValueError("OpenRouter returned an unreadable response.") from None
-
