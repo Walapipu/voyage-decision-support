@@ -1,0 +1,11 @@
+{
+  "CNRIZ": {"lon":119.5494,"lat":35.3731,"source":"https://www.cockettgroup.com/DBFile/Files/571fc09c-47cf-44db-b1bb-f5c266f3e0ef/Port%20Directory_2023.pdf"},
+  "THLCH": {"lon":100.8833,"lat":13.0833,"source":"https://www.thaishipowners.com/pdf/x211.pdf"},
+  "KRGWG": {"lon":127.71855,"lat":34.884905,"source":"https://www.wilhelmsen.com/contacts-locations/locations/asia/korea-republic-of/ports/gwangyang/"},
+  "CNJTG": {"lon":119.0154,"lat":39.20087,"source":"https://www.polyu.edu.hk/lms/icms/ifspa2022/images/proceeding/IFSPA2022_Conference-Proceedings_Final.pdf"},
+  "AUPHE": {"lon":118.570418,"lat":-20.310087,"source":"https://www.wilhelmsen.com/contacts-locations/locations/oceania/australia/ports/port-hedland/"},
+  "GNKMS": {"lon":-14.61276,"lat":10.64949,"source":"https://www.dfc.gov/sites/default/files/esia/2015/cbg/Volume_C/11_Annexe_3_9.pdf","note":"Kamsar industrial area reference, approximate port vicinity"},
+  "BRIGI": {"lon":-43.83731,"lat":-22.93315,"source":"https://portosrio.gov.br/index.php/pt-br/portos/porto-de-itaguai"},
+  "CNLYG": {"lon":119.5666,"lat":34.79039,"source":"https://www.gocomet.com/ports/china/lianyungang/sailing-schedule"},
+  "CNQDG": {"lon":120.385166,"lat":36.061900,"source":"https://www.wilhelmsen.com/contacts-locations/locations/asia/china/ports/qingdao/"}
+}

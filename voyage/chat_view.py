@@ -9,15 +9,17 @@ def clear_chat():
     st.session_state.chat_error = None
 
 
-def render_chat(case, compact=False):
+def render_chat(case, compact=False, intro=None):
     from voyage.chat import chat_reply
 
     for key, value in {"messages": [], "pending": None, "chat_error": None}.items():
         if key not in st.session_state:
             st.session_state[key] = value
-    if not st.session_state.messages and not st.session_state.pending:
-        st.caption("Ask why one vessel performs better, or request a calculation with a lift in tonnes. No AI request runs until you send a question.")
-    with st.container(height=230 if compact and st.session_state.messages else "content", border=False):
+    with st.container(height=400, border=False, key="chat_scroll"):
+        if intro:
+            intro()
+        if not st.session_state.messages and not st.session_state.pending:
+            st.caption("Ask about this voyage or compare alternatives. Python checks the numbers.")
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
@@ -37,7 +39,9 @@ def render_chat(case, compact=False):
                     st.session_state.pending = None
                     st.session_state.chat_error = None
                     st.rerun()
-    prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", max_chars=4000, disabled=bool(st.session_state.pending))
+    with st.container(key="composer"):
+        prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", max_chars=4000, disabled=bool(st.session_state.pending))
+        st.caption("AI can make mistakes. Review the Python results. Messages go to OpenRouter.")
     if prompt and prompt.strip():
         st.session_state.pending = prompt.strip()
         st.session_state.chat_error = None
@@ -57,4 +61,3 @@ def render_chat(case, compact=False):
         except ValueError as exc:
             st.session_state.chat_error = str(exc)
         st.rerun()
-    st.caption("AI explanations require review. Numeric tool results come from Python. Messages and requested results are sent to OpenRouter.")

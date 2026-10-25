@@ -13,7 +13,7 @@ Source: Project_3_Freight-Decision-Support-Tool.pdf, pages 1–4 (core scope, ke
 | Profit margin | Selected voyage contribution after hire divided by freight revenue. Explicitly scoped to that voyage, not the portfolio. Infeasible selections are labelled hypothetical. |
 | Fleet overview | All 4 managed and 11 market vessel records, DWT, current port and availability date. No fabricated names, photographs or live “On voyage”/maintenance statuses. |
 | Route, distance, fuel, duration, ETA | Source port names and ballast/laden distances, engine fuel/duration, derived discharge arrival and completion dates. |
-| Route map | Clearly labelled illustrative schematic. No port coordinates, navigable route geometry, alternative canal routes, weather or congestion feeds exist in the source. |
+| Route map | Detailed zoomable Leaflet/OpenStreetMap basemap. Approximate external port-vicinity coordinates are separately sourced in data/map_locations.json; dashed connectors are schematic. Navigable routes, weather and congestion feeds remain unavailable. |
 | Freight planning | Committed/market cargoes, routes, nominal lift and contract rates. Market rates are “Quote needed”; booked/completed statuses are unavailable. |
 | Timeline | Calculated availability, load arrival, loading start, load departure, discharge arrival and completion, all in UTC. Not actual completed/in-progress statuses. |
 | Percentage trends | Omitted: no historical comparison series. |
@@ -32,7 +32,7 @@ The five reference KPI slots are retained. Unsupported operational metrics are s
 | Selected lift versus permitted range, DWT and draft restrictions | Lift range, estimated draft and draft headroom shown; full deadweight/quantity checks in engine output. All four constraints feed feasibility. |
 | Transparent pricing month, speed and TCE conventions | Visible selection controls, source results, Settings, methodology export. |
 | Market vessel/cargo comparison and missing commercial inputs | Data visible; 11 hire offers and 8 freight quotes still required. Economics for market alternatives not implemented. |
-| Bunker-price and port-delay sensitivity | Required, not yet implemented. Flagged in Dashboard and Analytics. Monthly price selection is not scenario analysis. |
+| Bunker-price and port-delay sensitivity | Required, not yet implemented. Flagged in Analytics and these coverage notes. Monthly price selection is not scenario analysis. |
 | Threshold where a recommendation switches | Required, not yet implemented. Flagged alongside sensitivity. |
 | Fleet allocation/employment recommendation | Not yet implemented. Current ranking is for one committed cargo at one lift; it is not a fleet optimum. |
 | Export results | Comparison CSV and methodology downloads available in Reports. |

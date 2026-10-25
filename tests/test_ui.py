@@ -24,9 +24,9 @@ class UITests(unittest.TestCase):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
         self.assertEqual(app.selectbox(key="price_period").value, "2026-03")
         self.assertFalse(app.exception)
-        self.assertTrue(app.toggle(key="dark_mode").value)
-        app.toggle(key="dark_mode").set_value(False).run()
-        self.assertFalse(app.toggle(key="dark_mode").value)
+        self.assertTrue(app.session_state.dark_mode)
+        app.button(key="theme_button").click().run()
+        self.assertFalse(app.session_state.dark_mode)
         app.selectbox(key="selected_cargo").set_value("CC-01").run()
         self.assertEqual(app.number_input(key="selected_lift").value, 178000)
         self.assertTrue(any("infeasible" in warning.value for warning in app.warning))
@@ -35,6 +35,20 @@ class UITests(unittest.TestCase):
         next(r for r in app.radio if r.label == "Navigation").set_value("Analytics").run()
         self.assertFalse(app.exception)
         self.assertTrue(any("threshold" in w.value for w in app.warning))
+
+    def test_profile_and_local_logout(self):
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
+        next(b for b in app.button if b.label == "Profile settings").click().run()
+        self.assertFalse(app.exception)
+        next(t for t in app.text_input if t.label == "Display name").set_value("Yi Heng Test")
+        next(b for b in app.button if b.label == "Save profile").click().run()
+        self.assertEqual(app.session_state.profile_name, "Yi Heng Test")
+        next(b for b in app.button if b.label == "Log out").click().run()
+        self.assertTrue(app.session_state.logged_out)
+        self.assertFalse(app.exception)
+        next(b for b in app.button if b.label == "Start a new local session").click().run()
+        self.assertFalse(app.session_state.logged_out)
+        self.assertFalse(app.exception)
 
 
 if __name__ == "__main__":

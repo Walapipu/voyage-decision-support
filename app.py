@@ -5,15 +5,23 @@ import streamlit as st
 
 from voyage.data import load_tables
 from voyage.dashboard_data import dashboard_case
-from voyage.dashboard import (apply_theme, ship_svg, heading, summary_cards, fleet_panel,
+from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
     route_map, freight_panel, voyage_summary, comparison_table, economics, timeline,
     requirements_notice, result_frame)
 from voyage.chat_view import render_chat, clear_chat
 from voyage.decision import CONVENTIONS
 from voyage.openrouter import load_settings
 from voyage.ui import render_evidence
+from voyage.profile import toggle_theme, profile_menu
 
 st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
+if st.session_state.get("logged_out"):
+    st.title("Session ended")
+    st.write("Your local profile and conversation were cleared. This prototype has no account authentication.")
+    if st.button("Start a new local session"):
+        st.session_state.logged_out = False
+        st.rerun()
+    st.stop()
 for key, value in {"dark_mode":True, "selected_vessel":"MF-02", "selected_cargo":"CC-02", "selected_lift":164000, "price_period":"2026-03"}.items():
     if key not in st.session_state:
         st.session_state[key] = value
@@ -25,21 +33,19 @@ def reset_lift():
 with st.sidebar:
     st.html('<div class="brand"><div class="brandmark">≈</div><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
     page = st.radio("Navigation", ["Dashboard", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
-    st.html('<div class="sidebar-art"><h4>Smarter decisions.<br>Clearer voyages.</h4><p>Frozen synthetic teaching case<br>4 managed vessels · 3 commitments<br>11 market vessels · 8 opportunities</p></div>')
-    st.image(ship_svg(), width="stretch")
-    st.caption("Yi Heng · Project 3 prototype")
+    st.caption("Project 3 · Frozen synthetic case")
 
 tables = load_tables()
 with st.container(key="topbar"):
-    search_col, period_col, theme_col, user_col = st.columns([5, 2, 1.2, 1.7], vertical_alignment="center")
+    search_col, period_col, user_col, theme_col = st.columns([6, 2, 1.7, .5], vertical_alignment="center")
     with search_col:
         query = st.text_input("Search vessels, ports or cargoes", placeholder="Search vessels, ports or cargoes…", label_visibility="collapsed").strip().lower()
     with period_col:
         st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
     with theme_col:
-        st.toggle("Dark mode", key="dark_mode")
+        st.button("", icon=":material/dark_mode:", key="theme_button", help="Switch between dark and light mode", on_click=toggle_theme)
     with user_col:
-        st.html('<div class="profile"><span class="avatar">YH</span><div>Yi Heng<small>Freight decision support</small></div></div>')
+        profile_menu()
 apply_theme(st.session_state.dark_mode)
 
 with st.container(key="workspace"):
@@ -51,7 +57,7 @@ with st.container(key="workspace"):
     with lift_col:
         st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, step=500, key="selected_lift")
     with note_col:
-        st.caption("Frozen case · economical speeds · USD\n\nAll calculated panels follow this selection. March 2026 is the validated baseline month.")
+        st.caption("Frozen case · economical speeds · USD · all panels follow this selection")
 
 case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel)
 
@@ -62,28 +68,33 @@ if page == "Dashboard":
         with fleet, st.container(border=True, key="fleet_panel"):
             fleet_panel(case, query)
         with assistant, st.container(border=True, key="assistant_panel"):
-            title, new = st.columns([4,1])
+            title, new = st.columns([3,1])
             with title:
                 heading("AI Voyage Assistant", "Python engine + OpenRouter")
             with new:
                 st.button("New conversation", on_click=clear_chat)
-            voyage_summary(case)
-            comparison_table(case)
-            with st.expander("Revenue, costs and bunker consumption"):
-                economics(case)
-            render_chat(case, compact=True)
+            def dashboard_intro():
+                voyage_summary(case, compact=True)
+                with st.expander("Compare managed vessels", expanded=True):
+                    comparison_table(case, compact=True)
+                with st.expander("Revenue, costs and bunker consumption"):
+                    economics(case)
+            render_chat(case, compact=True, intro=dashboard_intro)
         with planning:
             route_map(case)
             with st.container(border=True, key="freight_panel"):
                 freight_panel(case, query)
-            requirements_notice()
     with st.container(border=True, key="timeline_panel"):
         timeline(case)
 
 elif page == "AI Assistant":
-    heading("AI Voyage Assistant", "Grounded in Python tool results")
-    st.button("New conversation", on_click=clear_chat)
-    render_chat(case)
+    with st.container(key="assistant_full"):
+        title, new = st.columns([5,1])
+        with title:
+            heading("AI Voyage Assistant", "Grounded in Python tool results")
+        with new:
+            st.button("New conversation", on_click=clear_chat)
+        render_chat(case)
 
 elif page == "Voyages":
     heading("Voyage economics", "Selected voyage and managed alternatives")
@@ -124,13 +135,13 @@ elif page == "Reports":
 
 elif page == "Documents":
     heading("Project documentation", "Requirements and calculation conventions")
-    doc = st.selectbox("Document", ["Metric coverage", "Architecture", "Source dictionary"])
-    paths = {"Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md"}
+    doc = st.selectbox("Document", ["Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
+    paths = {"Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
     st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))
 
 elif page == "Settings":
     heading("Settings and assumptions")
-    st.write("Use the Dark mode toggle in the top bar to switch themes. Your selection persists for this browser session.")
+    st.write("Use the moon button at the right of the top bar to switch themes. Your selection persists for this browser session. Profile settings and local-session logout are in the name dropdown.")
     try:
         _, model = load_settings()
         st.success("OpenRouter key configured on the server.")

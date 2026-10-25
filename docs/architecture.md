@@ -70,3 +70,7 @@ Chat messages and requested tool results go to OpenRouter/model providers. Sessi
 - [OpenRouter tool calls](https://openrouter.ai/docs/guides/features/tool-calling)
 - [Streamlit chat input](https://docs.streamlit.io/develop/api-reference/chat/st.chat_input)
 - [Streamlit chat messages](https://docs.streamlit.io/develop/api-reference/chat/st.chat_message)
+
+## Presentation assets and local profile
+
+Lucide SVG icons and representative, attributed bulk-carrier photos are bundled locally. Leaflet loads OpenStreetMap tiles over the internet; separately sourced approximate port coordinates only drive the display. Frozen route distances still drive Python economics. The name dropdown edits a session profile; local logout clears session state, without account authentication or changing server credentials. Desktop dashboard and assistant panels retain a visible composer while their contents scroll.

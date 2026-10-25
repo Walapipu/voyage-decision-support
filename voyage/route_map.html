@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#123044}.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(170deg) brightness(1.35) saturate(.7)}.leaflet-tooltip{background:#102535e8;border:1px solid #466078;color:#f2f8ff;font-size:10px;box-shadow:none}.country-label{color:#99adbd;background:transparent;border:0;box-shadow:none;font:9px Arial;white-space:nowrap;text-align:center;pointer-events:none}.light .country-label{color:#5c6f7a}.leaflet-control-attribution{font-size:8px!important}#legend{position:absolute;z-index:600;left:8px;bottom:21px;background:#102535e8;color:#d5e8f6;padding:5px 7px;font-size:9px;border-radius:4px;pointer-events:none}#error{display:none;position:absolute;z-index:650;top:8px;left:8px;right:40px;background:#102535e8;color:white;padding:8px;font-size:11px}</style></head><body class="__STYLE__"><div id="map" aria-label="Interactive port map"></div><div id="legend">Port vicinity · dashed links are schematic, not sailing routes</div><div id="error"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const points=__POINTS__;
+function showError(message){const e=document.getElementById('error');e.textContent=message;e.style.display='block';}
+try {
+const map=L.map('map',{zoomControl:false,scrollWheelZoom:false});L.control.zoom({position:'topright'}).addTo(map);
+const borders=__BOUNDARIES__;
+L.geoJSON(borders,{interactive:false,style:{color:document.body.classList.contains('dark')?'#647f90':'#98a8ad',weight:.6,opacity:.8,fill:false}}).addTo(map);
+borders.features.forEach(f=>{const p=f.properties;if(['China','India','Australia','Indonesia','Japan','Russia','Brazil','Argentina','South Africa','Guinea','Canada','Mexico','Saudi Arabia','United States of America'].includes(p.NAME)&&p.LABEL_X!=null&&p.LABEL_Y!=null){const label=document.createElement('span');label.textContent=p.NAME;L.marker([p.LABEL_Y,p.LABEL_X],{interactive:false,icon:L.divIcon({className:'country-label',html:label,iconSize:[65,12]})}).addTo(map);}});
+const coords=points.map(p=>[p.coordinates[1],p.coordinates[0]]);
+map.fitBounds(coords,{padding:[35,30],maxZoom:6});
+const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'}).addTo(map);
+tiles.on('tileerror',()=>showError('Some map tiles could not load. Check your internet connection.'));
+tiles.on('load',()=>{document.getElementById('error').style.display='none';});
+[0,1].forEach(i=>L.polyline([coords[i],coords[i+1]],{color:i?'#12beff':'#a4d7ed',weight:2,dashArray:'5 6'}).addTo(map));
+points.forEach((p,i)=>{const label=document.createElement('span');label.textContent=p.name;L.circleMarker(coords[i],{radius:5,color:'#fff',weight:2,fillColor:i===1?'#16cba1':'#12b9ff',fillOpacity:1}).addTo(map).bindTooltip(label,{permanent:true,direction:'top',offset:[0,-5]});});
+}catch(e){showError('Map unavailable. Check your connection to the Leaflet CDN. Calculations are unaffected.');}
+</script></body></html>
