@@ -46,7 +46,7 @@ class UITests(unittest.TestCase):
         next(b for b in app.button if b.label == "Log out").click().run()
         self.assertTrue(app.session_state.logged_out)
         self.assertFalse(app.exception)
-        next(b for b in app.button if b.label == "Start a new local session").click().run()
+        next(b for b in app.button if b.label == "Start new session").click().run()
         self.assertFalse(app.session_state.logged_out)
         self.assertFalse(app.exception)
 

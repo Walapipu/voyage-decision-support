@@ -20,7 +20,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(answer["evidence"][0]["result"]["rows"][0]["vessel_id"], "MF-02")
         request = api.call_args.args[2]
         self.assertEqual(request["tool_choice"], "none")
-        self.assertEqual(request["messages"][-1]["role"], "tool")
+        self.assertTrue(any(m["role"] == "tool" for m in request["messages"]))
         self.assertEqual(request["provider"]["max_price"], {"prompt": 0, "completion": 0})
 
     @patch("voyage.chat.load_settings", return_value=("test-secret", "openrouter/free"))
@@ -30,7 +30,8 @@ class ChatTests(unittest.TestCase):
         with patch("voyage.chat.api_request", side_effect=[first, ValueError("Rate limited")]):
             answer = chat_reply([{"role": "user", "content": "Compare"}])
         self.assertEqual(len(answer["evidence"][0]["result"]["rows"]), 4)
-        self.assertIn("unavailable", answer["content"])
+        self.assertIn("unavailable", answer["notice"])
+        self.assertIn("186,749", answer["content"])
 
     @patch("voyage.chat.load_settings", return_value=("test-secret", "paid-model"))
     def test_paid_model_blocked_before_network(self, settings):

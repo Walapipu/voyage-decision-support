@@ -17,8 +17,8 @@ from voyage.profile import toggle_theme, profile_menu
 st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
 if st.session_state.get("logged_out"):
     st.title("Session ended")
-    st.write("Your local profile and conversation were cleared. This prototype has no account authentication.")
-    if st.button("Start a new local session"):
+    st.write("Your profile and conversation were cleared for this session.")
+    if st.button("Start new session"):
         st.session_state.logged_out = False
         st.rerun()
     st.stop()
@@ -33,7 +33,6 @@ def reset_lift():
 with st.sidebar:
     st.html('<div class="brand"><div class="brandmark">≈</div><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
     page = st.radio("Navigation", ["Dashboard", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
-    st.caption("Project 3 · Frozen synthetic case")
 
 tables = load_tables()
 with st.container(key="topbar"):
@@ -57,7 +56,7 @@ with st.container(key="workspace"):
     with lift_col:
         st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, step=500, key="selected_lift")
     with note_col:
-        st.caption("Frozen case · economical speeds · USD · all panels follow this selection")
+        st.caption("Economical speed · USD · selected voyage")
 
 case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel)
 
@@ -70,7 +69,7 @@ if page == "Dashboard":
         with assistant, st.container(border=True, key="assistant_panel"):
             title, new = st.columns([3,1])
             with title:
-                heading("AI Voyage Assistant", "Python engine + OpenRouter")
+                heading("AI Voyage Assistant", "Voyage analysis")
             with new:
                 st.button("New conversation", on_click=clear_chat)
             def dashboard_intro():
@@ -80,7 +79,7 @@ if page == "Dashboard":
                 with st.expander("Revenue, costs and bunker consumption"):
                     economics(case)
             render_chat(case, compact=True, intro=dashboard_intro)
-        with planning:
+        with planning, st.container(key="planning_panel"):
             route_map(case)
             with st.container(border=True, key="freight_panel"):
                 freight_panel(case, query)
@@ -91,7 +90,7 @@ elif page == "AI Assistant":
     with st.container(key="assistant_full"):
         title, new = st.columns([5,1])
         with title:
-            heading("AI Voyage Assistant", "Grounded in Python tool results")
+            heading("AI Voyage Assistant", "Commercial analysis")
         with new:
             st.button("New conversation", on_click=clear_chat)
         render_chat(case)
@@ -108,7 +107,7 @@ elif page == "Voyages":
         st.json({"result":case["row"], "conventions": CONVENTIONS})
 
 elif page in ("Fleet", "Freight", "Ports"):
-    heading(page + " data", "Original frozen source records")
+    heading(page + " data", "Vessels, cargoes and ports")
     table_names = {"Fleet":["managed_vessels","market_vessels"], "Freight":["committed_cargoes","market_cargoes"], "Ports":["ports"]}[page]
     if page == "Freight":
         st.info("Market freight rates of zero are unquoted inputs, not free freight. No booking or completion statuses are supplied.")
@@ -125,7 +124,7 @@ elif page == "Analytics":
     heading("Voyage comparisons", "Current cargo, lift and price month")
     render_evidence([{"tool":"compare_vessels", "result":case["comparison"]}])
     requirements_notice()
-    st.warning("Bunker-price shocks, port-delay scenarios and recommendation-switch thresholds are required by the brief and remain to be built. The month selector changes frozen forward prices; it is not a substitute for scenario analysis.")
+    st.warning("Scenario analysis and recommendation-switch thresholds are not available yet. The month selector chooses a pricing period.")
 
 elif page == "Reports":
     heading("Export calculated results", "Includes feasibility flags and pricing period")
@@ -134,7 +133,7 @@ elif page == "Reports":
     st.download_button("Download methodology", "\n".join(f'{k}: {v}' for k,v in CONVENTIONS.items()), file_name="voyage_methodology.txt")
 
 elif page == "Documents":
-    heading("Project documentation", "Requirements and calculation conventions")
+    heading("Documentation", "Methodology and references")
     doc = st.selectbox("Document", ["Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
     paths = {"Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
     st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))

@@ -74,3 +74,19 @@ Chat messages and requested tool results go to OpenRouter/model providers. Sessi
 ## Presentation assets and local profile
 
 Lucide SVG icons and representative, attributed bulk-carrier photos are bundled locally. Leaflet loads OpenStreetMap tiles over the internet; separately sourced approximate port coordinates only drive the display. Frozen route distances still drive Python economics. The name dropdown edits a session profile; local logout clears session state, without account authentication or changing server credentials. Desktop dashboard and assistant panels retain a visible composer while their contents scroll.
+
+## Analyst replies and visual reports
+
+The `Generate analyst review` action requires a `compare_vessels` tool call. Ordinary questions retain automatic tool selection. The engine returns full-precision voyage rows; `analysis.py` prepares margins, cost shares, ballast shares and differences with Pandas/NumPy. These deterministic facts travel with the tool response to the model. The model writes a short commercial briefing covering conclusion, cost drivers, constraints and next action.
+
+The same result object is rendered inside the assistant message as a Plotly dashboard: earnings comparison, revenue-to-contribution waterfall and stacked voyage durations, plus a comparison table and calculation details. Model text is never parsed as chart data and generated Python/JavaScript is never executed. Each chat response has separate chart keys, so repeated calculations remain independent. Reports remain visible when the explanation API fails after successful calculation. If no voyage is feasible, no vessel is labelled a recommendation and the earnings-ranking chart is replaced with an explicit status.
+
+The valuation engine still uses Decimal. Pandas/NumPy handle presentation analytics; Plotly draws interactive figures. SciPy is not needed for these descriptive charts; numerical optimisation remains future work.
+
+## Financial colours and layout
+
+Positive margin/contribution is green, negative is red, and break-even is amber. The margin gradient uses a fixed, symmetric display range of -25% to +25%, saturating outside it. This is a visual scale, not a claim about industry benchmarks. Missing margins remain neutral. A shared flex layout gives all three desktop columns the same height, while the timeline has 144px and readable labels. Only panel contents scroll; the composer stays outside the chat scrolling area. On narrow screens the assistant comes first and panels stack.
+
+### Commentary boundary
+
+A live provider test fabricated a savings figure despite grounding instructions. Calculated replies therefore use a stricter second-call contract: the model returns four short, qualitative JSON fields without numeric claims or IDs. Python formats all financial statements, margins, differences, constraint measurements and identifiers directly from the engine. Invalid or unavailable commentary falls back to the same calculated briefing with a visible notice. This validates structure and keeps displayed quantitative statements deterministic; qualitative model commentary still needs human review and is not guaranteed semantically correct.

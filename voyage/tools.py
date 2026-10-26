@@ -5,6 +5,7 @@ from jsonschema import Draft202012Validator
 
 from voyage.data import catalog
 from voyage.decision import evaluate_voyage, compare_vessels
+from voyage.analysis import analyst_facts
 
 CARGO = {"type": "string", "enum": ["CC-01", "CC-02", "CC-03"]}
 LIFT = {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000,
@@ -42,6 +43,9 @@ def execute_tool(name, arguments):
     if not Draft202012Validator(schema).is_valid(args):
         return {"error": "Invalid tool arguments. Check vessel/cargo IDs, positive lift in tonnes, and month. No calculation ran."}
     try:
-        return HANDLERS[name](**args)
+        result = HANDLERS[name](**args)
+        if result.get("rows"):
+            result["analysis"] = analyst_facts(result["rows"])
+        return result
     except ValueError as exc:
         return {"error": str(exc)}

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from voyage.analysis import profit_tone
 from voyage.assets import icon_styles, vessel_photo
 from voyage.map_view import render_map
 
@@ -22,6 +23,11 @@ def stamp(value):
     return datetime.fromisoformat(value.replace("Z", "+00:00")).strftime("%d %b, %H:%M")
 
 
+def profit_style(value):
+    colour, strength = profit_tone(value, st.session_state.get("dark_mode", True))
+    return f'--profit-colour:{colour};--profit-wash:{colour}{int(20 + 35 * strength):02x};'
+
+
 def apply_theme(dark):
     palette = ({"bg":"#0b1624","panel":"#122337","field":"#182d43","text":"#e1edf9","muted":"#9bb0c7","line":"#2a4056","blue":"#51bcff","bluewash":"#133650","green":"#5dd6a6","greenwash":"#143d36","amber":"#f5c274","amberwash":"#443626"}
                if dark else {"bg":"#f0f4f8","panel":"#ffffff","field":"#f3f6fa","text":"#14243b","muted":"#62768e","line":"#e0e7ef","blue":"#087bf5","bluewash":"#edf6ff","green":"#14885d","greenwash":"#e6f7ef","amber":"#a16a12","amberwash":"#fff2db"})
@@ -37,13 +43,22 @@ def summary_cards(case):
     row = case["row"]
     suffix = " · infeasible case" if not row["feasible"] else " · selected voyage"
     cards = [
-        ("ship", "Active Voyages", "—", "Activity history not supplied"),
-        ("chart-pie", "Fleet Utilisation", "—", "No fleet occupancy history"),
+        ("ship", "Active Voyages", "—", "Not connected"),
+        ("chart-pie", "Fleet Utilisation", "—", "Not connected"),
         ("fuel", "Fuel Cost (USD)", usd(row["bunker_cost_usd"]), f'{case["fuel_tonnes"]:,.0f} t consumed' + suffix),
-        ("clock", "ETA Reliability", "—", "No actual-versus-planned arrivals"),
+        ("clock", "ETA Reliability", "—", "Not connected"),
         ("trending-up", "Profit Margin", f'{case["margin_pct"]:.1f}%' if case["margin_pct"] is not None else "—", "Contribution ÷ freight revenue" + suffix),
     ]
-    st.html('<div class="kpi-grid">' + "".join(f'<div class="kpi"><div class="kpi-icon"><span class="lucide icon-{e(icon)}"></span></div><div><h4>{e(label)}</h4><strong>{e(value)}</strong><small>{e(note)}</small></div></div>' for icon,label,value,note in cards) + '</div>')
+    tiles = []
+    for icon, label, value, note in cards:
+        is_profit = label == "Profit Margin"
+        style = profit_style(case["margin_pct"]) if is_profit else ""
+        gradient = ''
+        if is_profit and case["margin_pct"] is not None:
+            position = max(0, min(100, 50 + case["margin_pct"] * 2))
+            gradient = f'<div class="profit-scale" title="Display scale: −25% to +25%; zero is break-even. Not an industry rating."><i style="left:{position:.1f}%"></i></div>'
+        tiles.append(f'<div class="kpi {"profit-kpi" if is_profit else ""}" style="{style}"><div class="kpi-icon"><span class="lucide icon-{e(icon)}"></span></div><div class="kpi-body"><h4>{e(label)}</h4><strong>{e(value)}</strong><small>{e(note)}</small>{gradient}</div></div>')
+    st.html('<div class="kpi-grid">' + ''.join(tiles) + '</div>')
 
 
 def fleet_panel(case, query):
@@ -68,7 +83,6 @@ def fleet_panel(case, query):
                 st.button("Inspect " + vessel["vessel_id"], key="inspect_" + vessel["vessel_id"], on_click=select_vessel, args=(vessel["vessel_id"],), width="stretch")
         if not found:
             st.caption("No vessels match the search.")
-    st.caption("Representative ship photos · fictional fleet. Credits in Documents.")
 
 
 def select_vessel(vessel_id):
@@ -93,7 +107,6 @@ def freight_panel(case, query):
         rate = "Quote needed" if market else f'${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}'
         body += f'<tr><td><b>{e(cargo["cargo_id"])}</b><br>{e(cargo["commodity"].replace("_"," "))}</td><td>{e(cargo["load_port"])}<br>→ {e(cargo["discharge_port"])}</td><td>{e(rate)}</td><td>{float(cargo["nominal_quantity_tonnes"])/1000:g}k t</td></tr>'
     st.html('<div class="table-wrap"><table class="ocean-table"><thead><tr><th>Cargo</th><th>Route</th><th>USD/t</th><th>Nominal</th></tr></thead><tbody>'+body+'</tbody></table></div>')
-    st.caption("No booked/completed statuses or market margins are supplied. Market freight zeros mean missing quotes.")
 
 
 def voyage_summary(case, compact=False):
@@ -104,7 +117,12 @@ def voyage_summary(case, compact=False):
     if not r["feasible"]:
         st.warning("Selected voyage is infeasible: " + ", ".join(r["failed_checks"]) + ". Its economics are hypothetical, not a recommendation.")
     cards = [("TCE before hire", usd(r["tce_usd_per_day"]),"USD/day"), ("Contribution",usd(r["voyage_contribution_usd"]),"after voyage hire"), ("Voyage duration",f'{r["voyage_days"]:.2f}',"days, including ballast"), ("Laycan slack",f'{r["laycan_slack_days"]:.2f}',"days to closing date")]
-    st.html('<div class="metrics-mini">'+''.join(f'<div class="mini"><small>{e(a)}</small><strong>{e(b)}</strong><em>{e(c)}</em></div>' for a,b,c in cards)+'</div>')
+    values = [r["tce_usd_per_day"], r["voyage_contribution_usd"], None, r["laycan_slack_days"]]
+    minis = []
+    for (label, value, note), numeric in zip(cards, values):
+        style = profit_style(100 * r["voyage_contribution_usd"] / r["freight_revenue_usd"] if r["freight_revenue_usd"] else None) if label == "Contribution" else profit_style(1 if numeric is not None and numeric > 0 else -1 if numeric is not None and numeric < 0 else 0)
+        minis.append(f'<div class="mini {"signed-metric" if numeric is not None else ""}" style="{style}"><small>{e(label)}</small><strong>{e(value)}</strong><em>{e(note)}</em></div>')
+    st.html('<div class="metrics-mini">'+''.join(minis)+'</div>')
     detail = [("Route", case["ports"][c["load_port"]]["port_name"] + " → " + case["ports"][c["discharge_port"]]["port_name"]),
               ("Discharge ETA (UTC)",stamp(case["discharge_eta"])),
               ("Ballast / laden",f'{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm'),
@@ -140,12 +158,12 @@ def economics(case):
 
 
 def timeline(case):
-    heading("Voyage Timeline — " + case["vessel"]["vessel_id"], "Calculated schedule · UTC · not live status")
+    heading("Voyage Timeline — " + case["vessel"]["vessel_id"], "Estimated schedule · UTC")
     st.html('<div class="timeline">'+''.join(f'<div class="stop"><b>{e(s["label"])}</b><small>{e(stamp(s["time"]))}</small><small>{e(s["detail"])}</small><em>Estimated</em></div>' for s in case["timeline"])+'</div>')
 
 
 def requirements_notice():
-    st.html('<div class="gap-note"><b>Required next:</b> bunker-price and port-delay scenarios, recommendation-switch thresholds, and market-vessel/cargo comparisons. These are missing from the reference and are not implemented yet. Current results cover managed vessels and committed cargoes.</div>')
+    st.html('<div class="gap-note"><b>Analysis coverage:</b> managed vessels and committed cargoes. Market comparisons and bunker-price / port-delay scenarios are not yet available.</div>')
 
 
 def result_frame(case):

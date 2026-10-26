@@ -18,7 +18,7 @@ def close_profile():
 
 @st.dialog("Profile settings", on_dismiss=close_profile)
 def profile_settings():
-    st.caption("Local browser session profile. No account or password is stored.")
+    st.caption("Set the name and role shown in your workspace for this session.")
     with st.form("profile_form"):
         name = st.text_input("Display name", value=st.session_state.get("profile_name", "Yi Heng"), max_chars=60)
         role = st.text_input("Role", value=st.session_state.get("profile_role", "Freight planner"), max_chars=80)
@@ -39,6 +39,6 @@ def profile_menu():
         if st.button("Profile settings", icon=":material/manage_accounts:", width="stretch"):
             st.session_state.edit_profile = True
         st.button("Log out", icon=":material/logout:", on_click=logout, width="stretch")
-        st.caption("Log out clears this local session. Authentication is not configured.")
+        st.caption("Ends this session and clears its conversation.")
     if st.session_state.get("edit_profile"):
         profile_settings()
