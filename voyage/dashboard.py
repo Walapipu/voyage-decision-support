@@ -78,11 +78,21 @@ def fleet_panel(case, query):
             with illustration:
                 st.image(vessel_photo(vessel["vessel_id"]), width="stretch")
             with description:
-                st.html(f'<div class="fleet-row"><div><b>{e(vessel["vessel_id"])}</b><p>Capesize bulk carrier</p><p>{float(vessel["dwt_tonnes"]):,.0f} DWT</p><p>{e(port)}</p></div><div class="fleet-meta"><span class="tag {"good" if managed else "warn"}">{"Managed" if managed else "Quote needed"}</span><small>Available {e(stamp(vessel["available_from_utc"]).split(",")[0])}</small></div></div>')
-            if managed:
-                st.button("Inspect " + vessel["vessel_id"], key="inspect_" + vessel["vessel_id"], on_click=select_vessel, args=(vessel["vessel_id"],), width="stretch")
+                if managed:
+                    st.button(vessel["vessel_id"], key="inspect_" + vessel["vessel_id"], on_click=select_vessel, args=(vessel["vessel_id"],), type="tertiary")
+                else:
+                    if st.button(vessel["vessel_id"], key="inspect_" + vessel["vessel_id"], type="tertiary"):
+                        inspect_market_vessel(vessel, port)
+                st.html(f'<div class="fleet-row"><div><p>Capesize bulk carrier</p><p>{float(vessel["dwt_tonnes"]):,.0f} DWT</p><p>{e(port)}</p></div><div class="fleet-meta"><span class="tag {"good" if managed else "warn"}">{"Managed" if managed else "Quote needed"}</span><small>Available {e(stamp(vessel["available_from_utc"]).split(",")[0])}</small></div></div>')
         if not found:
             st.caption("No vessels match the search.")
+
+
+@st.dialog("Vessel details")
+def inspect_market_vessel(vessel, port):
+    st.subheader(vessel["vessel_id"])
+    st.write(f'Capesize bulk carrier · {float(vessel["dwt_tonnes"]):,.0f} DWT · {port}')
+    st.dataframe(pd.DataFrame([vessel]).T.rename(columns={0:"Value"}), width="stretch")
 
 
 def select_vessel(vessel_id):

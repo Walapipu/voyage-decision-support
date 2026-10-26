@@ -36,6 +36,16 @@ class UITests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertTrue(any("threshold" in w.value for w in app.warning))
 
+    def test_vessel_name_selection_and_all_workspace_pages(self):
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
+        self.assertEqual(app.button(key="inspect_MF-01").label, "MF-01")
+        app.button(key="inspect_MF-01").click().run()
+        self.assertEqual(app.selectbox(key="selected_vessel").value, "MF-01")
+        self.assertFalse(any(b.label.startswith("Inspect ") for b in app.button))
+        for page in ["AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"]:
+            next(r for r in app.radio if r.label == "Navigation").set_value(page).run()
+            self.assertFalse(app.exception, page)
+
     def test_profile_and_local_logout(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
         next(b for b in app.button if b.label == "Profile settings").click().run()
