@@ -17,7 +17,7 @@ class UITests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertEqual(chat.call_count, 1)
         self.assertEqual(len(app.chat_message), 2)
-        next(b for b in app.button if b.label == "New conversation").click().run()
+        app.button(key="new_conversation").click().run()
         self.assertEqual(len(app.chat_message), 0)
 
     def test_dashboard_selection_theme_and_navigation(self):

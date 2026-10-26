@@ -53,7 +53,6 @@ def render_chat(case, compact=False, intro=None):
                     st.rerun()
     with st.container(key="composer"):
         prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", max_chars=4000, disabled=bool(st.session_state.pending))
-        st.caption("Review recommendations before confirming a voyage.")
     if prompt and prompt.strip():
         st.session_state.pending = prompt.strip()
         st.session_state.chat_error = None

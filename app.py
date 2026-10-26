@@ -36,7 +36,7 @@ with st.sidebar:
 
 tables = load_tables()
 with st.container(key="topbar"):
-    search_col, period_col, user_col, theme_col = st.columns([6, 2, 1.7, .5], vertical_alignment="center")
+    search_col, period_col, theme_col, user_col = st.columns([6, 1.8, .55, 1.8], vertical_alignment="center")
     with search_col:
         query = st.text_input("Search vessels, ports or cargoes", placeholder="Search vessels, ports or cargoes…", label_visibility="collapsed").strip().lower()
     with period_col:
@@ -48,15 +48,13 @@ with st.container(key="topbar"):
 apply_theme(st.session_state.dark_mode)
 
 with st.container(key="workspace"):
-    vessel_col, cargo_col, lift_col, note_col = st.columns([1.2, 1.2, 1.4, 3], vertical_alignment="bottom")
+    vessel_col, cargo_col, lift_col = st.columns([1, 1, 1], vertical_alignment="bottom")
     with vessel_col:
         st.selectbox("Selected vessel", [v["vessel_id"] for v in tables["managed_vessels"]], key="selected_vessel")
     with cargo_col:
         st.selectbox("Committed cargo", [c["cargo_id"] for c in tables["committed_cargoes"]], key="selected_cargo", on_change=reset_lift)
     with lift_col:
         st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, step=500, key="selected_lift")
-    with note_col:
-        st.caption("Economical speed · USD · selected voyage")
 
 case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel)
 
@@ -67,11 +65,11 @@ if page == "Dashboard":
         with fleet, st.container(border=True, key="fleet_panel"):
             fleet_panel(case, query)
         with assistant, st.container(border=True, key="assistant_panel"):
-            title, new = st.columns([3,1])
+            title, new = st.columns([1, .12], vertical_alignment="center")
             with title:
-                heading("AI Voyage Assistant", "Voyage analysis")
+                heading("AI Voyage Assistant")
             with new:
-                st.button("New conversation", on_click=clear_chat)
+                st.button("", icon=":material/edit_square:", help="New conversation", key="new_conversation", on_click=clear_chat)
             def dashboard_intro():
                 voyage_summary(case, compact=True)
                 with st.expander("Compare managed vessels", expanded=True):
@@ -88,11 +86,11 @@ if page == "Dashboard":
 
 elif page == "AI Assistant":
     with st.container(key="assistant_full"):
-        title, new = st.columns([5,1])
+        title, new = st.columns([1, .06], vertical_alignment="center")
         with title:
             heading("AI Voyage Assistant", "Commercial analysis")
         with new:
-            st.button("New conversation", on_click=clear_chat)
+            st.button("", icon=":material/edit_square:", help="New conversation", key="new_conversation", on_click=clear_chat)
         render_chat(case)
 
 elif page == "Voyages":

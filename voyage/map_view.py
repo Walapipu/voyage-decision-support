@@ -13,4 +13,4 @@ def render_map(case):
     markup = (Path(__file__).with_name("route_map.html").read_text(encoding="utf-8")
               .replace("__POINTS__",payload).replace("__STYLE__",style)
               .replace("__BOUNDARIES__", (Path(__file__).resolve().parents[1] / "data/map_boundaries.geojson").read_text(encoding="utf-8")))
-    st.iframe(markup, height=260, alt="Interactive map of selected voyage ports")
+    st.iframe(markup, height=200, alt="Interactive map of selected voyage ports")

@@ -85,7 +85,7 @@ The valuation engine still uses Decimal. Pandas/NumPy handle presentation analyt
 
 ## Financial colours and layout
 
-Positive margin/contribution is green, negative is red, and break-even is amber. The margin gradient uses a fixed, symmetric display range of -25% to +25%, saturating outside it. This is a visual scale, not a claim about industry benchmarks. Missing margins remain neutral. A shared flex layout gives all three desktop columns the same height, while the timeline has 144px and readable labels. Only panel contents scroll; the composer stays outside the chat scrolling area. On narrow screens the assistant comes first and panels stack.
+Positive margin/contribution is green, negative is red, and break-even is amber. The margin gradient uses a fixed, symmetric display range of -25% to +25%, saturating outside it. This is a visual scale, not a claim about industry benchmarks. Missing margins remain neutral. A shared flex layout aligns the three desktop columns, with a minimum page height to protect Freight Planning and a readable timeline. The page scrolls on short windows; chat and fleet content also scroll within their panels. The composer stays outside the chat scrolling area. At widths up to 1200px, the assistant spans the row above the fleet and planning panels; at 640px and below the panels stack. KPI and selection controls remain compact. Native sidebar collapse/reopen controls remain visible, and collapsing the sidebar releases its width to the main content. The map uses one 200px frame height, follows the selected theme, and refits on container resize.
 
 ### Commentary boundary
 
