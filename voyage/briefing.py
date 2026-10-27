@@ -2,6 +2,7 @@
 import json
 import re
 from voyage.analysis import analyst_facts
+from voyage.fuel import shortage_message
 
 COMMENTARY_INSTRUCTION = """The engine has completed the requested calculations.
 Return ONLY a JSON object with exactly four string fields: assessment, drivers, risk,
@@ -68,7 +69,11 @@ def calculated_briefing(evidence, commentary=None):
                  f'draft headroom is **{row["draft_margin_m"]:.2f} m**, against the required 0.30 m. ')
         if not row["feasible"]:
             risks += 'Failed checks: ' + ', '.join(row["failed_checks"]) + '. '
+        if not row["fuel_pass"]:
+            risks += shortage_message(row) + ' No fuel deliveries are scheduled. '
         next_action = extra.get("next_action", "Confirm vessel readiness, port limits and commercial inputs before selecting a voyage.")
+        if not row["fuel_pass"]:
+            next_action = "Resolve the fuel delivery location, quantity and timing, then revalidate the voyage before proceeding."
         sections.append(f'**{scope}**\n\n{view}\n\n**Drivers.** {driver}{extra.get("drivers", "")}\n\n'
                         f'**Constraints.** {risks}{extra.get("risk", "")}\n\n**Next action.** {next_action}\n\n'
                         'Comparison covers this cargo and lift; voyage durations differ. Canal cost is assumed zero.')

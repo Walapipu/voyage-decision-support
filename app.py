@@ -140,8 +140,8 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
 
     elif page == "Documents":
         heading("Documentation", "Methodology and references")
-        doc = st.selectbox("Document", ["Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
-        paths = {"Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
+        doc = st.selectbox("Document", ["Modelling assumptions", "Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
+        paths = {"Modelling assumptions":"docs/assumptions.md", "Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
         st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))
 
     elif page == "Settings":

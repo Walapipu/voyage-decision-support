@@ -3,6 +3,7 @@ from html import escape
 import streamlit as st
 from voyage.analysis import analyst_facts, profit_tone, result_frame
 from voyage.charts import earnings_chart, cost_chart, duration_chart
+from voyage.fuel import shortage_message
 
 
 def render_evidence(evidence, key_prefix="analysis"):
@@ -19,6 +20,8 @@ def render_evidence(evidence, key_prefix="analysis"):
             label = "Highest contribution" if len(rows) > 1 and focus["feasible"] else "Voyage analysis"
             if not focus["feasible"]:
                 st.warning("No feasible voyage in these results. Figures below are hypothetical.")
+            if not focus["fuel_pass"]:
+                st.info("Replenishment plan required. " + shortage_message(focus))
             margin = f'{facts["focus_margin_pct"]:.1f}%' if facts["focus_margin_pct"] is not None else "—"
             st.html(f'<div class="report-head"><b>{escape(label)} · {escape(focus["vessel_id"])} / {escape(focus["cargo_id"])}</b>'
                     f'<span>{focus["selected_lift_tonnes"]:,.0f} t · {escape(focus["bunker_price_period"])}</span></div>'

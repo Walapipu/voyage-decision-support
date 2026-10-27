@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal as D, InvalidOperation, getcontext
 from voyage.data import load_tables, index
+from voyage.fuel import audit_fuel
 
 getcontext().prec = 32
 
@@ -37,6 +38,13 @@ def calculate(vessel_id, cargo_id, lift, period="2026-03"):
     loading = q / num(c, 'load_rate_tonnes_per_day') + num(c, 'load_turn_time_hours') / 24
     discharge = q / num(c, 'discharge_rate_tonnes_per_day') + num(c, 'discharge_turn_time_hours') / 24
     days = bd + wait + loading + ld + discharge
+    fuel = audit_fuel({"VLSFO": num(v, "vlsfo_rob_tonnes"), "MGO": num(v, "mgo_rob_tonnes")}, [
+        ("Ballast passage", bd, {"VLSFO": bd*num(v, "economical_ballast_vlsfo_tpd"), "MGO": bd*num(v, "economical_ballast_mgo_tpd")}),
+        ("Waiting at load port", wait, {"VLSFO": wait*num(v, "port_idle_vlsfo_tpd"), "MGO": D(0)}),
+        ("Loading", loading, {"VLSFO": loading*num(v, "port_working_vlsfo_tpd"), "MGO": D(0)}),
+        ("Laden passage", ld, {"VLSFO": ld*num(v, "economical_laden_vlsfo_tpd"), "MGO": ld*num(v, "economical_laden_mgo_tpd")}),
+        ("Discharge", discharge, {"VLSFO": discharge*num(v, "port_working_vlsfo_tpd"), "MGO": D(0)}),
+    ])
     vf = bd*num(v, 'economical_ballast_vlsfo_tpd') + ld*num(v, 'economical_laden_vlsfo_tpd') + wait*num(v, 'port_idle_vlsfo_tpd') + (loading+discharge)*num(v, 'port_working_vlsfo_tpd')
     mg = bd*num(v, 'economical_ballast_mgo_tpd') + ld*num(v, 'economical_laden_mgo_tpd')
     vp = max(D(0), vf + num(assumptions, 'vlsfo_reserve_tonnes') - num(v, 'vlsfo_rob_tonnes'))
@@ -69,4 +77,4 @@ def calculate(vessel_id, cargo_id, lift, period="2026-03"):
         commission_usd=commission, port_cost_usd=port_cost, voyage_cashflow_usd=cashflow, tce_usd_per_day=cashflow/days,
         hire_cost_usd=hire, voyage_contribution_usd=cashflow-hire, arrival_at_load_utc=arrival.isoformat(),
         laycan_slack_days=slack, quantity_pass=num(c,'minimum_quantity_tonnes')<=q<=num(c,'maximum_quantity_tonnes'),
-        laycan_pass=slack>=0, deadweight_pass=dw<=num(v,'dwt_tonnes'), draft_pass=limit-draft>=num(assumptions,'minimum_draft_margin_m'))
+        laycan_pass=slack>=0, deadweight_pass=dw<=num(v,'dwt_tonnes'), draft_pass=limit-draft>=num(assumptions,'minimum_draft_margin_m'), **fuel)

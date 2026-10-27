@@ -1,5 +1,6 @@
 import json
 import unittest
+from copy import deepcopy
 from unittest.mock import patch
 from pathlib import Path
 from streamlit.testing.v1 import AppTest
@@ -9,11 +10,22 @@ from voyage.tools import execute_tool
 from voyage.decision import compare_vessels
 from voyage.chat import chat_reply
 from voyage.briefing import calculated_briefing, parse_commentary
+from voyage.data import load_tables
+
+
+def fuel_sufficient_comparison():
+    """Hypothetical inventory fixture to retain positive ranking/chart coverage."""
+    tables = deepcopy(load_tables())
+    for vessel in tables["managed_vessels"]:
+        vessel["vlsfo_rob_tonnes"] = "5000"
+        vessel["mgo_rob_tonnes"] = "500"
+    with patch("voyage.engine.load_tables", return_value=tables):
+        return execute_tool("compare_vessels", '{"cargo_id":"CC-02","lift_tonnes":164000}')
 
 
 class AnalysisTests(unittest.TestCase):
     def test_report_and_charts_reconcile_to_executed_result(self):
-        output = execute_tool("compare_vessels", '{"cargo_id":"CC-02","lift_tonnes":164000}')
+        output = fuel_sufficient_comparison()
         facts, rows = output["analysis"], output["rows"]
         best = rows[0]
         self.assertEqual(facts["highest_contribution_feasible_vessel"], "MF-02")
@@ -55,7 +67,7 @@ class AnalysisTests(unittest.TestCase):
             chat_reply([], force_comparison=True)
 
     def test_unsupported_numeric_commentary_is_replaced(self):
-        output = execute_tool("compare_vessels", '{"cargo_id":"CC-02","lift_tonnes":164000}')
+        output = fuel_sufficient_comparison()
         invalid = json.dumps({"assessment":"Best option", "drivers":"Saves 9.6M in costs", "risk":"Delay", "next_action":"Review"})
         self.assertIsNone(parse_commentary(invalid))
         report = calculated_briefing([{"result":output}])
@@ -76,5 +88,5 @@ class AnalysisTests(unittest.TestCase):
             self.assertFalse(app.exception)
             app.chat_input[0].set_value("Compare it again").run()
         self.assertFalse(app.exception)
-        self.assertEqual(len(app.get("plotly_chart")), 6)
+        self.assertEqual(len(app.get("plotly_chart")), 4)
         self.assertEqual(len(app.chat_message), 4)

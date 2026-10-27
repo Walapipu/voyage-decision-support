@@ -8,6 +8,7 @@ import streamlit as st
 from voyage.analysis import profit_tone
 from voyage.assets import icon_styles, vessel_photo
 from voyage.map_view import render_map
+from voyage.fuel import shortage_message
 
 
 
@@ -126,6 +127,11 @@ def voyage_summary(case, compact=False):
     st.html(f'<div class="callout"><b>{e(v["vessel_id"])} / {e(c["cargo_id"])}</b> · {r["selected_lift_tonnes"]:,.0f} tonnes<br>{verdict} {case["feasible_count"]}/4 managed vessels pass all checks. This compares one cargo, not a fleet allocation.</div>')
     if not r["feasible"]:
         st.warning("Selected voyage is infeasible: " + ", ".join(r["failed_checks"]) + ". Its economics are hypothetical, not a recommendation.")
+    if not r["fuel_pass"]:
+        st.info("Replenishment plan required. " + shortage_message(r))
+    with st.expander("Fuel availability by stage"):
+        st.caption("Opening ROB only; no deliveries assumed. Negative balances represent unmet demand. Reserve timing remains unconfirmed.")
+        st.dataframe(pd.DataFrame(r["fuel_ledger"]), hide_index=True, width="stretch")
     cards = [("TCE before hire", usd(r["tce_usd_per_day"]),"USD/day"), ("Contribution",usd(r["voyage_contribution_usd"]),"after voyage hire"), ("Voyage duration",f'{r["voyage_days"]:.2f}',"days, including ballast"), ("Laycan slack",f'{r["laycan_slack_days"]:.2f}',"days to closing date")]
     values = [r["tce_usd_per_day"], r["voyage_contribution_usd"], None, r["laycan_slack_days"]]
     minis = []

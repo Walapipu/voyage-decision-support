@@ -29,7 +29,8 @@ class EngineTests(unittest.TestCase):
 
     def test_comparison_and_feasibility(self):
         result = compare_vessels("CC-02", 164000)
-        self.assertEqual([r["vessel_id"] for r in result["rows"] if r["feasible"]], ["MF-02", "MF-01"])
+        self.assertEqual([r["vessel_id"] for r in result["rows"] if r["feasible"]], [])
+        self.assertEqual(result["rows"][0]["failed_checks"], ["fuel"])
         row = result["rows"][0]
         self.assertAlmostEqual(row["tce_usd_per_day"], 21612.05, places=2)
         self.assertAlmostEqual(row["voyage_contribution_usd"], 186748.50, places=2)

@@ -20,6 +20,11 @@ Default bunker month is March 2026: disclose it. Economical speed, load-port bun
 pricing, a 0.3 m margin below the limiting draft, and provisional zero canal cost apply.
 TCE is daily net voyage cashflow before hire; contribution subtracts voyage hire.
 Report infeasibility before discussing economics. Never recommend an infeasible voyage.
+Late load-port arrival is excluded outright; arrival is a provisional readiness proxy.
+Fuel is audited by grade and voyage stage. Purchase requirements are not deliveries.
+If fuel_pass is false, a replenishment plan is required before recommendation.
+Never assume a delivery at the pricing location or claim replenishment is impossible.
+Continuous reserve requirements and the exact readiness/NOR milestone are unresolved.
 Comparisons are for one cargo at one lift, not a fleet-wide optimal allocation. Voyage
 durations differ, so contribution comparisons are not a common-horizon fleet optimum.
 Use only returned tool results for quantitative claims. If a tool reports an error,
