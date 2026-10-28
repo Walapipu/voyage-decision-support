@@ -88,5 +88,5 @@ class AnalysisTests(unittest.TestCase):
             self.assertFalse(app.exception)
             app.chat_input[0].set_value("Compare it again").run()
         self.assertFalse(app.exception)
-        self.assertEqual(len(app.get("plotly_chart")), 4)
+        self.assertEqual(len(app.get("plotly_chart")), 6)
         self.assertEqual(len(app.chat_message), 4)

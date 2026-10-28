@@ -1,33 +1,53 @@
 # Modelling assumptions
 
-## Laycan: late combinations are excluded
+Updated 28 October 2026 from the clarification supplied by Yi Heng. Results are feasible **under these working assumptions**, not operational approvals.
 
-For this project, a vessel–cargo combination that misses laycan is excluded from recommendations outright. A profitable late voyage cannot override this check. No extension, renegotiation or late-arrival penalty is assumed. Failed combinations remain visible for diagnosis, with hypothetical economics.
+## Assumption log
 
-The current timing test uses **arrival at the loading port at or before the supplied closing timestamp (UTC)**. Arrival exactly at closing passes. An early arrival waits until laycan opens; waiting time and its fuel consumption are included. Loading need not finish before closing under this simplified test.
+| ID | Working assumption pending Cargill | Effect | Configuration |
+|---|---|---|---|
+| A-01 | Shortfalls are covered by the voyage-level planning purchase, with no extra bunkering days, charges or diversion. | Opening-ROB shortages remain visible but do not exclude combinations. No delivery location or schedule is invented. | `fuel_policy = "planning_purchase"`; `"opening_rob_only"` restores strict diagnostic exclusion. |
+| A-02 | Exclude arrival after laycan closing outright. | Excluded combinations and reasons remain visible/exportable. No extensions or penalties. | `laycan_policy = "exclude_late"`; unsupported alternatives fail validation until implemented. |
+| A-03 | Apply 0.30 m to summer draft; report port comparisons separately. | Summer-draft failure excludes. Port warnings are report-only, with no added port margin by default. | `port_draft_policy = "report_only"`; `"exclude"` enables a hard check if later authorised. `port_draft_margin_m = "0.00"` is separate from the CSV summer margin. |
 
-**Provisional assumption:** arrival is used as a proxy for readiness. The inputs do not define a contractual Notice of Readiness (NOR) milestone, inspections, customs clearance or readiness delays. Confirm the required milestone with the teaching team; a readiness requirement could exclude more combinations.
+Edit **config/modelling.toml** to change working policy, then restart the app. Active policy is displayed below and included in calculation outputs and methodology exports. The required summer margin remains sourced from commercial_assumptions.csv. Do not change source inputs unless the supplied assumptions change.
 
-This is a modelling choice, not a claim that contracts cancel automatically. The [laycan guide](https://tidesignalnews.com/laycan-shipping/) explains that the contractual readiness/NOR conditions govern and that late arrival can give the charterer an option to cancel. [BIMCO's Cancelling Clause 2002](https://www.bimco.org/contractual-affairs/bimco-clauses/current-clauses/cancelling_clause_2002/) specifically uses readiness to load and gives charterers a cancellation option; it is a reference, not an identified contract for these cargoes.
+## Confirmed arithmetic
 
-## Fuel availability: no implicit replenishment
+**Purchases:** max(0, consumption + reserve − opening remaining-on-board fuel), separately for VLSFO and MGO. This is a voyage-level balance, not a delivery schedule.
 
-The engine starts with the vessel's opening remaining-on-board (ROB) inventory. VLSFO and MGO are tracked **separately** through ballast passage, waiting, loading, laden passage and discharge. Each stage uses the supplied consumption rates. Port MGO consumption is zero under the supplied formulas.
+**Bunker expense:** consumption × monthly reference price, not purchase × price. CHECK-01 consumes approximately 987.251 t VLSFO and 46.817 t MGO at USD 499/t and USD 664/t. Full-precision consumption reproduces USD 523,724.60; rounded displayed tonnes can give a slightly different result. Purchases are not charged a second time.
 
-Closing inventory = opening inventory − stage consumption. With nonnegative, constant consumption within a stage and no delivery, checking the closing balance also detects exhaustion during that stage. The engine records the first shortage and its estimated elapsed voyage time for each fuel grade. Negative balances are unmet demand in a hypothetical projection, not permission to continue sailing.
+The loading port's assigned regional price proxy and explicitly selected month (default March 2026) price the consumption. The proxies are not bunkering-stop recommendations.
 
-**No fuel deliveries are currently scheduled.** The supplied purchase quantities are total requirements, not evidence of a delivery before a particular leg. A pricing reference such as SGSIN is not a bunkering instruction. If opening fuel cannot cover every stage, the result is **replenishment plan required**, and is excluded from recommendations until an explicit replenishment plan can be modelled and validated. This is not a claim that replenishment is impossible.
+**Timing:** load-port arrival = availability + ballast days. Early arrival waits until laycan start. Loading then takes lift ÷ loading rate + turn time. Total voyage days = ballast + waiting + loading + laden + discharge. NOR and readiness/start-loading milestones are not modelled separately. Arrival exactly at closing passes; loading need not finish by closing. No extra bunkering time, charges or diversion are included.
 
-For CHECK-01, MF-01 opens with 438 t VLSFO but consumes about 458.829 t during ballast. It lacks **20.829 t before reaching the loading port**, even without enforcing a reserve. A purchase at the loading port cannot remedy that earlier shortfall.
+**Departure deadweight:** lift + laden-leg VLSFO and MGO at sea + 300 t VLSFO reserve + 25 t MGO reserve + 3,000 t other deadweight.
 
-The audit checks against zero inventory. Whether the 300 t VLSFO / 25 t MGO reserves must be maintained continuously or only at a specified milestone remains unresolved. Reserves continue to enter purchase requirements and the confirmed departure-deadweight formula. Passing the zero-inventory audit does not establish reserve compliance.
+**Sailing draft:** ballast draft + (summer draft − ballast draft) × departure deadweight ÷ DWT.
 
-## Arithmetic versus an executable voyage
+CHECK-01 gives departure deadweight 167,850.078 t, estimated draft 17.383 m, and summer-draft margin approximately 0.717 m. Full precision is retained. Port consumption is included in consumption/purchases but excluded from this confirmed departure-deadweight formula. Discharge uses about 18.9 t VLSFO; do not silently add it to the validated draft formula.
 
-CHECK-01 is an arithmetic reference, not proof of operational feasibility. Its 25 numerical reference values remain unchanged. Bunker expense is consumed fuel × reference price; fuel purchases are consumption + reserves − opening ROB, floored at zero. They are not added a second time to voyage expenses.
+## Fuel diagnostic
 
-Departure deadweight = selected lift + laden-leg VLSFO and MGO + 300 t VLSFO reserve + 25 t MGO reserve + 3,000 t other deadweight.
+The engine still projects opening ROB **without replenishment** through ballast, waiting, loading, laden and discharge, separately by grade. Negative balances show unmet demand in this diagnostic, not assumed actual inventory after purchasing. It reports the first shortage and estimated exhaustion time. Port MGO use is zero under the supplied formulas.
 
-Estimated sailing draft = ballast draft + (summer draft − ballast draft) × departure deadweight / vessel DWT.
+For CHECK-01, 438 t opening VLSFO versus 458.829 t ballast consumption leaves a **20.829 t shortfall before the loading port**. Keeping 300 t on arrival would require 320.829 t before ballast. The total planned VLSFO purchase is 849.251 t under either interpretation. A-01 assumes replenishment covers the shortage with no added days/cost, without inventing its timing/location.
 
-The current draft check provisionally requires 0.30 m below the minimum of summer, loading-port and discharge-port limits. The teaching clarification confirms the summer-draft margin calculation; it does not settle the scope of port margins or a current-port check. A future replenishment plan must also reconcile fuel carried, draft, delivery time and port restrictions; the current arithmetic does not validate those operations.
+The purchase formula preserves the final balance including reserves. It does not prove continuous reserve maintenance. No artificial delivery schedule is added to make diagnostic balances positive.
+
+## Port draft reporting
+
+For loading and discharge ports, report the limit, the single laden-departure draft, and headroom (limit minus that draft). This is separate from the summer-draft check. Default A-03 reports a warning without excluding the combination or applying 0.30 m to port limits.
+
+The discharge comparison uses a departure-draft proxy, not a calculated discharge-arrival draft. Current-port draft is not evaluated: applying a future loaded draft at the ballast starting port would misrepresent the stage. Port warnings remain visible when core checks pass.
+
+## Awaiting Cargill
+
+- How to cover the pre-loading shortfall and which bunkering locations are allowed.
+- Whether reserves must be maintained throughout or at specified milestones.
+- Whether 0.30 m applies to port limits, and at which stages.
+- Whether late arrival excludes combinations or permits extensions/penalties.
+- Whether bunkering adds time/cost, and which location/month prices purchases at different stages.
+
+Until those answers arrive, A-01 to A-03 govern. The previous strict opening-ROB exclusion and minimum-of-summer/port draft rule are superseded as defaults. CHECK-01 remains an arithmetic reference, not an allocation recommendation.

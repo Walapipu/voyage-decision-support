@@ -12,8 +12,8 @@ class DashboardTests(unittest.TestCase):
         start = datetime.fromisoformat(case["timeline"][0]["time"])
         finish = datetime.fromisoformat(case["timeline"][-1]["time"])
         self.assertAlmostEqual((finish-start).total_seconds()/86400, r["voyage_days"], places=7)
-        self.assertEqual(case["feasible_count"], 0)
-        self.assertEqual(r["fuel_status"], "replenishment plan required")
+        self.assertEqual(case["feasible_count"], 2)
+        self.assertEqual(r["fuel_status"], "covered by planning-purchase assumption")
         self.assertLess(datetime.fromisoformat(case["discharge_eta"]), finish)
 
     def test_controls_change_all_selected_metrics(self):

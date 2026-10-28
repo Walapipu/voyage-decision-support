@@ -41,4 +41,4 @@ Break-even or target-TCE freight estimates, interactive sliders and portfolio op
 
 ## Interpretation limits
 
-The case uses economical speeds, the load-port bunker pricing location and an explicitly selected price month. The draft generalisation uses 0.3 m below the minimum summer/load/discharge limit. Canal costs are absent, so zero remains a documented provisional input. Team agreement is needed on these conventions. Contribution comparisons span different voyage durations; the UI does not claim a common-horizon fleet optimum.
+The case uses economical speeds, the load-port regional price proxy and an explicitly selected month. The 0.30 m margin applies to summer draft; port comparisons are separate report-only diagnostics by default. Planning purchases are assumed to cover shortages without extra bunkering days/cost; the opening-ROB ledger still reports deficits. Late arrivals are excluded with reasons. See the assumption log and `config/modelling.toml` for active policy and pending Cargill questions. Canal cost remains provisionally zero. Contribution comparisons span different durations; no common-horizon fleet optimum is claimed.

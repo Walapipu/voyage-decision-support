@@ -3,13 +3,15 @@ from datetime import datetime, timedelta
 from decimal import Decimal as D, InvalidOperation, getcontext
 from voyage.data import load_tables, index
 from voyage.fuel import audit_fuel
+from voyage.policy import load_policy
 
 getcontext().prec = 32
 
 def num(row, key): return D(row[key])
 def date(value): return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
-def calculate(vessel_id, cargo_id, lift, period="2026-03"):
+def calculate(vessel_id, cargo_id, lift, period="2026-03", policy=None):
+    policy = policy or load_policy()
     tables = load_tables()
     assumptions = tables["commercial_assumptions"][0]
     vessels = index(tables["managed_vessels"], "vessel_id")
@@ -49,13 +51,28 @@ def calculate(vessel_id, cargo_id, lift, period="2026-03"):
     mg = bd*num(v, 'economical_ballast_mgo_tpd') + ld*num(v, 'economical_laden_mgo_tpd')
     vp = max(D(0), vf + num(assumptions, 'vlsfo_reserve_tonnes') - num(v, 'vlsfo_rob_tonnes'))
     mp = max(D(0), mg + num(assumptions, 'mgo_reserve_tonnes') - num(v, 'mgo_rob_tonnes'))
+    # Keep the unsupplied ledger visible, without treating its negative balances
+    # as a feasibility failure under the authorised planning-purchase assumption.
+    fuel['opening_rob_pass'] = fuel['fuel_pass']
+    fuel['planning_purchase_assumed'] = policy.fuel_policy == 'planning_purchase'
+    fuel['fuel_pass'] = fuel['opening_rob_pass'] or fuel['planning_purchase_assumed']
+    if fuel['planning_purchase_assumed']:
+        fuel['fuel_status'] = 'covered by planning-purchase assumption'
+    fuel['vlsfo_planned_end_balance_tonnes'] = num(v, 'vlsfo_rob_tonnes') + vp - vf
+    fuel['mgo_planned_end_balance_tonnes'] = num(v, 'mgo_rob_tonnes') + mp - mg
     location = ports[c['load_port']]['bunker_pricing_location']
     cost = vf*prices[period, location, 'VLSFO'] + mg*prices[period, location, 'MGO']
     dw = q + ld*(num(v, 'economical_laden_vlsfo_tpd')+num(v, 'economical_laden_mgo_tpd')) + num(assumptions, 'vlsfo_reserve_tonnes') + num(assumptions, 'mgo_reserve_tonnes') + num(assumptions, 'other_deadweight_tonnes')
     draft = num(v, 'ballast_draft_m') + (num(v, 'summer_draft_m')-num(v, 'ballast_draft_m'))*dw/num(v, 'dwt_tonnes')
-    # Generalisation: conservative limiting draft. The supplied check only
-    # distinguishes summer-draft margin from port-only margin.
-    limit = min(num(v, 'summer_draft_m'), num(ports[c['load_port']], 'coursework_max_draft_m'), num(ports[c['discharge_port']], 'coursework_max_draft_m'))
+    limit = num(v, 'summer_draft_m')
+    port_checks = []
+    for role, code in [('loading', c['load_port']), ('discharge', c['discharge_port'])]:
+        port_limit = num(ports[code], 'coursework_max_draft_m')
+        port_checks.append(dict(port_role=role, port_code=code, limit_m=port_limit,
+            compared_draft_m=draft, headroom_m=port_limit-draft,
+            required_margin_m=D(policy.port_draft_margin_m),
+            passes=port_limit-draft >= D(policy.port_draft_margin_m),
+            basis='laden-departure draft proxy; not a stage-specific draft'))
     threshold = num(c, 'special_freight_threshold_tonnes')
     billed_tonnes = min(q, threshold) + max(D(0), q-threshold)/2 if c['special_freight_rule'] == 'half freight above threshold' else q
     revenue = billed_tonnes*num(c, 'contract_freight_rate_usd_per_tonne')
@@ -73,7 +90,10 @@ def calculate(vessel_id, cargo_id, lift, period="2026-03"):
         vlsfo_consumption_tonnes=vf, mgo_consumption_tonnes=mg, vlsfo_purchase_tonnes=vp, mgo_purchase_tonnes=mp,
         bunker_price_period=period, bunker_pricing_location=location, bunker_cost_usd=cost,
         departure_deadweight_tonnes=dw, deadweight_margin_tonnes=num(v,'dwt_tonnes')-dw,
-        estimated_sailing_draft_m=draft, draft_margin_m=limit-draft, freight_revenue_usd=revenue,
+        estimated_sailing_draft_m=draft, draft_margin_m=limit-draft,
+        required_summer_draft_margin_m=num(assumptions,'minimum_draft_margin_m'),
+        port_draft_checks=port_checks, port_draft_policy=policy.port_draft_policy,
+        port_draft_pass=all(p['passes'] for p in port_checks), freight_revenue_usd=revenue,
         commission_usd=commission, port_cost_usd=port_cost, voyage_cashflow_usd=cashflow, tce_usd_per_day=cashflow/days,
         hire_cost_usd=hire, voyage_contribution_usd=cashflow-hire, arrival_at_load_utc=arrival.isoformat(),
         laycan_slack_days=slack, quantity_pass=num(c,'minimum_quantity_tonnes')<=q<=num(c,'maximum_quantity_tonnes'),

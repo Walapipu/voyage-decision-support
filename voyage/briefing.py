@@ -51,7 +51,7 @@ def calculated_briefing(evidence, commentary=None):
         scope = f'{row["cargo_id"]} · {row["selected_lift_tonnes"]:,.0f} t · bunker month {row["bunker_price_period"]}'
         if facts["feasible_count"]:
             margin = f'{facts["focus_margin_pct"]:.1f}%' if facts["focus_margin_pct"] is not None else "unavailable"
-            pick = "leads on contribution among the feasible options" if len(rows) > 1 else "passes the feasibility checks"
+            pick = "leads on contribution among options feasible under the working assumptions" if len(rows) > 1 else "passes the checks under the working assumptions"
             view = (f'**Decision.** {row["vessel_id"]} {pick}: contribution **USD {row["voyage_contribution_usd"]:,.0f}**, '
                     f'profit margin **{margin}**, TCE before hire **USD {row["tce_usd_per_day"]:,.0f}/day**. '
                     + extra.get("assessment", ""))
@@ -66,11 +66,17 @@ def calculated_briefing(evidence, commentary=None):
         largest = facts["largest_cost"]
         driver += f'{largest} accounts for the largest expense at **USD {facts["cost_breakdown_usd"][largest]:,.0f}**. '
         risks = (f'Load-arrival slack is **{row["laycan_slack_days"]:.2f} days**; '
-                 f'draft headroom is **{row["draft_margin_m"]:.2f} m**, against the required 0.30 m. ')
+                 f'summer-draft headroom is **{row["draft_margin_m"]:.2f} m**, against the required {row["required_summer_draft_margin_m"]:.2f} m. ')
         if not row["feasible"]:
             risks += 'Failed checks: ' + ', '.join(row["failed_checks"]) + '. '
         if not row["fuel_pass"]:
             risks += shortage_message(row) + ' No fuel deliveries are scheduled. '
+        elif not row['opening_rob_pass']:
+            risks += shortage_message(row) + ' '
+        risks += ' '.join(row['warnings']) + ' '
+        excluded = [f'{r["vessel_id"]}/{r["cargo_id"]}: {", ".join(r["failed_checks"])}' for r in rows if not r['feasible']]
+        if excluded:
+            risks += 'Excluded combinations: ' + '; '.join(excluded) + '. '
         next_action = extra.get("next_action", "Confirm vessel readiness, port limits and commercial inputs before selecting a voyage.")
         if not row["fuel_pass"]:
             next_action = "Resolve the fuel delivery location, quantity and timing, then revalidate the voyage before proceeding."

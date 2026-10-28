@@ -47,7 +47,8 @@ General terminology questions may use one model call without tools. Calculations
 
 - Economical speeds; ballast, waiting, loading, laden and discharge time all included.
 - Default bunker month explicitly March 2026, at the load-port pricing location. The reference does not distinguish arrival-month from availability-month pricing.
-- Draft margin 0.3 m below the minimum summer/load-port/discharge-port limit. This generalisation requires sign-off.
+- Draft margin 0.3 m below summer draft; load/discharge port comparisons use that departure draft as a separate report-only check by default.
+- Working policy lives in `config/modelling.toml`: planning purchases cover fuel shortfalls without added days/cost; late arrivals are excluded. See `assumptions.md` for the clarification log and pending Cargill questions.
 - Canal cost provisionally zero because route canal costs are absent.
 - Fuel expense uses consumption times price; opening ROB affects purchase planning.
 - TCE excludes hire; contribution deducts voyage hire. Different durations mean this is not a common-horizon fleet optimum.

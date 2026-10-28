@@ -129,9 +129,13 @@ def voyage_summary(case, compact=False):
         st.warning("Selected voyage is infeasible: " + ", ".join(r["failed_checks"]) + ". Its economics are hypothetical, not a recommendation.")
     if not r["fuel_pass"]:
         st.info("Replenishment plan required. " + shortage_message(r))
-    with st.expander("Fuel availability by stage"):
-        st.caption("Opening ROB only; no deliveries assumed. Negative balances represent unmet demand. Reserve timing remains unconfirmed.")
+    for warning in r['warnings']:
+        st.info(warning)
+    with st.expander("Fuel diagnostic and port draft checks"):
+        st.caption("Opening ROB without replenishment: a diagnostic, not the assumed fuel-delivery plan. Negative balances show where replenishment is needed. Reserve timing remains unconfirmed.")
         st.dataframe(pd.DataFrame(r["fuel_ledger"]), hide_index=True, width="stretch")
+        st.caption('Port comparisons use the same laden-departure draft. Current-port and stage-specific drafts are not modelled.')
+        st.dataframe(pd.DataFrame(r['port_draft_checks']), hide_index=True, width='stretch')
     cards = [("TCE before hire", usd(r["tce_usd_per_day"]),"USD/day"), ("Contribution",usd(r["voyage_contribution_usd"]),"after voyage hire"), ("Voyage duration",f'{r["voyage_days"]:.2f}',"days, including ballast"), ("Laycan slack",f'{r["laycan_slack_days"]:.2f}',"days to closing date")]
     values = [r["tce_usd_per_day"], r["voyage_contribution_usd"], None, r["laycan_slack_days"]]
     minis = []
@@ -144,7 +148,7 @@ def voyage_summary(case, compact=False):
               ("Ballast / laden",f'{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm'),
               ("Economical speed",f'{v["economical_ballast_speed_knots"]} / {v["economical_laden_speed_knots"]} kn'),
               ("Sailing draft",f'{r["estimated_sailing_draft_m"]:.2f} m'),
-              ("Draft headroom",f'{r["draft_margin_m"]:.2f} m (≥ 0.30 required)'),
+              ("Summer-draft headroom",f'{r["draft_margin_m"]:.2f} m (≥ {r["required_summer_draft_margin_m"]:.2f} required)'),
               ("Selected / permitted lift",f'{r["selected_lift_tonnes"]/1000:g}k / {float(c["minimum_quantity_tonnes"])/1000:g}–{float(c["maximum_quantity_tonnes"])/1000:g}k t'),
               ("Pricing month",r["bunker_price_period"]+" · "+r["bunker_pricing_location"])]
     details_html = '<div class="details">'+''.join(f'<div class="detail"><span>{e(a)}</span><b>{e(b)}</b></div>' for a,b in detail)+'</div>'

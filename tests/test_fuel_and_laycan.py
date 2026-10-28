@@ -9,22 +9,30 @@ from voyage.decision import evaluate_voyage, compare_vessels
 from voyage.engine import calculate
 from voyage.fuel import audit_fuel
 from voyage.briefing import calculated_briefing
+from voyage.policy import ModellingPolicy, load_policy
 
 
 class FuelAndLaycanTests(unittest.TestCase):
-    def test_check01_shortage_is_not_cured_by_purchase_requirement(self):
+    def test_check01_shortage_remains_visible_under_planning_assumption(self):
         row = calculate("MF-01", "CC-02", 164000)
         first = row["fuel_first_shortfalls"][0]
         self.assertEqual(first["stage"], "Ballast passage")
         self.assertAlmostEqual(float(first["shortfall_tonnes"]), 20.829365079, places=6)
         self.assertLess(first["depleted_after_days"], row["ballast_days"])
         self.assertGreater(row["vlsfo_purchase_tonnes"], first["shortfall_tonnes"])
-        self.assertFalse(row["fuel_pass"])
+        self.assertFalse(row["opening_rob_pass"])
+        self.assertTrue(row["fuel_pass"])
+        self.assertTrue(row["planning_purchase_assumed"])
+        self.assertAlmostEqual(float(row['vlsfo_planned_end_balance_tonnes']), 300)
+        self.assertAlmostEqual(float(row['mgo_planned_end_balance_tonnes']), 25)
         for grade, metric in [("VLSFO", "vlsfo_consumption_tonnes"), ("MGO", "mgo_consumption_tonnes")]:
             self.assertAlmostEqual(float(sum(x["consumed_tonnes"] for x in row["fuel_ledger"] if x["fuel_grade"] == grade)), float(row[metric]), places=9)
         output = evaluate_voyage("MF-01", "CC-02", 164000)
         json.dumps(output, allow_nan=False)
-        self.assertFalse(output["rows"][0]["feasible"])
+        self.assertTrue(output["rows"][0]["feasible"])
+        report = calculated_briefing([{'result': output}])
+        self.assertIn('20.829 t short', report)
+        self.assertIn('Fuel replenishment assumed covered', report)
 
     def test_each_stage_and_grade_can_independently_exhaust(self):
         stages = ["Ballast passage", "Waiting at load port", "Loading", "Laden passage", "Discharge"]
@@ -51,12 +59,52 @@ class FuelAndLaycanTests(unittest.TestCase):
         self.assertEqual(first["depleted_after_days"], 2)
 
     def test_no_recommendation_when_all_opening_fuel_is_insufficient(self):
-        result = compare_vessels("CC-02", 164000)
+        result = compare_vessels("CC-02", 164000, policy=ModellingPolicy(fuel_policy='opening_rob_only'))
         self.assertFalse(any(r["feasible"] for r in result["rows"]))
         self.assertTrue(all("fuel" in r["failed_checks"] for r in result["rows"]))
         report = calculated_briefing([{"result": result}], {"assessment": "Proceed immediately."})
         self.assertNotIn("Proceed immediately", report)
         self.assertIn("No fuel deliveries are scheduled", report)
+
+    def test_policy_changes_exclusion_not_reference_economics(self):
+        strict = calculate('MF-01', 'CC-02', 164000, policy=ModellingPolicy(fuel_policy='opening_rob_only'))
+        planned = calculate('MF-01', 'CC-02', 164000)
+        self.assertFalse(strict['fuel_pass'])
+        for metric in ('bunker_cost_usd', 'voyage_days', 'vlsfo_purchase_tonnes', 'mgo_purchase_tonnes', 'departure_deadweight_tonnes', 'estimated_sailing_draft_m', 'voyage_contribution_usd'):
+            self.assertEqual(strict[metric], planned[metric], metric)
+        self.assertEqual(sum(planned[k] for k in ('ballast_days', 'laycan_wait_days', 'loading_days', 'laden_days', 'discharge_days')), planned['voyage_days'])
+
+    def test_port_warning_is_distinct_from_summer_margin(self):
+        tables = deepcopy(load_tables())
+        cargo = next(c for c in tables['committed_cargoes'] if c['cargo_id'] == 'CC-02')
+        port = next(p for p in tables['ports'] if p['port_code'] == cargo['load_port'])
+        port['coursework_max_draft_m'] = '16.5'
+        with patch('voyage.engine.load_tables', return_value=tables):
+            row = evaluate_voyage('MF-01', 'CC-02', 164000)['rows'][0]
+            self.assertTrue(row['feasible'])
+            self.assertTrue(row['draft_pass'])
+            self.assertFalse(row['port_draft_pass'])
+            self.assertAlmostEqual(row['draft_margin_m'], 0.7166312193)
+            self.assertTrue(any('port' in w and 'fails' in w for w in row['warnings']))
+            self.assertEqual(row['port_draft_checks'][0]['required_margin_m'], 0)
+            strict = evaluate_voyage('MF-01', 'CC-02', 164000, policy=ModellingPolicy(port_draft_policy='exclude'))['rows'][0]
+            self.assertFalse(strict['feasible'])
+            self.assertEqual(strict['failed_checks'], ['port_draft'])
+        # Positive headroom below 0.30 m is a port pass under the default policy.
+        port['coursework_max_draft_m'] = '17.5'
+        with patch('voyage.engine.load_tables', return_value=tables):
+            row = calculate('MF-01', 'CC-02', 164000)
+            self.assertTrue(row['port_draft_pass'])
+            row = calculate('MF-01', 'CC-02', 164000, policy=ModellingPolicy(port_draft_margin_m='0.30'))
+            self.assertFalse(row['port_draft_pass'])
+
+    def test_config_and_excluded_reasons_are_exported(self):
+        self.assertEqual(load_policy(), ModellingPolicy())
+        output = compare_vessels('CC-02', 164000)
+        self.assertEqual(output['conventions']['working_assumptions']['fuel_policy'], 'planning_purchase')
+        self.assertEqual({r['vessel_id']: r['reasons'] for r in output['excluded_combinations']}, {'MF-03': ['laycan'], 'MF-04': ['laycan']})
+        with self.assertRaises(ValueError):
+            ModellingPolicy(laycan_policy='penalty')
 
     def test_laycan_closing_boundary_is_hard_exclusion(self):
         # Construct an exact one-day ballast passage; no datetime rounding ambiguity.

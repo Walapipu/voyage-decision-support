@@ -31,7 +31,8 @@ class ChatTests(unittest.TestCase):
             answer = chat_reply([{"role": "user", "content": "Compare"}])
         self.assertEqual(len(answer["evidence"][0]["result"]["rows"]), 4)
         self.assertIn("unavailable", answer["notice"])
-        self.assertIn("None of the evaluated voyages is feasible", answer["content"])
+        self.assertIn("186,749", answer["content"])
+        self.assertIn("Fuel replenishment assumed covered", answer["content"])
         self.assertIn("8.557 t short", answer["content"])
 
     @patch("voyage.chat.load_settings", return_value=("test-secret", "paid-model"))

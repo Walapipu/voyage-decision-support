@@ -1,0 +1,5 @@
+# Working assumptions pending Cargill. Restart the app after editing.
+fuel_policy = "planning_purchase" # or "opening_rob_only" for a strict diagnostic
+laycan_policy = "exclude_late" # Extensions and penalties are not implemented.
+port_draft_policy = "report_only" # or "exclude" if port limits become hard constraints
+port_draft_margin_m = "0.00" # Separate from the CSV's required summer-draft margin

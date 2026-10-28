@@ -10,7 +10,6 @@ from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
     route_map, freight_panel, voyage_summary, comparison_table, economics, timeline,
     requirements_notice, result_frame)
 from voyage.chat_view import render_chat, clear_chat
-from voyage.decision import CONVENTIONS
 from voyage.openrouter import load_settings
 from voyage.ui import render_evidence
 from voyage.profile import toggle_theme, profile_menu
@@ -110,7 +109,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
         with st.container(border=True, key="timeline_panel"):
             timeline(case)
         with st.expander("Full engine output and methodology"):
-            st.json({"result":case["row"], "conventions": CONVENTIONS})
+            st.json({"result":case["row"], "conventions": case['comparison']['conventions']})
 
     elif page in ("Fleet", "Freight", "Ports"):
         heading(page + " data", "Vessels, cargoes and ports")
@@ -136,13 +135,16 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
         heading("Export calculated results", "Includes feasibility flags and pricing period")
         comparison_table(case)
         st.download_button("Download voyage comparison CSV", result_frame(case).to_csv(index=False).encode("utf-8"), file_name=f'{st.session_state.selected_cargo}_{st.session_state.price_period}_comparison.csv', mime="text/csv")
-        st.download_button("Download methodology", "\n".join(f'{k}: {v}' for k,v in CONVENTIONS.items()), file_name="voyage_methodology.txt")
+        st.download_button("Download methodology", "\n".join(f'{k}: {v}' for k,v in case['comparison']['conventions'].items()), file_name="voyage_methodology.txt")
 
     elif page == "Documents":
         heading("Documentation", "Methodology and references")
         doc = st.selectbox("Document", ["Modelling assumptions", "Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
         paths = {"Modelling assumptions":"docs/assumptions.md", "Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
         st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))
+        if doc == 'Modelling assumptions':
+            st.write('Active engine policy')
+            st.json(case['comparison']['conventions'])
 
     elif page == "Settings":
         heading("Settings and assumptions")
@@ -153,5 +155,5 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             st.code(model)
         except ValueError as exc:
             st.error(str(exc))
-        st.json(CONVENTIONS)
+        st.json(case['comparison']['conventions'])
         st.caption("The API key is excluded from Git and is not exposed by this screen. Market economics, sensitivity analysis and fleet allocation are not enabled yet.")
