@@ -41,6 +41,16 @@ def heading(title, note=""):
 
 
 def summary_cards(case):
+    if case is None:
+        cards = [("ship", "Active Voyages"), ("chart-pie", "Fleet Utilisation"),
+                 ("fuel", "Fuel Cost (USD)"), ("clock", "ETA Reliability"),
+                 ("trending-up", "Profit Margin")]
+        st.html('<div class="kpi-grid">' + ''.join(
+            f'<div class="kpi"><div class="kpi-icon"><span class="lucide icon-{icon}"></span></div>'
+            f'<div class="kpi-body"><h4>{label}</h4><strong>—</strong><small>'
+            + ('No voyage selected' if icon in ('fuel', 'trending-up') else 'Not connected')
+            + '</small></div></div>' for icon, label in cards) + '</div>')
+        return
     row = case["row"]
     suffix = " · infeasible case" if not row["feasible"] else " · selected voyage"
     cards = [

@@ -4,12 +4,13 @@ from contextlib import nullcontext
 import pandas as pd
 import streamlit as st
 
-from voyage.data import load_tables
+from voyage.data import load_tables, index
 from voyage.dashboard_data import dashboard_case
 from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
     route_map, freight_panel, voyage_summary, comparison_table, economics, timeline,
     requirements_notice, result_frame)
-from voyage.chat_view import render_chat, clear_chat
+from voyage.chat_view import render_chat, start_new_chat
+from voyage.policy import load_policy, conventions
 from voyage.openrouter import load_settings
 from voyage.ui import render_evidence
 from voyage.profile import toggle_theme, profile_menu
@@ -22,15 +23,12 @@ if st.session_state.get("logged_out"):
         st.session_state.logged_out = False
         st.rerun()
     st.stop()
-for key, value in {"dark_mode":True, "selected_vessel":"MF-02", "selected_cargo":"CC-02", "selected_lift":164000, "price_period":"2026-03"}.items():
+for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":"2026-03"}.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
 def reset_lift():
-    if st.session_state.selected_cargo is None:
-        return
-    row = next(c for c in load_tables()["committed_cargoes"] if c["cargo_id"] == st.session_state.selected_cargo)
-    st.session_state.selected_lift = int(row["nominal_quantity_tonnes"])
+    st.session_state.selected_lift = None
 
 with st.sidebar:
     st.html('<div class="brand"><div class="brandmark">≈</div><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
@@ -52,17 +50,15 @@ apply_theme(st.session_state.dark_mode)
 with st.container(key="workspace"):
     vessel_col, cargo_col, lift_col = st.columns([1, 1, 1], vertical_alignment="bottom")
     with vessel_col:
-        st.selectbox("Selected vessel", [v["vessel_id"] for v in tables["managed_vessels"]], key="selected_vessel", label_visibility="collapsed", placeholder="Selected vessel")
+        st.selectbox("Selected vessel", [None] + [v["vessel_id"] for v in tables["managed_vessels"]], format_func=lambda v: v or "--", key="selected_vessel", label_visibility="collapsed", placeholder="--")
     with cargo_col:
-        st.selectbox("Committed cargo", [c["cargo_id"] for c in tables["committed_cargoes"]], key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="Committed cargo")
+        st.selectbox("Committed cargo", [None] + [c["cargo_id"] for c in tables["committed_cargoes"]], format_func=lambda c: c or "--", key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="--")
     with lift_col:
-        st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, step=500, key="selected_lift", label_visibility="collapsed", placeholder="Selected lift (tonnes)")
+        st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, value=None, step=500, key="selected_lift", label_visibility="collapsed", placeholder="--")
 
-if any(st.session_state[k] is None for k in ("selected_vessel", "selected_cargo", "selected_lift")):
-    st.info("Select a vessel, cargo and lift to start your analysis.")
-    st.stop()
-
-case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel)
+has_selection = all(st.session_state[k] is not None for k in ("selected_vessel", "selected_cargo", "selected_lift"))
+case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel) if has_selection else None
+catalog = {"tables": tables, "ports": index(tables["ports"], "port_code")}
 
 with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant") else nullcontext():
     if page == "Dashboard":
@@ -70,20 +66,29 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
         with st.container(key="dashboard_grid"):
             fleet, assistant, planning = st.columns([1.05, 2.65, 1.4], gap="small")
             with fleet, st.container(border=True, key="fleet_panel"):
-                fleet_panel(case, query)
+                fleet_panel(catalog, query)
             with assistant, st.container(border=True, key="assistant_panel"):
                 title, new = st.columns([1, .12], vertical_alignment="center")
                 with title:
                     heading("AI Voyage Assistant")
                 with new:
-                    st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
+                    st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
                 render_chat(case, compact=True)
             with planning, st.container(key="planning_panel"):
-                route_map(case)
+                if case:
+                    route_map(case)
+                else:
+                    with st.container(key="route_map"):
+                        heading("Route Map")
+                        st.caption("Select a vessel, cargo and tonnage to view a route.")
                 with st.container(border=True, key="freight_panel"):
-                    freight_panel(case, query)
+                    freight_panel(catalog, query)
         with st.container(border=True, key="timeline_panel"):
-            timeline(case)
+            if case:
+                timeline(case)
+            else:
+                heading("Voyage Timeline")
+                st.caption("No voyage selected.")
 
     elif page == "AI Assistant":
         with st.container(key="assistant_full"):
@@ -91,8 +96,12 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             with title:
                 heading("AI Voyage Assistant", "Commercial analysis")
             with new:
-                st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
+                st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
             render_chat(case)
+
+    elif page in ("Voyages", "Analytics", "Reports") and not case:
+        heading(page)
+        st.info("Select a vessel, cargo and tonnage to view voyage results.")
 
     elif page == "Voyages":
         heading("Voyage economics", "Selected voyage and managed alternatives")
@@ -138,7 +147,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
         st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))
         if doc == 'Modelling assumptions':
             st.write('Active engine policy')
-            st.json(case['comparison']['conventions'])
+            st.json(conventions(load_policy()))
 
     elif page == "Settings":
         heading("Settings and assumptions")
@@ -149,5 +158,5 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             st.code(model)
         except ValueError as exc:
             st.error(str(exc))
-        st.json(case['comparison']['conventions'])
+        st.json(conventions(load_policy()))
         st.caption("The API key is excluded from Git and is not exposed by this screen. Market economics, sensitivity analysis and fleet allocation are not enabled yet.")

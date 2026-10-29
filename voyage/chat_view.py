@@ -12,13 +12,10 @@ def clear_chat():
     st.session_state.force_comparison = False
 
 
-def request_review():
-    st.session_state.pending = (f'Write an analyst review for cargo {st.session_state.selected_cargo} '
-        f'at {st.session_state.selected_lift:,.0f} tonnes, using bunker month {st.session_state.price_period}. '
-        f'Compare all managed vessels and discuss my selected vessel {st.session_state.selected_vessel}. '
-        'Explain the earnings, cost drivers and main feasibility risk, then recommend the next action.')
-    st.session_state.force_comparison = True
-    st.session_state.chat_error = None
+def start_new_chat():
+    clear_chat()
+    for key in ('selected_vessel', 'selected_cargo', 'selected_lift'):
+        st.session_state[key] = None
 
 
 def render_chat(case, compact=False):
@@ -65,8 +62,9 @@ def render_chat(case, compact=False):
         question = {"role": "user", "content": st.session_state.pending}
         history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
         # Explicit UI selection, not fabricated tool evidence. The model still runs tools.
-        r = case["row"]
-        context = {"role": "system", "content": f'The user currently selected vessel {r["vessel_id"]}, cargo {r["cargo_id"]}, lift {r["selected_lift_tonnes"]} tonnes and bunker month {r["bunker_price_period"]}. Use these for references to this voyage. Run tools for numeric answers; this selection is not a calculation result.'}
+        selection = {key: st.session_state.get(key) for key in
+                     ('selected_vessel', 'selected_cargo', 'selected_lift', 'price_period')}
+        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer general questions normally; ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.'}
         try:
             with st.spinner("Preparing your voyage analysis…"):
                 answer = chat_reply(history + [context, question], force_comparison=st.session_state.get("force_comparison", False))

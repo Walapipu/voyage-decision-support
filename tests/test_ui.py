@@ -5,6 +5,42 @@ from streamlit.testing.v1 import AppTest
 
 
 class UITests(unittest.TestCase):
+    def test_empty_selection_does_not_calculate_or_block_chat(self):
+        with patch('voyage.dashboard_data.compare_vessels') as calculate:
+            app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
+            self.assertFalse(app.exception)
+            self.assertEqual(app.selectbox(key='selected_vessel').options[0], '--')
+            self.assertEqual(app.selectbox(key='selected_cargo').options[0], '--')
+            for key in ('selected_vessel', 'selected_cargo', 'selected_lift'):
+                self.assertIsNone(app.session_state[key])
+            self.assertEqual(app.number_input(key='selected_lift').proto.placeholder, '--')
+            self.assertTrue(any('Hello, Yi Heng.' in h.proto.body for h in app.get('html')))
+            with patch('voyage.chat.chat_reply', return_value={'content': 'How can I help?', 'evidence': []}) as chat:
+                app.chat_input[0].set_value('Hello').run()
+            self.assertFalse(app.exception)
+            context = chat.call_args.args[0][-2]['content']
+            self.assertIn("'selected_vessel': None", context)
+            self.assertEqual(len(app.chat_message), 2)
+            for page in ('Voyages', 'Analytics', 'Reports', 'Fleet', 'Freight', 'Ports', 'Documents', 'Settings'):
+                next(r for r in app.radio if r.label == 'Navigation').set_value(page).run()
+                self.assertFalse(app.exception, page)
+            calculate.assert_not_called()
+
+    def test_selection_can_be_cleared_and_cargo_change_clears_lift(self):
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
+        app.selectbox(key='selected_vessel').set_value('MF-02').run()
+        app.selectbox(key='selected_cargo').set_value('CC-02').run()
+        self.assertIsNone(app.number_input(key='selected_lift').value)
+        app.number_input(key='selected_lift').set_value(164000).run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('$453,201' in h.proto.body for h in app.get('html')))
+        app.selectbox(key='selected_vessel').set_value(None).run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('No voyage selected' in h.proto.body for h in app.get('html')))
+        app.selectbox(key='selected_cargo').set_value(None).run()
+        self.assertIsNone(app.number_input(key='selected_lift').value)
+        self.assertFalse(app.exception)
+
     def test_new_chat_restores_initial_welcome_in_both_views(self):
         for page in ('Dashboard', 'AI Assistant'):
             with self.subTest(page=page):
@@ -12,6 +48,9 @@ class UITests(unittest.TestCase):
                 app.session_state.profile_name = 'Yi Heng Test'
                 next(r for r in app.radio if r.label == 'Navigation').set_value(page).run()
                 welcome = next(h.proto.body for h in app.get('html') if 'chat-welcome' in h.proto.body)
+                app.selectbox(key='selected_vessel').set_value('MF-02').run()
+                app.selectbox(key='selected_cargo').set_value('CC-02').run()
+                app.number_input(key='selected_lift').set_value(164000).run()
                 old_key = app.chat_input[0].key
                 with patch('voyage.chat.chat_reply', return_value={'content': 'Voyage analysis', 'evidence': []}):
                     app.chat_input[0].set_value('Compare this voyage').run()
@@ -22,6 +61,8 @@ class UITests(unittest.TestCase):
                 self.assertEqual(app.session_state.messages, [])
                 self.assertIsNone(app.session_state.pending)
                 self.assertIsNone(app.session_state.chat_error)
+                for key in ('selected_vessel', 'selected_cargo', 'selected_lift'):
+                    self.assertIsNone(app.session_state[key])
                 self.assertIsNone(app.chat_input[0].value)
                 self.assertNotEqual(old_key, app.chat_input[0].key)
                 self.assertEqual(welcome, next(h.proto.body for h in app.get('html') if 'chat-welcome' in h.proto.body))
@@ -91,7 +132,9 @@ class UITests(unittest.TestCase):
         app.button(key="theme_button").click().run()
         self.assertFalse(app.session_state.dark_mode)
         app.selectbox(key="selected_cargo").set_value("CC-01").run()
-        self.assertEqual(app.number_input(key="selected_lift").value, 178000)
+        self.assertIsNone(app.number_input(key="selected_lift").value)
+        app.selectbox(key="selected_vessel").set_value("MF-02").run()
+        app.number_input(key="selected_lift").set_value(178000).run()
         next(r for r in app.radio if r.label == "Navigation").set_value("Voyages").run()
         self.assertTrue(any("infeasible" in warning.value for warning in app.warning))
         self.assertFalse(app.exception)
