@@ -14,6 +14,7 @@ from voyage.chat_view import render_chat, start_new_chat
 from voyage.policy import load_policy, conventions
 from voyage.openrouter import load_settings
 from voyage.ui import render_evidence
+from voyage.report import analytics_report
 from voyage.profile import toggle_theme, profile_menu
 
 st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
@@ -103,6 +104,9 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
     elif page in ("Voyages", "Analytics", "Reports") and not case:
         heading(page)
         st.info("Select a vessel, cargo and tonnage to view voyage results.")
+        if page == "Analytics":
+            st.download_button("Download report", data="", disabled=True,
+                file_name="oceanflow_analytics.html", mime="text/html", key="analytics_report")
 
     elif page == "Voyages":
         heading("Voyage economics", "Selected voyage and managed alternatives")
@@ -131,6 +135,10 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
 
     elif page == "Analytics":
         heading("Voyage comparisons", "Current cargo, lift and price month")
+        st.download_button("Download report", analytics_report(case),
+            file_name=f'oceanflow_{st.session_state.selected_cargo}_{st.session_state.price_period}_report.html',
+            mime="text/html", icon=":material/download:", key="analytics_report", on_click="ignore")
+        st.caption("HTML report with interactive charts, comparison results and methodology. Opens offline in your browser.")
         render_evidence([{"tool":"compare_vessels", "result":case["comparison"]}])
         requirements_notice()
         st.warning("Scenario analysis and recommendation-switch thresholds are not available yet. The month selector chooses a pricing period.")

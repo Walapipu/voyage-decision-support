@@ -146,17 +146,30 @@
 .st-key-page_content{height:100%!important;min-height:0!important;overflow:auto!important;padding:12px!important;box-sizing:border-box;}
 [data-testid="stHeader"]{display:block!important;height:0!important;background:transparent!important;pointer-events:none;}
 [data-testid="stToolbar"]{display:block!important;opacity:1!important;visibility:hidden;pointer-events:none;}
-[data-testid="stExpandSidebarButton"]{visibility:visible!important;position:fixed!important;left:8px;top:8px;pointer-events:auto;background:#122e43!important;}
-[data-testid="stExpandSidebarButton"] *{color:#bce4ff!important;}
-[data-testid="stDecoration"],[data-testid="stToolbarActions"],[data-testid="stAppDeployButton"],[data-testid="stMainMenu"]{display:none!important;}
+/* Keep the rail full-size while it slides; its children never reflow on close. */
+[data-testid="stSidebar"]{
+ width:208px!important;min-width:208px!important;max-width:208px!important;
+ flex:0 0 208px!important;overflow:hidden!important;transform:none!important;
+ transition:margin-left 180ms ease!important;
+}
+[data-testid="stSidebar"][data-collapsed="false"]{margin-left:0!important;}
+[data-testid="stSidebar"][data-collapsed="true"]{margin-left:-208px!important;pointer-events:none;}
+[data-testid="stSidebarContent"]{width:208px!important;min-width:208px!important;box-sizing:border-box;padding:0!important;}
+[data-testid="stSidebarUserContent"]{width:208px!important;min-width:208px!important;box-sizing:border-box;padding:6px 12px 18px!important;}
 [data-testid="stSidebarHeader"]{height:0!important;min-height:0!important;padding:0!important;}
-[data-testid="stSidebarCollapseButton"]{position:absolute!important;right:8px;top:34px;visibility:visible!important;opacity:1!important;z-index:5;}
-[data-testid="stSidebarCollapseButton"] button{width:24px;height:24px;}
-[data-testid="stSidebar"][data-collapsed="false"]{min-width:208px;max-width:208px;}
-[data-testid="stSidebar"][data-collapsed="true"]{min-width:0!important;max-width:0!important;width:0!important;margin:0!important;transform:none!important;overflow:hidden!important;}
-[data-testid="stSidebarUserContent"]{padding:18px 12px!important;}
-.brand{padding-right:22px;gap:6px;}.brand b{font-size:19px;}.brandmark{width:29px;min-width:29px;height:29px;}.brand small{font-size:8px;}
+/* Both native actions occupy the same viewport coordinates and hit area. */
+[data-testid="stSidebarCollapseButton"],[data-testid="stExpandSidebarButton"]{
+ position:fixed!important;left:8px!important;right:auto!important;top:10px!important;
+ width:32px!important;height:28px!important;margin:0!important;padding:0!important;
+ visibility:visible!important;opacity:1!important;z-index:1001;transition:none!important;
+ pointer-events:auto;background:#122e43!important;border-radius:6px;
+}
+[data-testid="stSidebarCollapseButton"] button{width:32px!important;height:28px!important;margin:0!important;padding:0!important;}
+[data-testid="stSidebarCollapseButton"] *,[data-testid="stExpandSidebarButton"] *{color:#bce4ff!important;}
+[data-testid="stDecoration"],[data-testid="stToolbarActions"],[data-testid="stAppDeployButton"],[data-testid="stMainMenu"]{display:none!important;}
+.brand{padding-left:36px;padding-right:0;gap:6px;}.brand b{font-size:19px;}.brandmark{width:29px;min-width:29px;height:29px;}.brand small{font-size:8px;}
 body:has([data-testid="stSidebar"][data-collapsed="true"]) .st-key-topbar{padding-left:48px!important;}
+@media(prefers-reduced-motion:reduce){[data-testid="stSidebar"]{transition:none!important;}}
 .st-key-topbar{padding:6px 12px!important;min-height:48px;}
 .st-key-topbar [data-testid="stHorizontalBlock"]{gap:6px!important;align-items:center;flex-wrap:nowrap!important;}
 .st-key-topbar [data-testid="stColumn"]{min-width:0!important;}
