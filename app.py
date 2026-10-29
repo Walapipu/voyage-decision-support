@@ -76,7 +76,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
                 with title:
                     heading("AI Voyage Assistant")
                 with new:
-                    st.button("", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
+                    st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
                 def dashboard_intro():
                     voyage_summary(case, compact=True)
                     with st.expander("Compare managed vessels", expanded=True):
@@ -97,7 +97,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             with title:
                 heading("AI Voyage Assistant", "Commercial analysis")
             with new:
-                st.button("", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
+                st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
             render_chat(case)
 
     elif page == "Voyages":

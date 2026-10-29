@@ -257,3 +257,24 @@ input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-ou
  .st-key-fleet_scroll [data-testid="stColumn"]{flex:1 1 100%!important;width:100%!important;min-width:0!important;}
  .st-key-fleet_scroll [data-testid="stImage"] img{height:48px!important;width:100%!important;object-fit:cover;}
 }
+/* Preserve natural content height within scrolling panels: shrinking flex
+   children makes captions paint over following cards. */
+.st-key-page_content [data-testid="stVerticalBlock"] > *,
+.st-key-page_content > *,
+.st-key-chat_scroll [data-testid="stVerticalBlock"] > *,
+.st-key-chat_scroll > *,
+.st-key-fleet_scroll [data-testid="stVerticalBlock"] > *,
+.st-key-freight_panel > * {flex-shrink:0!important;}
+.st-key-page_content [data-testid="stTabs"],
+.st-key-chat_scroll [data-testid="stTabs"] {height:auto!important;min-height:fit-content;}
+[data-testid="stCaptionContainer"] {height:auto;min-height:1.5em;padding:3px 0 5px;}
+[data-testid="stCaptionContainer"] p {line-height:1.5!important;overflow-wrap:anywhere;}
+.report-head,.panel-head {flex-wrap:wrap;}
+.report-head > *, .panel-head > *, .report-metrics > div {min-width:0;overflow-wrap:anywhere;}
+.st-key-new_conversation button [data-testid="stMarkdownContainer"] {display:none;}
+.st-key-new_conversation button {cursor:pointer;flex-shrink:0;}
+/* Visually hidden labels preserve an accessible name for icon buttons. */
+.st-key-new_conversation button [data-testid="stMarkdownContainer"] {display:block!important;position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+/* Streamlit's caption wrapper has a negative bottom margin intended to cancel
+   paragraph spacing. Our compact paragraphs already remove that spacing. */
+[data-testid="stCaptionContainer"] {margin:0!important;}

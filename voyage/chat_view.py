@@ -4,6 +4,8 @@ from voyage.ui import render_evidence
 
 
 def clear_chat():
+    st.session_state.chat_generation = st.session_state.get('chat_generation', 0) + 1
+    st.session_state.chat_reset_notice = True
     st.session_state.messages = []
     st.session_state.pending = None
     st.session_state.chat_error = None
@@ -26,6 +28,8 @@ def render_chat(case, compact=False, intro=None):
         if key not in st.session_state:
             st.session_state[key] = value
     with st.container(height=400, border=False, key="chat_scroll"):
+        if st.session_state.pop('chat_reset_notice', False):
+            st.success('New conversation started.')
         if not st.session_state.messages and not st.session_state.pending:
             st.button("Generate analyst review", icon=":material/analytics:", on_click=request_review, key="analyst_review")
             if intro:
@@ -52,7 +56,7 @@ def render_chat(case, compact=False, intro=None):
                     st.session_state.chat_error = None
                     st.rerun()
     with st.container(key="composer"):
-        prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", max_chars=4000, disabled=bool(st.session_state.pending))
+        prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
     if prompt and prompt.strip():
         st.session_state.pending = prompt.strip()
         st.session_state.chat_error = None

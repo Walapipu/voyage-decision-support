@@ -5,6 +5,23 @@ from streamlit.testing.v1 import AppTest
 
 
 class UITests(unittest.TestCase):
+    def test_assistant_new_chat_clears_failed_question_and_replaces_composer(self):
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
+        next(r for r in app.radio if r.label == 'Navigation').set_value('AI Assistant').run()
+        old_key = app.chat_input[0].key
+        with patch('voyage.chat.chat_reply', side_effect=ValueError('Missing test key')):
+            app.chat_input[0].set_value('Compare this voyage').run()
+        self.assertTrue(app.error)
+        app.button(key='new_conversation').click().run()
+        self.assertFalse(app.exception)
+        self.assertFalse(app.error)
+        self.assertFalse(app.chat_message)
+        self.assertIsNone(app.session_state.pending)
+        self.assertFalse(app.session_state.force_comparison)
+        self.assertNotEqual(old_key, app.chat_input[0].key)
+        self.assertFalse(app.chat_input[0].disabled)
+        self.assertTrue(any('New conversation started' in s.value for s in app.success))
+
     def test_chat_retry_and_clear_without_network(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
         self.assertFalse(app.exception)

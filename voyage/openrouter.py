@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import tomllib
+import streamlit as st
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -22,10 +23,17 @@ def load_settings():
                 settings = tomllib.load(handle)
         except (OSError, tomllib.TOMLDecodeError):
             raise ValueError("Cannot read secrets.toml. Keep the key inside double quotes.") from None
+    try:
+        for name in ('OPENROUTER_API_KEY', 'OPENROUTER_MODEL'):
+            value = st.secrets.get(name)
+            if value:
+                settings[name] = value
+    except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
+        pass
     key = os.environ.get("OPENROUTER_API_KEY") or settings.get("OPENROUTER_API_KEY", "")
     model = os.environ.get("OPENROUTER_MODEL") or settings.get("OPENROUTER_MODEL", "openrouter/free")
     if not isinstance(key, str) or not key.strip():
-        raise ValueError("Add OPENROUTER_API_KEY to .streamlit/secrets.toml and save it first.")
+        raise ValueError("OpenRouter key is not configured on this server. On Streamlit Cloud, add OPENROUTER_API_KEY in App settings > Secrets and save. Locally, use .streamlit/secrets.toml. Never commit the key to GitHub.")
     if not isinstance(model, str) or not model.strip():
         raise ValueError("OPENROUTER_MODEL must be a model name.")
     return key.strip(), model.strip()
