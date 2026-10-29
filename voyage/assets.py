@@ -6,6 +6,10 @@ ROOT = Path(__file__).resolve().parents[1] / "assets"
 NAV_ICONS = ["layout-dashboard", "bot", "ship", "container", "anchor", "anchor", "chart-no-axes-combined", "file-chart-column", "files", "settings"]
 
 
+def brand_logo_uri():
+    return "data:image/png;base64," + base64.b64encode((ROOT / "oceanflow-crown.png").read_bytes()).decode("ascii")
+
+
 def icon_uri(name):
     return "data:image/svg+xml;base64," + base64.b64encode((ROOT / "icons" / f"{name}.svg").read_bytes()).decode("ascii")
 

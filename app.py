@@ -4,6 +4,7 @@ from contextlib import nullcontext
 import pandas as pd
 import streamlit as st
 
+from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
 from voyage.dashboard_data import dashboard_case
 from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
@@ -31,7 +32,7 @@ def reset_lift():
     st.session_state.selected_lift = None
 
 with st.sidebar:
-    st.html('<div class="brand"><div class="brandmark">≈</div><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
+    st.html(f'<div class="brand"><img class="brandmark" src="{brand_logo_uri()}" alt="OceanFlow crown"/><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
     page = st.radio("Navigation", ["Dashboard", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
 
 tables = load_tables()

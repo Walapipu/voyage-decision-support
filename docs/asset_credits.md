@@ -1,5 +1,9 @@
 # Image, icon and map credits
 
+## OceanFlow logo
+
+The crown logo in `assets/oceanflow-crown.png` was supplied by the user on 30 October 2026. The original PNG and its transparency are preserved.
+
 ## Representative photographs
 
 The case's MF/MV vessels are fictional. These are photographs of real bulk carriers used as representative illustrations, not identity claims or photographs of those fictional vessels. The source thumbnails are stored locally, avoiding an image API key or request on every page load. Display thumbnails may be cropped with CSS; original downloaded files are unchanged.
