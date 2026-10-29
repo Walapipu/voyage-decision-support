@@ -6,13 +6,16 @@ Four logical layers run in one Python/Streamlit application. OpenRouter is the e
 flowchart TD
     User[User in browser] --> UI["1. Streamlit interface: chat or calculator"]
     UI --> Chat["2. Chat orchestration: messages and tool schemas"]
-    Chat --> Interpret["OpenRouter call 1: interpret and request tools"]
+    Chat --> Scope["OpenRouter call 1: check relevance"]
+    Scope -->|Off-topic or invalid verdict| Greeting["Fixed freight-support greeting"]
+    Greeting --> UI
+    Scope -->|In scope| Interpret["OpenRouter call 2: interpret and request tools"]
     Interpret --> Validate["Python dispatcher: validate allowed operation and inputs"]
     Validate --> Decision["3. Decision logic: compare and check feasibility"]
     Decision --> Engine["Decimal Python engine: time, fuel, draft, TCE, contribution"]
     Data["4. Data layer: frozen CSVs, joins, assumptions"] --> Engine
     Engine --> Results["Structured results: numbers, failed checks, conventions"]
-    Results --> Explain["OpenRouter call 2: explain returned results"]
+    Results --> Explain["OpenRouter call 3: explain returned results"]
     Explain --> UI
     Results --> Charts["Streamlit tables and charts from engine data"]
     Charts --> UI
@@ -22,7 +25,7 @@ flowchart TD
 | Layer | Files | Responsibility |
 |---|---|---|
 | Interface | `app.py`, `voyage/dashboard.py`, `voyage/dashboard_data.py`, `voyage/dashboard.css`, `voyage/chat_view.py`, `voyage/ui.py` | Dashboard, dark/light themes, selection controls, chat, tables, charts and exports |
-| Interaction | `voyage/chat.py`, `voyage/tools.py`, `voyage/openrouter.py` | Prompt, model calls, schema validation, allowlisted tools |
+| Interaction | `voyage/chat.py`, `voyage/scope.py`, `voyage/tools.py`, `voyage/openrouter.py` | Prompt, model calls, schema validation, allowlisted tools |
 | Decision and calculation | `voyage/decision.py`, `voyage/engine.py` | Feasibility, comparison, Decimal calculations, structured output |
 | Data | `voyage/data.py`, `data/raw/` | Read-only records, unique keys, required joins, baseline price coverage |
 
@@ -30,9 +33,9 @@ Decision and calculation are separate modules within layer 3. This preserves the
 
 ## Example request
 
-User asks: “Compare managed vessels for CC-02 at 164,000 tonnes.” The first model call requests `compare_vessels` with the cargo and lift. Python validates the arguments and calculates four voyages. The second model call explains the returned results. Streamlit renders those same results into tables and charts. No model-generated code executes.
+User asks: “Compare managed vessels for CC-02 at 164,000 tonnes.” The first model call confirms the question is relevant. The second requests `compare_vessels` with the cargo and lift. Python validates the arguments and calculates four voyages. The third model call explains the returned results. Streamlit renders those same results into tables and charts. No model-generated code executes.
 
-General terminology questions may use one model call without tools. Calculations use at most two model calls and four tool requests. If the explanation fails, computed evidence is still displayed. No automatic API retries consume quota. Dashboard selections and voyage calculations work without a key. The chat receives the current UI selection as context and must still call Python tools for numeric answers.
+Every chat request first passes a separate relevance check, with recent conversation as context. Unrelated or mixed off-topic requests receive a fixed greeting without calling the analyst or engine. Invalid classifier output fails closed. Classification is model-based and can make mistakes; it is not a security guarantee. Maritime terminology questions use up to two model calls without tools. Calculations use at most three model calls and four tool requests. If the explanation fails, computed evidence is still displayed. No automatic API retries consume quota. Dashboard selections and voyage calculations work without a key. The chat receives the current UI selection as context and must still call Python tools for numeric answers.
 
 ## Implemented scope
 
@@ -78,7 +81,7 @@ Lucide SVG icons and representative, attributed bulk-carrier photos are bundled 
 
 ## Analyst replies and visual reports
 
-The `Generate analyst review` action requires a `compare_vessels` tool call. Ordinary questions retain automatic tool selection. The engine returns full-precision voyage rows; `analysis.py` prepares margins, cost shares, ballast shares and differences with Pandas/NumPy. These deterministic facts travel with the tool response to the model. The model writes a short commercial briefing covering conclusion, cost drivers, constraints and next action.
+The assistant starts with a centred personal greeting and no preloaded analysis. New chat clears selections, drafts and history. In-scope questions use automatic tool selection; the waiting indicator reads “Shipping…”. The engine returns full-precision voyage rows; `analysis.py` prepares margins, cost shares, ballast shares and differences with Pandas/NumPy. These deterministic facts travel with the tool response to the model. The model writes a short commercial briefing covering conclusion, cost drivers, constraints and next action.
 
 The same result object is rendered inside the assistant message as a Plotly dashboard: earnings comparison, revenue-to-contribution waterfall and stacked voyage durations, plus a comparison table and calculation details. Model text is never parsed as chart data and generated Python/JavaScript is never executed. Each chat response has separate chart keys, so repeated calculations remain independent. Reports remain visible when the explanation API fails after successful calculation. If no voyage is feasible, no vessel is labelled a recommendation and the earnings-ranking chart is replaced with an explicit status.
 
@@ -86,7 +89,7 @@ The valuation engine still uses Decimal. Pandas/NumPy handle presentation analyt
 
 ## Financial colours and layout
 
-Positive margin/contribution is green, negative is red, and break-even is amber. The margin gradient uses a fixed, symmetric display range of -25% to +25%, saturating outside it. This is a visual scale, not a claim about industry benchmarks. Missing margins remain neutral. The application shell fits the viewport without page scrolling. Chat, fleet, freight and secondary-page content have their own overflow areas. Desktop and tablet widths retain the three-column dashboard, and smaller widths use a bounded two-row grid. The timeline remains inside the window. Search, month, selection and chat controls share a 36px height; panel gaps are 8px. Native sidebar controls remain visible and release the sidebar width when collapsed. Vessel-name buttons select managed vessels; market-vessel names open a details dialog. The map follows the selected theme and refits on container resize.
+Positive margin/contribution is green, negative is red, and break-even is amber. The margin gradient uses a fixed, symmetric display range of -25% to +25%, saturating outside it. This is a visual scale, not a claim about industry benchmarks. Missing margins remain neutral. The application shell fits the viewport without page scrolling. Chat, fleet, freight and secondary-page content have their own overflow areas. Desktop and tablet widths retain the three-column dashboard, and smaller widths use a bounded two-row grid. The timeline remains inside the window. Search, month, selection and chat controls share a 36px height; panel gaps are 8px. Native sidebar controls remain visible and release the sidebar width when collapsed. Vessel-name buttons select managed vessels; market-vessel names open a details dialog. The map follows the selected theme and refits on container resize. Scrolling over the map zooms it in or out; outside the map, scrolling stays with the containing panel.
 
 ### Commentary boundary
 

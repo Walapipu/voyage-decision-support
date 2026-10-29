@@ -58,12 +58,12 @@ class AnalysisTests(unittest.TestCase):
     def test_analyst_receives_calculated_facts(self, settings):
         first = {"choices":[{"message":{"role":"assistant", "tool_calls":[{"id":"one", "function":{"name":"compare_vessels", "arguments":'{"cargo_id":"CC-02","lift_tonnes":164000}'}}]}}]}
         second = {"choices":[{"message":{"content":"MF-02 offers the highest feasible contribution."}}]}
-        with patch("voyage.chat.api_request", side_effect=[first, second]) as api:
+        with patch("voyage.chat.is_in_scope", return_value=True), patch("voyage.chat.api_request", side_effect=[first, second]) as api:
             answer = chat_reply([{"role":"user", "content":"Analyse CC-02"}], force_comparison=True)
         self.assertEqual(api.call_args_list[0].args[2]["tool_choice"]["function"]["name"], "compare_vessels")
         actual_tool_data = json.loads(next(m["content"] for m in api.call_args_list[1].args[2]["messages"] if m["role"] == "tool"))
         self.assertEqual(actual_tool_data["analysis"], answer["evidence"][0]["result"]["analysis"])
-        with patch("voyage.chat.api_request", return_value=second), self.assertRaises(ValueError):
+        with patch("voyage.chat.is_in_scope", return_value=True), patch("voyage.chat.api_request", return_value=second), self.assertRaises(ValueError):
             chat_reply([], force_comparison=True)
 
     def test_unsupported_numeric_commentary_is_replaced(self):

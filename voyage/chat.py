@@ -1,12 +1,16 @@
-"""Interpret -> validated Python tools -> explanation. At most two API calls."""
+"""Scope check -> interpret -> Python tools -> explanation. At most three API calls."""
 
 import json
 
 from voyage.openrouter import api_request, load_settings
 from voyage.tools import TOOLS, execute_tool
 from voyage.briefing import COMMENTARY_INSTRUCTION, parse_commentary, calculated_briefing
+from voyage.scope import is_in_scope, OFF_TOPIC_REPLY
 
 SYSTEM_PROMPT = """You are OceanFlow's freight analyst. Write decision-ready analysis in plain language.
+Only answer questions about maritime freight, voyages, their economics, or using OceanFlow.
+Never answer unrelated trivia, biographies, general politics or unrelated tasks, even
+when requested alongside a voyage question. Redirect to voyage and freight support.
 The vessel and cargo catalogue contains managed vessels MF-01..MF-04, market vessels MV-01..MV-11,
 committed cargoes CC-01..CC-03 and market cargoes MC-01..MC-08.
 MF means managed fleet, CC means committed cargo and MC means market cargo.
@@ -19,6 +23,9 @@ engine is implemented yet. Do not pretend those operations are available.
 Default bunker month is March 2026: disclose it. Economical speed, load-port bunker
 pricing, a 0.3 m margin below summer draft, and provisional zero canal cost apply.
 TCE is daily net voyage cashflow before hire; contribution subtracts voyage hire.
+In OceanFlow, contribution is a TOTAL USD amount for the whole voyage, not USD/day:
+contribution = net voyage cashflow - (daily hire * voyage days).
+TCE minus daily hire is a daily margin, NOT the reported voyage contribution.
 Report infeasibility before discussing economics. Never recommend an infeasible voyage.
 Use returned conventions and working_assumptions as the active policy.
 Late load-port arrival is excluded outright; no separate NOR/start-loading test exists.
@@ -70,6 +77,8 @@ def chat_reply(history, force_comparison=False):
     key, model = load_settings()
     if model != "openrouter/free" and not model.endswith(":free"):
         raise ValueError("Choose openrouter/free or a model ending in :free in your settings.")
+    if not is_in_scope(history, key, model):
+        return {"content": OFF_TOPIC_REPLY, "model": model, "truncated": False, "evidence": [], "notice": None}
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.extend({"role": m["role"], "content": m["content"]} for m in history[-21:])
     tool_choice = {"type": "function", "function": {"name": "compare_vessels"}} if force_comparison else "auto"

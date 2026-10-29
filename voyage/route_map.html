@@ -9,7 +9,7 @@
 const points=__POINTS__;
 function showError(message){const e=document.getElementById('error');e.textContent=message;e.style.display='block';}
 try {
-const map=L.map('map',{zoomControl:false,scrollWheelZoom:false});L.control.zoom({position:'topright'}).addTo(map);
+const map=L.map('map',{zoomControl:false,scrollWheelZoom:true});L.control.zoom({position:'topright'}).addTo(map);
 const borders=__BOUNDARIES__;
 L.geoJSON(borders,{interactive:false,style:{color:document.body.classList.contains('dark')?'#647f90':'#98a8ad',weight:.6,opacity:.8,fill:false}}).addTo(map);
 borders.features.forEach(f=>{const p=f.properties;if(['China','India','Australia','Indonesia','Japan','Russia','Brazil','Argentina','South Africa','Guinea','Canada','Mexico','Saudi Arabia','United States of America'].includes(p.NAME)&&p.LABEL_X!=null&&p.LABEL_Y!=null){const label=document.createElement('span');label.textContent=p.NAME;L.marker([p.LABEL_Y,p.LABEL_X],{interactive:false,icon:L.divIcon({className:'country-label',html:label,iconSize:[65,12]})}).addTo(map);}});

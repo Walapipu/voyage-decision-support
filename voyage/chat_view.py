@@ -51,6 +51,7 @@ def render_chat(case, compact=False):
                     st.session_state.pending = None
                     st.session_state.chat_error = None
                     st.rerun()
+            progress = st.empty()
     with st.container(key="composer"):
         prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
     if prompt and prompt.strip():
@@ -64,9 +65,9 @@ def render_chat(case, compact=False):
         # Explicit UI selection, not fabricated tool evidence. The model still runs tools.
         selection = {key: st.session_state.get(key) for key in
                      ('selected_vessel', 'selected_cargo', 'selected_lift', 'price_period')}
-        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer general questions normally; ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.'}
+        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer conceptual voyage and freight questions normally; redirect unrelated questions to OceanFlow support. Ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.'}
         try:
-            with st.spinner("Preparing your voyage analysis…"):
+            with progress, st.spinner("Shipping…"):
                 answer = chat_reply(history + [context, question], force_comparison=st.session_state.get("force_comparison", False))
             if generation == st.session_state.get('chat_generation', 0):
                 st.session_state.messages.extend([question, {"role": "assistant", **answer}])

@@ -4,7 +4,7 @@ Streamlit chat and calculator for the frozen Capesize case. OpenRouter interpret
 
 The OceanFlow dashboard follows the supplied reference with a fleet panel, assistant, interactive port map, freight table and estimated timeline. Dark mode is on by default; use the moon button at the far right of the top bar for light mode. Select a vessel, committed cargo, lift and pricing month to update the calculated panels together. Navigation opens source tables, voyage economics, analytics, exports and documentation. Search filters vessel/cargo lists and source-data pages. The name dropdown opens session profile settings and local logout. Desktop panel contents scroll independently so the composer stays visible. See [asset credits](docs/asset_credits.md) for licensed ship photos, Lucide icons and the Leaflet/OpenStreetMap map. Map tiles require internet; photos are stored locally.
 
-Use **Generate analyst review** to compare the selected cargo and lift, with earnings, cost drivers and voyage-duration charts. Profit margins use a red-to-green scale around break-even.
+Ask the assistant to compare a cargo and lift for earnings, cost drivers and voyage-duration charts. The assistant starts with a centred greeting and empty voyage selections; New chat clears them. Profit margins use a red-to-green scale around break-even.
 
 See [metric coverage](docs/metric_coverage.md) for the reference-to-project audit. Unsupported live operational KPIs are marked unavailable. TCE, contribution, cost drivers and commercial constraints are added explicitly. Required scenario analysis and switching thresholds remain pending and are flagged in the app.
 
@@ -35,7 +35,7 @@ Open http://localhost:8501 or use **Terminal > Run Task > Start Streamlit chatbo
 .\.venv\Scripts\python.exe check_openrouter.py --chat
 ```
 
-Tests mock model replies and do not use API quota. The connection check authenticates; `--chat` sends one real free-model request. A tool-based chat uses up to two requests. Free providers can be rate limited or unavailable; failed requests may consume quota too.
+Tests mock model replies and do not use API quota. The connection check authenticates; `--chat` sends one real free-model request. Chat checks relevance first. An off-topic question uses one request and returns a fixed freight-support greeting; a conceptual answer uses up to two requests, and a tool-based answer uses up to three. Free providers can be rate limited or unavailable; failed requests may consume quota too.
 
 ## Scope
 

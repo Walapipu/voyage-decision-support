@@ -14,7 +14,7 @@ class ChatTests(unittest.TestCase):
         first = response({"role": "assistant", "content": None, "tool_calls": [{"id": "one", "type": "function", "function": {
             "name": "compare_vessels", "arguments": '{"cargo_id":"CC-02","lift_tonnes":164000}'}}]})
         second = response({"role": "assistant", "content": "MF-02 has higher contribution."})
-        with patch("voyage.chat.api_request", side_effect=[first, second]) as api:
+        with patch("voyage.chat.is_in_scope", return_value=True), patch("voyage.chat.api_request", side_effect=[first, second]) as api:
             answer = chat_reply([{"role": "user", "content": "Compare CC-02 at 164000 tonnes"}])
         self.assertEqual(api.call_count, 2)
         self.assertEqual(answer["evidence"][0]["result"]["rows"][0]["vessel_id"], "MF-02")
@@ -27,7 +27,7 @@ class ChatTests(unittest.TestCase):
     def test_engine_results_survive_explanation_failure(self, settings):
         first = response({"role": "assistant", "tool_calls": [{"id": "one", "type": "function", "function": {
             "name": "compare_vessels", "arguments": '{"cargo_id":"CC-02","lift_tonnes":164000}'}}]})
-        with patch("voyage.chat.api_request", side_effect=[first, ValueError("Rate limited")]):
+        with patch("voyage.chat.is_in_scope", return_value=True), patch("voyage.chat.api_request", side_effect=[first, ValueError("Rate limited")]):
             answer = chat_reply([{"role": "user", "content": "Compare"}])
         self.assertEqual(len(answer["evidence"][0]["result"]["rows"]), 4)
         self.assertIn("unavailable", answer["notice"])
