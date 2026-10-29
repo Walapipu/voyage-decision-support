@@ -1,5 +1,6 @@
 """Reusable chat panel for the dashboard and full assistant view."""
 import streamlit as st
+from html import escape
 from voyage.ui import render_evidence
 
 
@@ -21,7 +22,7 @@ def request_review():
     st.session_state.chat_error = None
 
 
-def render_chat(case, compact=False, intro=None):
+def render_chat(case, compact=False):
     from voyage.chat import chat_reply
 
     for key, value in {"messages": [], "pending": None, "chat_error": None}.items():
@@ -31,9 +32,8 @@ def render_chat(case, compact=False, intro=None):
         if st.session_state.pop('chat_reset_notice', False):
             st.success('New conversation started.')
         if not st.session_state.messages and not st.session_state.pending:
-            st.button("Generate analyst review", icon=":material/analytics:", on_click=request_review, key="analyst_review")
-            if intro:
-                intro()
+            name = escape(st.session_state.get('profile_name', 'Yi Heng'))
+            st.html(f'<div class="chat-welcome"><h2>Hello, {name}.</h2><p>Ask me something.</p></div>')
         for message_index, message in enumerate(st.session_state.messages):
             with st.chat_message(message["role"]):
                 if message["role"] == "assistant" and message.get("evidence"):

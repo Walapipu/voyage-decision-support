@@ -77,13 +77,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
                     heading("AI Voyage Assistant")
                 with new:
                     st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
-                def dashboard_intro():
-                    voyage_summary(case, compact=True)
-                    with st.expander("Compare managed vessels", expanded=True):
-                        comparison_table(case, compact=True)
-                    with st.expander("Revenue, costs and bunker consumption"):
-                        economics(case)
-                render_chat(case, compact=True, intro=dashboard_intro)
+                render_chat(case, compact=True)
             with planning, st.container(key="planning_panel"):
                 route_map(case)
                 with st.container(border=True, key="freight_panel"):

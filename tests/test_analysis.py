@@ -83,8 +83,8 @@ class AnalysisTests(unittest.TestCase):
         answer = {"content":"MF-02 offers the highest feasible contribution.", "model":"test", "truncated":False,
                   "evidence":[{"tool":"compare_vessels", "result":output}]}
         with patch("voyage.chat.chat_reply", return_value=answer) as chat:
-            app.button(key="analyst_review").click().run()
-            self.assertTrue(chat.call_args.kwargs["force_comparison"])
+            app.chat_input[0].set_value("Compare CC-02 at 164000 tonnes").run()
+            self.assertFalse(chat.call_args.kwargs["force_comparison"])
             self.assertFalse(app.exception)
             app.chat_input[0].set_value("Compare it again").run()
         self.assertFalse(app.exception)
