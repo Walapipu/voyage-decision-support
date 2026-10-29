@@ -5,6 +5,51 @@ from streamlit.testing.v1 import AppTest
 
 
 class UITests(unittest.TestCase):
+    def test_new_chat_restores_initial_welcome_in_both_views(self):
+        for page in ('Dashboard', 'AI Assistant'):
+            with self.subTest(page=page):
+                app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
+                app.session_state.profile_name = 'Yi Heng Test'
+                next(r for r in app.radio if r.label == 'Navigation').set_value(page).run()
+                welcome = next(h.proto.body for h in app.get('html') if 'chat-welcome' in h.proto.body)
+                old_key = app.chat_input[0].key
+                with patch('voyage.chat.chat_reply', return_value={'content': 'Voyage analysis', 'evidence': []}):
+                    app.chat_input[0].set_value('Compare this voyage').run()
+                self.assertEqual(len(app.chat_message), 2)
+                app.button(key='new_conversation').click().run()
+                self.assertFalse(app.exception)
+                self.assertFalse(app.chat_message)
+                self.assertEqual(app.session_state.messages, [])
+                self.assertIsNone(app.session_state.pending)
+                self.assertIsNone(app.session_state.chat_error)
+                self.assertIsNone(app.chat_input[0].value)
+                self.assertNotEqual(old_key, app.chat_input[0].key)
+                self.assertEqual(welcome, next(h.proto.body for h in app.get('html') if 'chat-welcome' in h.proto.body))
+                self.assertIn('Hello, Yi Heng Test.', welcome)
+                # The cleared state persists across reruns and navigation.
+                other = 'AI Assistant' if page == 'Dashboard' else 'Dashboard'
+                next(r for r in app.radio if r.label == 'Navigation').set_value(other).run()
+                self.assertFalse(app.chat_message)
+                self.assertTrue(any(welcome == h.proto.body for h in app.get('html')))
+
+    def test_reset_during_request_discards_late_reply_or_error(self):
+        from voyage.chat_view import clear_chat
+        for fail in (False, True):
+            with self.subTest(fail=fail):
+                app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
+                def late_reply(*args, **kwargs):
+                    clear_chat()
+                    if fail:
+                        raise ValueError('Old request failed')
+                    return {'content': 'Old reply', 'evidence': []}
+                with patch('voyage.chat.chat_reply', side_effect=late_reply):
+                    app.chat_input[0].set_value('Old question').run()
+                self.assertFalse(app.exception)
+                self.assertFalse(app.chat_message)
+                self.assertFalse(app.error)
+                self.assertIsNone(app.session_state.pending)
+                self.assertTrue(any('Hello, Yi Heng.' in h.proto.body for h in app.get('html')))
+
     def test_assistant_new_chat_clears_failed_question_and_replaces_composer(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
         next(r for r in app.radio if r.label == 'Navigation').set_value('AI Assistant').run()
@@ -20,7 +65,8 @@ class UITests(unittest.TestCase):
         self.assertFalse(app.session_state.force_comparison)
         self.assertNotEqual(old_key, app.chat_input[0].key)
         self.assertFalse(app.chat_input[0].disabled)
-        self.assertTrue(any('New conversation started' in s.value for s in app.success))
+        self.assertTrue(any('Hello, Yi Heng.' in h.proto.body for h in app.get('html')))
+        self.assertFalse(app.success)
 
     def test_chat_retry_and_clear_without_network(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()

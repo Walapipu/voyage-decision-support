@@ -6,7 +6,6 @@ from voyage.ui import render_evidence
 
 def clear_chat():
     st.session_state.chat_generation = st.session_state.get('chat_generation', 0) + 1
-    st.session_state.chat_reset_notice = True
     st.session_state.messages = []
     st.session_state.pending = None
     st.session_state.chat_error = None
@@ -28,9 +27,9 @@ def render_chat(case, compact=False):
     for key, value in {"messages": [], "pending": None, "chat_error": None}.items():
         if key not in st.session_state:
             st.session_state[key] = value
-    with st.container(height=400, border=False, key="chat_scroll"):
-        if st.session_state.pop('chat_reset_notice', False):
-            st.success('New conversation started.')
+    generation = st.session_state.get('chat_generation', 0)
+    # Remount the scrolling panel as well as the composer on New chat.
+    with st.container(height=400, border=False, key=f"chat_scroll_{generation}"):
         if not st.session_state.messages and not st.session_state.pending:
             name = escape(st.session_state.get('profile_name', 'Yi Heng'))
             st.html(f'<div class="chat-welcome"><h2>Hello, {name}.</h2><p>Ask me something.</p></div>')
@@ -71,10 +70,12 @@ def render_chat(case, compact=False):
         try:
             with st.spinner("Preparing your voyage analysis…"):
                 answer = chat_reply(history + [context, question], force_comparison=st.session_state.get("force_comparison", False))
-            st.session_state.messages.extend([question, {"role": "assistant", **answer}])
-            st.session_state.pending = None
-            st.session_state.chat_error = None
-            st.session_state.force_comparison = False
+            if generation == st.session_state.get('chat_generation', 0):
+                st.session_state.messages.extend([question, {"role": "assistant", **answer}])
+                st.session_state.pending = None
+                st.session_state.chat_error = None
+                st.session_state.force_comparison = False
         except ValueError as exc:
-            st.session_state.chat_error = str(exc)
+            if generation == st.session_state.get('chat_generation', 0):
+                st.session_state.chat_error = str(exc)
         st.rerun()
