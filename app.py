@@ -13,6 +13,7 @@ from voyage.chat_view import render_chat, clear_chat
 from voyage.decision import CONVENTIONS
 from voyage.openrouter import load_settings
 from voyage.ui import render_evidence
+from voyage.ranking_view import render_ranking, sync_recommendation, use_selected_quantity
 from voyage.profile import toggle_theme, profile_menu
 
 st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
@@ -30,8 +31,7 @@ for key, value in {"dark_mode":True, "selected_vessel":"MF-02", "selected_cargo"
 def reset_lift():
     if st.session_state.selected_cargo is None:
         return
-    row = next(c for c in load_tables()["committed_cargoes"] if c["cargo_id"] == st.session_state.selected_cargo)
-    st.session_state.selected_lift = int(row["nominal_quantity_tonnes"])
+    sync_recommendation(force=True)
 
 with st.sidebar:
     st.html('<div class="brand"><div class="brandmark">≈</div><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
@@ -49,6 +49,7 @@ with st.container(key="topbar"):
     with user_col:
         profile_menu()
 apply_theme(st.session_state.dark_mode)
+sync_recommendation()
 
 with st.container(key="workspace"):
     vessel_col, cargo_col, lift_col = st.columns([1, 1, 1], vertical_alignment="bottom")
@@ -57,7 +58,14 @@ with st.container(key="workspace"):
     with cargo_col:
         st.selectbox("Committed cargo", [c["cargo_id"] for c in tables["committed_cargoes"]], key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="Committed cargo")
     with lift_col:
-        st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, step=500, key="selected_lift", label_visibility="collapsed", placeholder="Selected lift (tonnes)")
+        st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, step=500, key="selected_lift", on_change=use_selected_quantity, label_visibility="collapsed", placeholder="Selected lift (tonnes)")
+    if st.session_state.selected_cargo is not None and st.session_state.selected_lift is not None:
+        cargo = next(c for c in tables['committed_cargoes'] if c['cargo_id'] == st.session_state.selected_cargo)
+        minimum, maximum = (int(cargo[k]) for k in ('minimum_quantity_tonnes', 'maximum_quantity_tonnes'))
+        if not minimum <= st.session_state.selected_lift <= maximum:
+            st.error(f"Quantity outside accepted range: {st.session_state.selected_lift:,.0f} tonnes. "
+                     f"{cargo['cargo_id']} requires {minimum:,.0f}–{maximum:,.0f} tonnes (inclusive). "
+                     "This quantity is infeasible; enter an amount within the range.")
 
 if any(st.session_state[k] is None for k in ("selected_vessel", "selected_cargo", "selected_lift")):
     st.info("Select a vessel, cargo and lift to start your analysis.")
@@ -80,6 +88,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
                     st.button("", icon=":material/edit_square:", key="new_conversation", on_click=clear_chat)
                 def dashboard_intro():
                     voyage_summary(case, compact=True)
+                    st.caption("Open Voyages to rank vessels and recommended cargo quantities for the selected cargo.")
                     with st.expander("Compare managed vessels", expanded=True):
                         comparison_table(case, compact=True)
                     with st.expander("Revenue, costs and bunker consumption"):
@@ -102,15 +111,19 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             render_chat(case)
 
     elif page == "Voyages":
-        heading("Voyage economics", "Selected voyage and managed alternatives")
-        voyage_summary(case)
-        comparison_table(case)
-        with st.container(border=True):
-            economics(case)
-        with st.container(border=True, key="timeline_panel"):
-            timeline(case)
-        with st.expander("Full engine output and methodology"):
-            st.json({"result":case["row"], "conventions": CONVENTIONS})
+        heading("Voyage planning", "Rank options, then inspect your selected voyage")
+        ranking_tab, detail_tab = st.tabs(["Cargo ranking", "Selected voyage details"])
+        with ranking_tab:
+            render_ranking(st.session_state.selected_cargo, st.session_state.price_period)
+        with detail_tab:
+            voyage_summary(case)
+            with st.container(border=True):
+                heading("Revenue and costs")
+                economics(case)
+            with st.container(border=True, key="voyage_schedule"):
+                timeline(case)
+            with st.expander("Full engine output and methodology"):
+                st.json({"result":case["row"], "conventions": CONVENTIONS})
 
     elif page in ("Fleet", "Freight", "Ports"):
         heading(page + " data", "Vessels, cargoes and ports")

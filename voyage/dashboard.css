@@ -1,4 +1,35 @@
 /* OceanFlow reference: navy rail, five KPIs, fleet / assistant / planning grid. */
+/* Let tab contents keep their natural height inside the scrolling page panel. */
+.st-key-page_content [data-testid="stTabs"],
+.st-key-page_content [data-testid="stTabContent"],
+.st-key-page_content [data-testid="stTabContent"] [data-testid="stVerticalBlock"] {
+ height:auto!important;max-height:none!important;overflow:visible!important;
+}
+.st-key-page_content [data-testid="stTabContent"] [data-testid="stLayoutWrapper"],
+.st-key-page_content [data-testid="stTabContent"] [data-testid="stElementContainer"] {
+ flex-shrink:0!important;min-height:fit-content;
+}
+.ranking-note {display:block;width:100%;height:auto;max-height:none;overflow:visible;padding:4px 0 8px;}
+.ranking-note p {margin:0 0 5px;color:var(--muted);font-size:13px;line-height:1.65;white-space:normal;overflow-wrap:anywhere;}
+.ranking-note p:last-child {margin-bottom:0;}
+/* Voyage cards grow with their content and wrap at narrow viewport widths. */
+.voyage-option {color:var(--text);padding:8px;min-width:0;}
+.voyage-option header {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+.voyage-option header small {color:var(--muted);font-size:12px;}
+.voyage-option h3 {margin:4px 0 0;font-size:22px;color:var(--text);}
+.voyage-option.recommended {border-left:3px solid var(--blue);padding-left:16px;}
+.voyage-option-metrics {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:16px;margin:20px 0;}
+.voyage-option-metrics div {min-width:0;}
+.voyage-option dt {color:var(--muted);font-size:12px;white-space:normal;}
+.voyage-option dd {margin:6px 0 0;font-size:clamp(20px,2vw,28px);line-height:1.3;font-weight:650;overflow-wrap:anywhere;}
+.voyage-option p,.voyage-option footer {font-size:12px;line-height:1.7;white-space:normal;overflow-wrap:anywhere;color:var(--muted);}
+.st-key-page_content .panel-head {flex-wrap:wrap;}
+.st-key-page_content .detail {flex-wrap:wrap;overflow-wrap:anywhere;}
+.st-key-page_content .detail b {white-space:normal;}
+.st-key-voyage_schedule .timeline {grid-template-columns:repeat(auto-fit,minmax(130px,1fr));row-gap:20px;}
+.st-key-page_content [data-testid="stWidgetLabel"] p {white-space:normal;overflow:visible;}
+.st-key-page_content>[data-testid="stLayoutWrapper"],
+.st-key-page_content [data-testid="stTabContent"]>[data-testid="stVerticalBlock"]>[data-testid="stLayoutWrapper"] {flex-shrink:0!important;}
 .stApp { background:var(--bg); color:var(--text); }
 .st-key-fleet_panel,.st-key-assistant_panel,.st-key-freight_panel,.st-key-timeline_panel {background:var(--panel);border:1px solid var(--line)!important;border-radius:9px;padding:12px!important;}
 .st-key-route_map {background:linear-gradient(130deg,#061b2b,#12394f);border:1px solid #285066;border-radius:8px;color:#e2f3fa;overflow:hidden;}
