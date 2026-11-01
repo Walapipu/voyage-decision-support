@@ -18,7 +18,7 @@ def start_new_chat():
         st.session_state[key] = None
 
 
-def render_chat(case, compact=False):
+def render_chat(case, compact=False, controls=None):
     from voyage.chat import chat_reply
 
     for key, value in {"messages": [], "pending": None, "chat_error": None}.items():
@@ -29,7 +29,7 @@ def render_chat(case, compact=False):
     with st.container(height=400, border=False, key=f"chat_scroll_{generation}"):
         if not st.session_state.messages and not st.session_state.pending:
             name = escape(st.session_state.get('profile_name', 'Yi Heng'))
-            st.html(f'<div class="chat-welcome"><h2>Hello, {name}.</h2><p>Ask me something.</p></div>')
+            st.html(f'<div class="chat-welcome"><h2>Hello, {name}.</h2><p>Ask about a voyage, cargo or fuel plan</p></div>')
         for message_index, message in enumerate(st.session_state.messages):
             with st.chat_message(message["role"]):
                 if message["role"] == "assistant" and message.get("evidence"):
@@ -53,6 +53,8 @@ def render_chat(case, compact=False):
                     st.rerun()
             progress = st.empty()
     with st.container(key="composer"):
+        if controls:
+            controls()
         prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
     if prompt and prompt.strip():
         st.session_state.pending = prompt.strip()

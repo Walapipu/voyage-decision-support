@@ -9,11 +9,11 @@ class UITests(unittest.TestCase):
         with patch('voyage.dashboard_data.compare_vessels') as calculate:
             app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
             self.assertFalse(app.exception)
-            self.assertEqual(app.selectbox(key='selected_vessel').options[0], '--')
-            self.assertEqual(app.selectbox(key='selected_cargo').options[0], '--')
+            self.assertEqual(app.selectbox(key='selected_vessel').options[0], 'Vessel')
+            self.assertEqual(app.selectbox(key='selected_cargo').options[0], 'Cargo')
             for key in ('selected_vessel', 'selected_cargo', 'selected_lift'):
                 self.assertIsNone(app.session_state[key])
-            self.assertEqual(app.number_input(key='selected_lift').proto.placeholder, '--')
+            self.assertEqual(app.number_input(key='selected_lift').proto.placeholder, 'Lift, tonnes')
             self.assertTrue(any('Hello, Yi Heng.' in h.proto.body for h in app.get('html')))
             with patch('voyage.chat.chat_reply', return_value={'content': 'How can I help?', 'evidence': []}) as chat:
                 app.chat_input[0].set_value('Hello').run()

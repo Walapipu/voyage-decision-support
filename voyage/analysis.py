@@ -50,13 +50,13 @@ def analyst_facts(rows):
 def profit_tone(margin, dark=True):
     """Symmetric visual scale capped at +/-25 percentage points, not a rating."""
     if margin is None or not np.isfinite(margin):
-        return "#9bb0c7" if dark else "#62768e", 0.0
+        return "#7f8794" if dark else "#6b7487", 0.0
     strength = float(np.clip(abs(margin) / 25, 0, 1))
     if margin == 0:
-        return ("#f5c274" if dark else "#976315"), strength
-    start, end = (([151, 213, 184], [31, 224, 148]) if margin > 0 else
-                  ([235, 160, 168], [255, 75, 103])) if dark else (
-                  ([54, 126, 88], [0, 112, 65]) if margin > 0 else
-                  ([166, 74, 82], [188, 24, 48]))
+        return ("#e0b263" if dark else "#9a6410"), strength
+    start, end = (([150, 204, 176], [76, 195, 138]) if margin > 0 else
+                  ([233, 163, 166], [229, 72, 77])) if dark else (
+                  ([61, 122, 87], [22, 128, 60]) if margin > 0 else
+                  ([168, 84, 90], [198, 40, 40]))
     rgb = np.rint(np.array(start) + strength * (np.array(end) - start)).astype(int)
     return "#" + "".join(f"{value:02x}" for value in rgb), strength

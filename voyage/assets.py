@@ -3,7 +3,7 @@ import base64
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "assets"
-NAV_ICONS = ["layout-dashboard", "bot", "ship", "container", "anchor", "anchor", "chart-no-axes-combined", "file-chart-column", "files", "settings"]
+NAV_ICONS = ["layout-dashboard", "bot", "route", "ship", "container", "anchor", "chart-no-axes-combined", "file-chart-column", "files", "settings"]
 
 
 def brand_logo_uri():

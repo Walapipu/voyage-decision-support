@@ -5,7 +5,7 @@ from voyage.analysis import COSTS, STAGES, result_frame, profit_tone
 
 
 def style_chart(fig, dark, height=280):
-    text, line = ("#c4d5e4", "#2a4056") if dark else ("#30475e", "#e0e7ef")
+    text, line = ("#a3a9b5", "#262b33") if dark else ("#4b5565", "#e5e8ed")
     fig.update_layout(height=height, template="plotly_dark" if dark else "plotly_white",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Arial, sans-serif", size=11, color=text),

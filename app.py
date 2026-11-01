@@ -17,7 +17,7 @@ from voyage.ui import render_evidence
 from voyage.report import analytics_report
 from voyage.profile import toggle_theme, profile_menu
 
-st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon=str(Path(__file__).resolve().parent / "assets/oceanflow-crown.png"), layout="wide", initial_sidebar_state="expanded")
 if st.session_state.get("logged_out"):
     st.title("Session ended")
     st.write("Your profile and conversation were cleared for this session.")
@@ -33,30 +33,64 @@ def reset_lift():
     st.session_state.selected_lift = None
 
 with st.sidebar:
-    st.html(f'<div class="brand"><img class="brandmark" src="{brand_logo_uri()}" alt="OceanFlow crown"/><div><b>OceanFlow</b><small>Voyage Decision Support</small></div></div>')
+    st.html(f'<div class="brand"><img class="brandmark" src="{brand_logo_uri()}" alt="OceanFlow crown"/><div><b>OceanFlow</b><small>Voyage decision support</small></div></div>')
     page = st.radio("Navigation", ["Dashboard", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
+    with st.container(key="sidebar_foot"):
+        user_col, theme_col = st.columns([1, .22], vertical_alignment="center", gap="small")
+        with user_col:
+            profile_menu()
+        with theme_col:
+            st.button("", icon=":material/dark_mode:", key="theme_button", on_click=toggle_theme, help="Switch light or dark theme")
 
 tables = load_tables()
-with st.container(key="topbar"):
-    search_col, period_col, theme_col, user_col = st.columns([6, 1.8, .55, 1.8], vertical_alignment="center")
-    with search_col:
-        query = st.text_input("Search vessels, ports or cargoes", placeholder="Search vessels, ports or cargoes…", label_visibility="collapsed").strip().lower()
-    with period_col:
-        st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
-    with theme_col:
-        st.button("", icon=":material/dark_mode:", key="theme_button", on_click=toggle_theme)
-    with user_col:
-        profile_menu()
+query = ""  # Top-bar search was removed; panels keep their filter hooks.
 apply_theme(st.session_state.dark_mode)
+# Dropdowns opened from the assistant composer always open upward, like the
+# vessel list does, instead of flipping by how much room is left below.
+st.html("""<script>(() => {
+  if (window.__oceanflowDropUp) return; window.__oceanflowDropUp = true;
+  let anchor = null;
+  const remember = e => { anchor = e.target.closest && e.target.closest('.st-key-composer [data-testid="stSelectbox"]'); };
+  document.addEventListener('pointerdown', remember, true);
+  document.addEventListener('focusin', remember, true);
+  const place = dd => {
+    if (!anchor || !anchor.isConnected) { dd.removeAttribute('data-drop-up'); return; }
+    const field = (anchor.querySelector('[role="group"]') || anchor).getBoundingClientRect();
+    const room = Math.max(120, field.top - 12);
+    dd.style.setProperty('--drop-max', room + 'px');
+    const height = Math.min(dd.scrollHeight, dd.getBoundingClientRect().height || dd.scrollHeight, room);
+    dd.style.setProperty('--drop-x', field.left + 'px');
+    dd.style.setProperty('--drop-y', Math.max(8, field.top - height - 4) + 'px');
+    dd.setAttribute('data-drop-up', '');
+  };
+  new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(n => {
+    if (n.nodeType !== 1) return;
+    const dd = n.matches('[data-testid="stSelectboxVirtualDropdown"]') ? n : n.querySelector('[data-testid="stSelectboxVirtualDropdown"]');
+    if (!dd) return;
+    requestAnimationFrame(() => place(dd));
+    new ResizeObserver(() => place(dd)).observe(dd);
+  }))).observe(document.body, {childList: true, subtree: true});
+})();</script>""", unsafe_allow_javascript=True)
 
-with st.container(key="workspace"):
-    vessel_col, cargo_col, lift_col = st.columns([1, 1, 1], vertical_alignment="bottom")
-    with vessel_col:
-        st.selectbox("Selected vessel", [None] + [v["vessel_id"] for v in tables["managed_vessels"]], format_func=lambda v: v or "--", key="selected_vessel", label_visibility="collapsed", placeholder="--")
-    with cargo_col:
-        st.selectbox("Committed cargo", [None] + [c["cargo_id"] for c in tables["committed_cargoes"]], format_func=lambda c: c or "--", key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="--")
-    with lift_col:
-        st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, value=None, step=500, key="selected_lift", label_visibility="collapsed", placeholder="--")
+
+def selection_controls():
+    """Vessel, cargo, lift and price-month pickers. Rendered exactly once per run (in the
+    assistant composer, or the workspace strip on result pages) so their state is never dropped."""
+    with st.container(key="selection"):
+        vessel_col, cargo_col, lift_col, period_col = st.columns(4, vertical_alignment="center", gap="small")
+        with vessel_col:
+            st.selectbox("Selected vessel", [None] + [v["vessel_id"] for v in tables["managed_vessels"]], format_func=lambda v: v or "Vessel", key="selected_vessel", label_visibility="collapsed", placeholder="Vessel")
+        with cargo_col:
+            st.selectbox("Committed cargo", [None] + [c["cargo_id"] for c in tables["committed_cargoes"]], format_func=lambda c: c or "Cargo", key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="Cargo")
+        with lift_col:
+            st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, value=None, step=500, key="selected_lift", label_visibility="collapsed", placeholder="Lift, tonnes")
+        with period_col:
+            st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
+
+
+if page not in ("Dashboard", "AI Assistant"):
+    with st.container(key="workspace"):
+        selection_controls()
 
 has_selection = all(st.session_state[k] is not None for k in ("selected_vessel", "selected_cargo", "selected_lift"))
 case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel) if has_selection else None
@@ -64,6 +98,7 @@ catalog = {"tables": tables, "ports": index(tables["ports"], "port_code")}
 
 with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant") else nullcontext():
     if page == "Dashboard":
+        st.html('<h1 class="page-title">Overview</h1>')
         summary_cards(case)
         with st.container(key="dashboard_grid"):
             fleet, assistant, planning = st.columns([1.05, 2.65, 1.4], gap="small")
@@ -72,16 +107,16 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             with assistant, st.container(border=True, key="assistant_panel"):
                 title, new = st.columns([1, .12], vertical_alignment="center")
                 with title:
-                    heading("AI Voyage Assistant")
+                    heading("AI voyage assistant")
                 with new:
                     st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
-                render_chat(case, compact=True)
+                render_chat(case, compact=True, controls=selection_controls)
             with planning, st.container(key="planning_panel"):
                 if case:
                     route_map(case)
                 else:
                     with st.container(key="route_map"):
-                        heading("Route Map")
+                        heading("Route map")
                         st.caption("Select a vessel, cargo and tonnage to view a route.")
                 with st.container(border=True, key="freight_panel"):
                     freight_panel(catalog, query)
@@ -89,17 +124,17 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             if case:
                 timeline(case)
             else:
-                heading("Voyage Timeline")
+                heading("Voyage timeline")
                 st.caption("No voyage selected.")
 
     elif page == "AI Assistant":
         with st.container(key="assistant_full"):
             title, new = st.columns([1, .06], vertical_alignment="center")
             with title:
-                heading("AI Voyage Assistant", "Commercial analysis")
+                heading("AI voyage assistant", "Commercial analysis")
             with new:
                 st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
-            render_chat(case)
+            render_chat(case, controls=selection_controls)
 
     elif page in ("Voyages", "Analytics", "Reports") and not case:
         heading(page)
@@ -160,7 +195,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
 
     elif page == "Settings":
         heading("Settings and assumptions")
-        st.write("Use the moon button at the right of the top bar to switch themes. Your selection persists for this browser session. Profile settings and local-session logout are in the name dropdown.")
+        st.write("Use the moon button at the bottom of the sidebar to switch themes. Your selection persists for this browser session. Profile settings and local-session logout are in the name dropdown.")
         try:
             _, model = load_settings()
             st.success("OpenRouter key configured on the server.")

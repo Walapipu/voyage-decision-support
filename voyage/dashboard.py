@@ -30,8 +30,20 @@ def profit_style(value):
 
 
 def apply_theme(dark):
-    palette = ({"bg":"#0b1624","panel":"#122337","field":"#182d43","text":"#e1edf9","muted":"#9bb0c7","line":"#2a4056","blue":"#51bcff","bluewash":"#133650","green":"#5dd6a6","greenwash":"#143d36","amber":"#f5c274","amberwash":"#443626"}
-               if dark else {"bg":"#f0f4f8","panel":"#ffffff","field":"#f3f6fa","text":"#14243b","muted":"#62768e","line":"#e0e7ef","blue":"#087bf5","bluewash":"#edf6ff","green":"#14885d","greenwash":"#e6f7ef","amber":"#a16a12","amberwash":"#fff2db"})
+    # Chart-room graphite: neutral surfaces, one sea-blue accent, toned semantics.
+    palette = ({"rail":"#090b0e", "bg":"#0d0f13", "panel":"#13161b", "field":"#1b1f25", "raised":"#22272e",
+                "line":"rgba(232,236,242,.08)", "linestrong":"rgba(232,236,242,.14)",
+                "text":"#e8ebf0", "text2":"#a3a9b5", "muted":"#858c98",
+                "blue":"#5aa9f0", "bluewash":"rgba(90,169,240,.13)", "onblue":"#0d0f13",
+                "green":"#4cc38a", "greenwash":"rgba(76,195,138,.12)", "amber":"#e0b263", "amberwash":"rgba(224,178,99,.12)",
+                "red":"#e5484d", "redwash":"rgba(229,72,77,.12)"}
+               if dark else
+               {"rail":"#f0f2f5", "bg":"#f6f7f9", "panel":"#ffffff", "field":"#f1f3f6", "raised":"#e8ebf0",
+                "line":"rgba(17,24,39,.09)", "linestrong":"rgba(17,24,39,.16)",
+                "text":"#111827", "text2":"#4b5565", "muted":"#6b7487",
+                "blue":"#0a6fd6", "bluewash":"rgba(10,111,214,.08)", "onblue":"#ffffff",
+                "green":"#16803c", "greenwash":"rgba(22,128,60,.08)", "amber":"#9a6410", "amberwash":"rgba(154,100,16,.09)",
+                "red":"#c62828", "redwash":"rgba(198,40,40,.08)"})
     variables = ";".join(f"--{key}:{value}" for key, value in palette.items())
     st.html("<style>:root{" + variables + ";color-scheme:" + ("dark" if dark else "light") + ";}" + Path(__file__).with_name("dashboard.css").read_text(encoding="utf-8") + icon_styles() + "</style>")
 
@@ -52,28 +64,29 @@ def summary_cards(case):
             + '</small></div></div>' for icon, label in cards) + '</div>')
         return
     row = case["row"]
-    suffix = " · infeasible case" if not row["feasible"] else " · selected voyage"
+    status = "Feasible" if row["feasible"] else "Infeasible"
     cards = [
         ("ship", "Active Voyages", "—", "Not connected"),
         ("chart-pie", "Fleet Utilisation", "—", "Not connected"),
-        ("fuel", "Fuel Cost (USD)", usd(row["bunker_cost_usd"]), f'{case["fuel_tonnes"]:,.0f} t consumed' + suffix),
+        ("fuel", "Fuel Cost (USD)", usd(row["bunker_cost_usd"]), f'{case["fuel_tonnes"]:,.0f} t consumed · {status.lower()}'),
         ("clock", "ETA Reliability", "—", "Not connected"),
-        ("trending-up", "Profit Margin", f'{case["margin_pct"]:.1f}%' if case["margin_pct"] is not None else "—", "Contribution ÷ freight revenue" + suffix),
+        ("trending-up", "Profit Margin", f'{case["margin_pct"]:.1f}%' if case["margin_pct"] is not None else "—", status),
     ]
     tiles = []
     for icon, label, value, note in cards:
         is_profit = label == "Profit Margin"
-        style = profit_style(case["margin_pct"]) if is_profit else ""
+        # An infeasible voyage's margin is hypothetical, so it is shown in muted grey.
+        style = ("--profit-colour:var(--muted);" if not row["feasible"] else profit_style(case["margin_pct"])) if is_profit else ""
         gradient = ''
         if is_profit and case["margin_pct"] is not None:
             position = max(0, min(100, 50 + case["margin_pct"] * 2))
             gradient = f'<div class="profit-scale" title="Display scale: −25% to +25%; zero is break-even. Not an industry rating."><i style="left:{position:.1f}%"></i></div>'
-        tiles.append(f'<div class="kpi {"profit-kpi" if is_profit else ""}" style="{style}"><div class="kpi-icon"><span class="lucide icon-{e(icon)}"></span></div><div class="kpi-body"><h4>{e(label)}</h4><strong>{e(value)}</strong><small>{e(note)}</small>{gradient}</div></div>')
+        tiles.append(f'<div class="kpi {"profit-kpi" if is_profit else ""}" style="{style}"><div class="kpi-icon"><span class="lucide icon-{e(icon)}"></span></div><div class="kpi-body"><h4>{e(label)}</h4><strong>{e(value)}</strong><small title="{e(note)}">{e(note)}</small>{gradient}</div></div>')
     st.html('<div class="kpi-grid">' + ''.join(tiles) + '</div>')
 
 
 def fleet_panel(case, query):
-    heading("Fleet Overview", "4 managed / 11 market")
+    heading("Fleet overview")
     group = st.radio("Fleet filter", ["Managed", "Market", "All"], horizontal=True, label_visibility="collapsed")
     tables = case["tables"]
     rows = tables["managed_vessels"] if group == "Managed" else tables["market_vessels"] if group == "Market" else tables["managed_vessels"] + tables["market_vessels"]
@@ -85,7 +98,7 @@ def fleet_panel(case, query):
                 continue
             found += 1
             managed = vessel["vessel_id"].startswith("MF")
-            illustration, description = st.columns([1, 3])
+            illustration, description = st.columns([1, 2.4], vertical_alignment="center")
             with illustration:
                 st.image(vessel_photo(vessel["vessel_id"]), width="stretch")
             with description:
@@ -94,7 +107,9 @@ def fleet_panel(case, query):
                 else:
                     if st.button(vessel["vessel_id"], key="inspect_" + vessel["vessel_id"], type="tertiary"):
                         inspect_market_vessel(vessel, port)
-                st.html(f'<div class="fleet-row"><div><p>Capesize bulk carrier</p><p>{float(vessel["dwt_tonnes"]):,.0f} DWT</p><p>{e(port)}</p></div><div class="fleet-meta"><span class="tag {"good" if managed else "warn"}">{"Managed" if managed else "Quote needed"}</span><small>Available {e(stamp(vessel["available_from_utc"]).split(",")[0])}</small></div></div>')
+                available = e(stamp(vessel["available_from_utc"]).split(",")[0])
+                status = '<span class="status">Managed</span>' if managed else '<span class="status warn">Quote needed</span>'
+                st.html(f'<div class="fleet-row"><p>Capesize · <span class="num">{float(vessel["dwt_tonnes"]):,.0f}</span> DWT</p><p>{e(port)}</p><p class="fleet-meta">{status} · Available {available}</p></div>')
         if not found:
             st.caption("No vessels match the search.")
 
@@ -112,12 +127,12 @@ def select_vessel(vessel_id):
 
 def route_map(case):
     with st.container(key="route_map"):
-        heading("Route Map", "OpenStreetMap · zoom to explore")
+        heading("Route map")
         render_map(case)
 
 
 def freight_panel(case, query):
-    heading("Freight Planning", "11 cargo opportunities")
+    heading("Freight planning")
     group = st.radio("Cargo filter", ["Committed", "Market"], horizontal=True, label_visibility="collapsed")
     rows = case["tables"]["committed_cargoes" if group == "Committed" else "market_cargoes"]
     body = ""
@@ -126,8 +141,10 @@ def freight_panel(case, query):
             continue
         market = cargo["cargo_role"] == "market"
         rate = "Quote needed" if market else f'${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}'
-        body += f'<tr><td><b>{e(cargo["cargo_id"])}</b><br>{e(cargo["commodity"].replace("_"," "))}</td><td>{e(cargo["load_port"])}<br>→ {e(cargo["discharge_port"])}</td><td>{e(rate)}</td><td>{float(cargo["nominal_quantity_tonnes"])/1000:g}k t</td></tr>'
-    st.html('<div class="table-wrap"><table class="ocean-table"><thead><tr><th>Cargo</th><th>Route</th><th>USD/t</th><th>Nominal</th></tr></thead><tbody>'+body+'</tbody></table></div>')
+        body += (f'<tr><td><span class="code">{e(cargo["cargo_id"])}</span><small>{e(cargo["commodity"].replace("_"," "))}</small></td>'
+                 f'<td><span class="code">{e(cargo["load_port"])}</span><small class="code">→ {e(cargo["discharge_port"])}</small></td>'
+                 f'<td class="num">{e(rate)}</td><td class="num">{float(cargo["nominal_quantity_tonnes"]):,.0f} t</td></tr>')
+    st.html('<div class="table-wrap"><table class="ocean-table freight-table"><thead><tr><th>Cargo</th><th>Route</th><th class="num">USD/t</th><th class="num">Nominal</th></tr></thead><tbody>'+body+'</tbody></table></div>')
 
 
 def voyage_summary(case, compact=False):
@@ -171,7 +188,7 @@ def voyage_summary(case, compact=False):
 
 def comparison_table(case, compact=False):
     if not compact:
-        heading("Managed Vessel Comparison", "Feasible first · contribution ranking")
+        heading("Managed vessel comparison", "Feasible first · contribution ranking")
     body = ""
     for r in case["comparison"]["rows"]:
         body += f'<tr class="{"selected" if r["vessel_id"] == case["vessel"]["vessel_id"] else ""}"><td><b>{e(r["vessel_id"])}</b></td><td><span class="tag {"good" if r["feasible"] else "bad"}">{"Feasible" if r["feasible"] else e(", ".join(r["failed_checks"]))}</span></td><td class="num">{r["voyage_days"]:.2f}</td><td class="num">{usd(r["tce_usd_per_day"])}</td><td class="num">{usd(r["voyage_contribution_usd"])}</td></tr>'
@@ -188,12 +205,36 @@ def economics(case):
 
 
 def timeline(case):
-    heading("Voyage Timeline — " + case["vessel"]["vessel_id"], "Estimated schedule · UTC")
-    st.html('<div class="timeline">'+''.join(f'<div class="stop"><b>{e(s["label"])}</b><small>{e(stamp(s["time"]))}</small><small>{e(s["detail"])}</small><em>Estimated</em></div>' for s in case["timeline"])+'</div>')
+    heading("Voyage timeline · " + case["vessel"]["vessel_id"], "Estimated schedule, UTC")
+    st.html(laycan_track(case) + '<div class="timeline">'+''.join(f'<div class="stop"><b>{e(s["label"])}</b><small>{e(stamp(s["time"]))}</small><small>{e(s["detail"])}</small></div>' for s in case["timeline"])+'</div>')
+
+
+def _utc(value):
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def laycan_track(case):
+    """Signature detail: the laycan window drawn to scale on the voyage, with slack to close."""
+    stops = [_utc(s["time"]) for s in case["timeline"]]
+    first, last = stops[0], stops[-1]
+    span = (last - first).total_seconds() or 1
+    def at(moment):
+        return max(0.0, min(100.0, 100 * (moment - first).total_seconds() / span))
+    opens, closes = _utc(case["cargo"]["laycan_start_utc"]), _utc(case["cargo"]["laycan_end_utc"])
+    window = f'{opens:%d}–{closes:%d %b}' if opens.month == closes.month else f'{opens:%d %b} – {closes:%d %b}'
+    slack = case["row"]["laycan_slack_days"]
+    left, right = at(opens), at(closes)
+    edge = "end" if left > 55 else "start"
+    # Load arrival is drawn last so a stop at the same instant cannot cover it.
+    order = [i for i in range(len(stops)) if i != 1] + [1]
+    ticks = "".join(f'<i class="tick{" arrival" if i == 1 else ""}" style="left:{at(stops[i]):.2f}%"></i>' for i in order)
+    return (f'<div class="laycan-track {"late" if slack < 0 else ""}" role="img" aria-label="Laycan {e(window)}; load arrival {e(stamp(case["timeline"][1]["time"]))}; {slack:.1f} days to laycan close">'
+            f'<span class="laycan-band" style="left:{left:.2f}%;width:{max(right - left, 0.6):.2f}%"><em class="{edge}">Laycan {e(window)} · {slack:.1f} d slack</em></span>'
+            f'{ticks}</div>')
 
 
 def requirements_notice():
-    st.html('<div class="gap-note"><b>Analysis coverage:</b> managed vessels and committed cargoes. Market comparisons and bunker-price / port-delay scenarios are not yet available.</div>')
+    st.html('<div class="gap-note"><b>Analysis coverage</b> · managed vessels and committed cargoes. Market comparisons and bunker-price / port-delay scenarios are not yet available.</div>')
 
 
 def result_frame(case):
