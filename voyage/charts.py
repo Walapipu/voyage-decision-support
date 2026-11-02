@@ -1,7 +1,7 @@
 """Plotly figures built from executed engine rows, never from generated code."""
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from voyage.analysis import COSTS, STAGES, result_frame, profit_tone
+from voyage.analysis import COSTS, STAGES, STAGE_COLOURS, result_frame, profit_tone
 
 
 def style_chart(fig, dark, height=280):
@@ -48,7 +48,7 @@ def cost_chart(row, dark=True):
 
 def duration_chart(rows, dark=True):
     fig = go.Figure()
-    for (name, key), colour in zip(STAGES.items(), ["#6099c8", "#f5bd66", "#7486e8", "#21b8c5", "#ad82db"]):
+    for (name, key), colour in zip(STAGES.items(), STAGE_COLOURS.values()):
         fig.add_trace(go.Bar(name=name, y=[r["vessel_id"] for r in rows],
             x=[r[key] for r in rows], orientation="h", marker_color=colour,
             hovertemplate=name + ": %{x:.2f} days<extra>%{y}</extra>"))

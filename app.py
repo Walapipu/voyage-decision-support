@@ -6,7 +6,8 @@ import streamlit as st
 
 from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
-from voyage.dashboard_data import dashboard_case
+from voyage.dashboard_data import dashboard_case, candidates_case
+from voyage.voyages_view import voyages_page
 from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
     route_map, freight_panel, voyage_summary, comparison_table, economics, timeline,
     requirements_notice, result_frame)
@@ -31,6 +32,8 @@ for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":No
 
 def reset_lift():
     st.session_state.selected_lift = None
+    # A cargo picked in the top bar ends any Voyages search in progress.
+    st.session_state.voyage_port = st.session_state.voyage_query = None
 
 with st.sidebar:
     st.html(f'<div class="brand"><img class="brandmark" src="{brand_logo_uri()}" alt="OceanFlow crown"/><div><b>OceanFlow</b><small>Voyage decision support</small></div></div>')
@@ -70,6 +73,20 @@ st.html("""<script>(() => {
     requestAnimationFrame(() => place(dd));
     new ResizeObserver(() => place(dd)).observe(dd);
   }))).observe(document.body, {childList: true, subtree: true});
+})();</script>""", unsafe_allow_javascript=True)
+# The Voyages search accepts free text; Streamlit labels that option "Add: …", which
+# reads as creating a record. Relabel it while the search box has focus.
+st.html("""<script>(() => {
+  if (window.__oceanflowSearchLabel) return; window.__oceanflowSearchLabel = true;
+  const relabel = () => {
+    if (!document.activeElement || !document.activeElement.closest('.st-key-voyage_search')) return;
+    document.querySelectorAll('[data-testid="stSelectboxVirtualDropdown"] [role="option"]').forEach(option => {
+      const walker = document.createTreeWalker(option, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode())
+        if (node.nodeValue.startsWith('Add: ')) node.nodeValue = 'Search all: ' + node.nodeValue.slice(5);
+    });
+  };
+  new MutationObserver(relabel).observe(document.body, {childList: true, subtree: true, characterData: true});
 })();</script>""", unsafe_allow_javascript=True)
 
 
@@ -136,23 +153,29 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
                 st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
             render_chat(case, controls=selection_controls)
 
-    elif page in ("Voyages", "Analytics", "Reports") and not case:
+    elif page == "Voyages":
+        cargo_id, lift = st.session_state.selected_cargo, st.session_state.selected_lift
+        cc = candidates_case(cargo_id, lift, st.session_state.price_period) if cargo_id is not None and lift is not None else None
+        voyages_page(cc)
+        if cc and not (st.session_state.get("voyage_port") or st.session_state.get("voyage_query")):
+            if case:
+                heading("Selected voyage · " + case["vessel"]["vessel_id"], "Economics, checks and schedule")
+                voyage_summary(case)
+                with st.container(border=True):
+                    economics(case)
+                with st.container(border=True, key="timeline_panel"):
+                    timeline(case)
+                with st.expander("Full engine output and methodology"):
+                    st.json({"result":case["row"], "conventions": case['comparison']['conventions']})
+            else:
+                st.caption("Select a vessel to see its economics, fuel and draft checks and voyage timeline here.")
+
+    elif page in ("Analytics", "Reports") and not case:
         heading(page)
         st.info("Select a vessel, cargo and tonnage to view voyage results.")
         if page == "Analytics":
             st.download_button("Download report", data="", disabled=True,
                 file_name="oceanflow_analytics.html", mime="text/html", key="analytics_report")
-
-    elif page == "Voyages":
-        heading("Voyage economics", "Selected voyage and managed alternatives")
-        voyage_summary(case)
-        comparison_table(case)
-        with st.container(border=True):
-            economics(case)
-        with st.container(border=True, key="timeline_panel"):
-            timeline(case)
-        with st.expander("Full engine output and methodology"):
-            st.json({"result":case["row"], "conventions": case['comparison']['conventions']})
 
     elif page in ("Fleet", "Freight", "Ports"):
         heading(page + " data", "Vessels, cargoes and ports")

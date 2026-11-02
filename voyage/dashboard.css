@@ -332,3 +332,117 @@ body:has([data-testid="stSidebar"][data-collapsed="true"]) .stMainBlockContainer
 [data-testid="stSidebarCollapseButton"] button:before,[data-testid="stExpandSidebarButton"]:before{content:'';width:18px;height:18px;background:var(--text2);mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20width%3D%2718%27%20height%3D%2718%27%20x%3D%273%27%20y%3D%273%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M9%203v18%27%2F%3E%3Cpath%20d%3D%27m16%2015-3-3%203-3%27%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;}
 [data-testid="stExpandSidebarButton"]:before{mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20width%3D%2718%27%20height%3D%2718%27%20x%3D%273%27%20y%3D%273%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M9%203v18%27%2F%3E%3Cpath%20d%3D%27m14%209%203%203-3%203%27%2F%3E%3C%2Fsvg%3E");}
 [data-testid="stSidebarCollapseButton"] button:hover:before,[data-testid="stExpandSidebarButton"]:hover:before{background:var(--text);}
+
+/* ---------- Voyages: candidate vessels, map and specification matrix ---------- */
+/* The grid fills the view under the selection strip; the list, map and table own their scrolling. */
+.st-key-voyages_grid{height:calc(100dvh - 150px)!important;min-height:600px!important;}
+.st-key-voyages_grid>[data-testid="stLayoutWrapper"],.st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{height:100%!important;min-height:0!important;}
+.st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:minmax(300px,1fr) minmax(0,1.9fr);gap:8px!important;}
+.st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{width:100%!important;min-width:0!important;height:100%!important;}
+.st-key-voyages_grid [data-testid="stColumn"]>[data-testid="stVerticalBlock"]{height:100%;min-height:0;}
+[data-testid="stLayoutWrapper"]:has(>.st-key-candidates_panel),[data-testid="stLayoutWrapper"]:has(>.st-key-voyage_right){height:100%!important;min-height:0!important;}
+.st-key-candidates_panel,.st-key-voyage_right{height:100%!important;min-height:0!important;overflow:hidden!important;box-sizing:border-box;gap:8px!important;}
+.st-key-candidates_panel,.st-key-voyage_map_panel,.st-key-matrix_panel{background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:var(--r-lg);padding:6px 12px 12px!important;box-sizing:border-box;}
+.st-key-candidates_panel{padding-top:12px!important;}
+.st-key-candidates_panel>[data-testid="stLayoutWrapper"],.st-key-voyage_right>[data-testid="stLayoutWrapper"],.st-key-matrix_panel>[data-testid="stLayoutWrapper"]{flex:0 0 auto!important;min-height:0;}
+.st-key-candidates_panel>[data-testid="stLayoutWrapper"]:has(>.st-key-candidates_scroll){flex:1 1 0!important;height:auto!important;min-height:0!important;overflow:hidden;}
+.st-key-candidates_scroll{height:100%!important;min-height:0!important;overflow:auto!important;scrollbar-width:thin;gap:8px!important;padding-right:2px;}
+.st-key-candidates_scroll>*{flex-shrink:0!important;}
+.st-key-candidates_panel [data-testid="stWidgetLabel"]{display:none!important;}
+.st-key-candidates_panel [role="radiogroup"]{gap:12px!important;margin:0!important;min-height:20px!important;}
+.st-key-candidates_panel [role="radiogroup"] label{margin:0!important;gap:4px!important;min-height:20px!important;}
+.st-key-candidates_panel [role="radiogroup"] p{font-size:12px!important;line-height:20px!important;color:var(--text2);}
+.st-key-candidates_panel [data-testid="stRadioOption"][data-selected="true"] p{color:var(--text);}
+
+/* Load-port stem */
+.stem-card{background:var(--field);border:1px solid var(--line);border-radius:var(--r-md);padding:12px;}
+.stem-head{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.stem-icon{width:32px;height:32px;flex-shrink:0;border-radius:var(--r-md);background:var(--raised);display:grid;place-items:center;color:var(--text2);}
+.stem-head b{display:block;font-size:15px;font-weight:600;line-height:1.4;color:var(--text);}
+.stem-head b .code{margin-left:4px;padding:1px 6px;border-radius:var(--r-sm);background:var(--bluewash);color:var(--blue);font-weight:500;}
+.stem-head small{display:block;font-size:12px;line-height:1.4;color:var(--muted);}
+.stem-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;padding-top:8px;border-top:1px solid var(--line);}
+.stem-grid small{display:block;font-size:12px;line-height:1.4;color:var(--muted);}
+.stem-grid b{display:block;font-size:12px;line-height:1.4;font-weight:500;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+
+/* Candidate cards */
+.stage-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;line-height:1.4;color:var(--muted);}
+.stage-legend span{display:inline-flex;align-items:center;gap:4px;}
+.stage-legend i{width:8px;height:8px;border-radius:2px;}
+[class*="st-key-cand_"]{padding:12px!important;gap:8px!important;background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:var(--r-lg)!important;transition:border-color 150ms var(--ease);}
+[class*="st-key-cand_"]:has(.cand-focus){border-color:var(--blue)!important;box-shadow:inset 0 0 0 1px var(--blue);}
+.cand-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.cand-id{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;}
+.cand-id b{font-size:13px;font-weight:600;color:var(--text);}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--muted);}
+.dot.good{background:var(--green);}.dot.bad{background:var(--red);}.dot.info{background:var(--blue);}
+.tag.info{color:var(--blue);background:var(--bluewash);}
+.cand-spec{margin:4px 0 8px;font-size:12px;line-height:1.4;color:var(--text2);}
+.cand-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding:8px 12px;background:var(--field);border-radius:var(--r-md);}
+.cand-metrics small{display:block;font-size:12px;line-height:1.4;color:var(--muted);}
+.cand-metrics strong{display:block;font-size:16px;font-weight:600;line-height:1.3;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cand-foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin:8px 0 6px;font-size:12px;line-height:1.4;color:var(--text2);}
+.cand-foot b{color:var(--text);font-weight:500;}
+.stage-bar{display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;background:var(--field);}
+.stage-bar i{display:block;height:100%;min-width:2px;}
+.cand-note{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--muted);}
+.cand-selected{display:flex;align-items:center;gap:6px;margin:0;font-size:12px;line-height:32px;color:var(--blue);}
+[class*="st-key-pick_"] button{min-height:32px;font-size:12px;}
+
+/* Map and matrix */
+.st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-voyage_map_panel){flex:0 0 58%!important;min-height:0!important;}
+.st-key-voyage_right>[data-testid="stLayoutWrapper"]>.st-key-voyage_map_panel{height:100%!important;min-height:0!important;gap:6px!important;overflow:hidden;}
+.st-key-voyage_map_panel [data-testid="stElementContainer"]:has(iframe){flex:1 1 0!important;height:auto!important;min-height:0!important;max-height:none!important;}
+.st-key-voyage_map_panel [data-testid="stIFrame"],.st-key-voyage_map_panel iframe{height:100%!important;min-height:0!important;max-height:none!important;}
+.st-key-voyage_map_panel iframe{border:0;width:100%;display:block;border-radius:var(--r-md);}
+/* Ticker board under the map: one mono line scrolling right to left, paused on hover. */
+.ticker{position:relative;overflow:hidden;height:28px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--field);
+ -webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent);}
+.ticker-track{display:flex;width:max-content;height:100%;animation:ticker 60s linear infinite;}
+.ticker:hover .ticker-track{animation-play-state:paused;}
+.ticker-run{display:flex;align-items:center;flex-shrink:0;}
+.ticker-run span{font-family:var(--mono);font-size:11px;line-height:28px;letter-spacing:.02em;color:var(--text2);white-space:nowrap;padding:0 12px;font-variant-numeric:tabular-nums;}
+.ticker-run span:before{content:'';display:inline-block;width:5px;height:5px;margin:0 12px 1px 0;border-radius:50%;background:var(--blue);vertical-align:middle;}
+@keyframes ticker{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@media(prefers-reduced-motion:reduce){.ticker-track{animation:none;}.ticker-run[aria-hidden]{display:none;}.ticker{overflow-x:auto;-webkit-mask-image:none;mask-image:none;}}
+.st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-matrix_panel){flex:1 1 0!important;height:auto!important;min-height:0!important;overflow:hidden;}
+.st-key-matrix_panel{height:100%!important;min-height:0!important;overflow:hidden!important;gap:6px!important;}
+.st-key-matrix_panel>[data-testid="stLayoutWrapper"]:first-child>[data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;}
+.st-key-matrix_panel [data-testid="stColumn"]:last-child{display:flex;justify-content:flex-end;flex:0 0 auto!important;width:auto!important;min-width:0!important;}
+.st-key-matrix_panel [data-testid="stColumn"]:first-child{flex:1 1 0!important;min-width:0!important;}
+.st-key-matrix_panel [data-testid="stElementContainer"]:has(.matrix-wrap){flex:1 1 0!important;min-height:0!important;overflow:hidden;}
+.matrix-wrap{height:100%;overflow:auto;scrollbar-width:thin;}
+.matrix-table thead th{position:sticky;top:0;background:var(--panel);z-index:1;}
+.matrix-table td small{color:var(--muted);}
+.matrix-table td small.signed-metric strong{font-size:12px;font-weight:500;}
+
+/* Market and decision context under the grid */
+.market-strip{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;padding:8px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);font-size:12px;line-height:1.5;color:var(--text2);}
+.market-strip span{white-space:nowrap;}
+.market-strip b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums;}
+
+@media(max-width:1000px){
+ .st-key-voyages_grid{height:auto!important;min-height:0!important;}
+ .st-key-voyages_grid>[data-testid="stLayoutWrapper"],.st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"],
+ .st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{height:auto!important;}
+ .st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{grid-template-columns:minmax(0,1fr);}
+ .st-key-candidates_panel,.st-key-voyage_right{height:auto!important;}
+ .st-key-candidates_panel>[data-testid="stLayoutWrapper"]:has(>.st-key-candidates_scroll){flex:0 0 auto!important;}
+ .st-key-candidates_scroll{height:auto!important;max-height:520px;}
+ .st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-voyage_map_panel){flex:0 0 auto!important;height:380px!important;}
+ .st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-matrix_panel){flex:0 0 auto!important;height:auto!important;}
+ .st-key-matrix_panel{height:auto!important;}
+ .matrix-wrap{height:auto;max-height:420px;}
+ .market-strip span{white-space:normal;}
+}
+
+/* Voyages search: start panel and result list */
+.st-key-voyage_start{max-width:760px;padding:12px!important;gap:8px!important;background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:var(--r-lg);}
+.st-key-voyage_start [data-testid="stWidgetLabel"]{display:none!important;}
+.st-key-search_results{gap:0!important;}
+.st-key-search_results [data-testid="stButton"] button{width:100%;justify-content:flex-start;text-align:left;min-height:40px;padding:8px 4px!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;color:var(--text)!important;font-size:13px;}
+.st-key-search_results [data-testid="stButton"] button:hover{background:var(--field)!important;}
+.st-key-search_results [data-testid="stButton"] button p{font-size:13px;white-space:normal;overflow-wrap:anywhere;}
+.st-key-search_results [data-testid="stButton"] button span[data-testid="stIconMaterial"]{color:var(--muted);}
+.st-key-search_results [data-testid="stElementContainer"],.st-key-search_results [data-testid="stButton"]{width:100%!important;}
+.st-key-search_results [data-testid="stButton"] button>div,.st-key-search_results [data-testid="stButton"] button [data-testid="stMarkdownContainer"]{justify-content:flex-start!important;width:100%;text-align:left!important;}

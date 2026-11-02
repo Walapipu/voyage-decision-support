@@ -1,25 +1,87 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<style>html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#123044}.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(170deg) brightness(1.35) saturate(.7)}.leaflet-tooltip{background:#102535e8;border:1px solid #466078;color:#f2f8ff;font-size:10px;box-shadow:none}.country-label{color:#99adbd;background:transparent;border:0;box-shadow:none;font:9px Arial;white-space:nowrap;text-align:center;pointer-events:none}.light .country-label{color:#5c6f7a}.leaflet-control-attribution{font-size:8px!important}#error{display:none;position:absolute;z-index:650;top:8px;left:8px;right:40px;background:#102535e8;color:white;padding:8px;font-size:11px}
-.light #map{background:#e7eef2}.light .leaflet-tooltip{background:#fffffff2;color:#22384a;border-color:#b4c5cf}
-.leaflet-control-zoom a{width:24px!important;height:24px!important;line-height:24px!important;font-size:18px!important}
-</style></head><body class="__STYLE__"><div id="map" aria-label="Interactive port map"></div><div id="error"></div>
+<style>html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#123044}.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(170deg) brightness(1.35) saturate(.7)}
+.country-label{color:#99adbd;background:transparent;border:0;box-shadow:none;font:9px Arial;white-space:nowrap;text-align:center;pointer-events:none}.light .country-label{color:#5c6f7a}
+#error{display:none;position:absolute;z-index:650;top:8px;left:8px;right:40px;background:#102535e8;color:white;padding:8px;font-size:11px}
+.light #map{background:#e7eef2}
+/* Labels: compact monospace plates without the default arrow. */
+.leaflet-tooltip{background:#0d1b26ee;border:1px solid #3d5568;border-radius:3px;color:#e8f2fa;font:500 10px/14px "Source Code Pro",ui-monospace,Consolas,monospace;padding:2px 6px;box-shadow:none}
+.leaflet-tooltip:before{display:none}
+.light .leaflet-tooltip{background:#fffffff2;color:#22384a;border-color:#b4c5cf}
+/* Pins: ringed ports with a centre dot; the focused vessel carries a soft halo. */
+.pin{box-sizing:border-box;border-radius:50%;display:grid;place-items:center}
+.pin.port{width:16px;height:16px;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 22%,transparent)}
+.pin.port i{width:5px;height:5px;border-radius:50%;background:var(--c)}
+.pin.focus{width:12px;height:12px;background:var(--c);border:2px solid #fff;box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 30%,transparent)}
+.pin.minor{width:9px;height:9px;background:var(--c);border:1.5px solid #ffffffcc}
+.light .pin.minor{border-color:#22384acc}
+/* Map controls, bottom right: re-centre above zoom. */
+.leaflet-bar{border:1px solid #3d5568!important;border-radius:6px!important;overflow:hidden;box-shadow:none!important}
+.leaflet-bar a{width:28px!important;height:28px!important;line-height:28px!important;font-size:16px!important;background:#0d1b26ee!important;color:#e8f2fa!important;border-color:#3d5568!important}
+.leaflet-bar a:hover{background:#1b3242!important}
+.light .leaflet-bar{border-color:#b4c5cf!important}.light .leaflet-bar a{background:#fffffff2!important;color:#22384a!important;border-color:#b4c5cf!important}.light .leaflet-bar a:hover{background:#e7eef2!important}
+.recenter a{display:grid!important;place-items:center}.recenter svg{width:16px;height:16px}
+.leaflet-control-attribution{font-size:8px!important;line-height:12px;padding:0 4px!important;background:#0d1b2699!important;color:#a9bccb!important}
+.leaflet-control-attribution a{color:inherit!important}
+.light .leaflet-control-attribution{background:#ffffffb3!important;color:#5c6f7a!important}
+#legend{display:none;position:absolute;z-index:640;top:8px;left:8px;max-width:calc(100% - 16px);flex-wrap:wrap;gap:4px 12px;padding:6px 10px;border-radius:6px;background:#0d1b26ee;border:1px solid #3d5568;color:#e8f2fa;font-size:11px;line-height:16px}
+.light #legend{background:#fffffff2;color:#22384a;border-color:#b4c5cf}
+#legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+#legend i{display:inline-block;width:18px;border-top:2px dashed currentColor}
+</style></head><body class="__STYLE__"><div id="map" aria-label="Interactive port map"></div><div id="legend" aria-label="Map legend"></div><div id="error"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const points=__POINTS__;
+// points: {name, coordinates:[lon,lat], kind, permanent, direction}; legs: {from, to, kind}; legend: [{label, kind}]
+const points=__POINTS__, legs=__LEGS__, legend=__LEGEND__;
+const LEG={ballast:{color:'#a4d7ed',weight:2,dashArray:'5 6'},laden:{color:'#12beff',weight:2.5},
+  other:{color:'#a4d7ed',weight:1.5,opacity:.4,dashArray:'5 6'},late:{color:'#e5484d',weight:1.5,opacity:.7,dashArray:'2 6'}};
+const PIN={load:['port','#16cba1'],discharge:['port','#12b9ff'],vessel:['focus','#12b9ff'],other:['minor','#a4d7ed'],late:['minor','#e5484d']};
 function showError(message){const e=document.getElementById('error');e.textContent=message;e.style.display='block';}
+function ll(c){return [c[1],c[0]];}
+// Schematic arc: a quadratic curve bowed to the left of travel, sampled into a polyline.
+function arc(a,b,bend=.18,steps=48){
+  const dLat=b[0]-a[0],dLng=b[1]-a[1];
+  const c=[(a[0]+b[0])/2+dLng*bend,(a[1]+b[1])/2-dLat*bend];
+  return Array.from({length:steps+1},(_,i)=>{const t=i/steps,u=1-t;
+    return [u*u*a[0]+2*u*t*c[0]+t*t*b[0],u*u*a[1]+2*u*t*c[1]+t*t*b[1]];});
+}
+if(legend.length){const box=document.getElementById('legend');box.style.display='flex';legend.forEach(item=>{const s=document.createElement('span'),i=document.createElement('i');i.style.color=LEG[item.kind].color;if(!LEG[item.kind].dashArray)i.style.borderTopStyle='solid';s.append(i,document.createTextNode(item.label));box.append(s);});}
 try {
-const map=L.map('map',{zoomControl:false,scrollWheelZoom:true});L.control.zoom({position:'topright'}).addTo(map);
+const map=L.map('map',{zoomControl:false,scrollWheelZoom:true,zoomSnap:legend.length?.25:1});
+map.attributionControl.setPrefix(false);
 const borders=__BOUNDARIES__;
 L.geoJSON(borders,{interactive:false,style:{color:document.body.classList.contains('dark')?'#647f90':'#98a8ad',weight:.6,opacity:.8,fill:false}}).addTo(map);
 borders.features.forEach(f=>{const p=f.properties;if(['China','India','Australia','Indonesia','Japan','Russia','Brazil','Argentina','South Africa','Guinea','Canada','Mexico','Saudi Arabia','United States of America'].includes(p.NAME)&&p.LABEL_X!=null&&p.LABEL_Y!=null){const label=document.createElement('span');label.textContent=p.NAME;L.marker([p.LABEL_Y,p.LABEL_X],{interactive:false,icon:L.divIcon({className:'country-label',html:label,iconSize:[65,12]})}).addTo(map);}});
-const coords=points.map(p=>[p.coordinates[1],p.coordinates[0]]);
-map.fitBounds(coords,{padding:[35,30],maxZoom:6});
-new ResizeObserver(()=>{map.invalidateSize();map.fitBounds(coords,{padding:[28,24],maxZoom:6});}).observe(document.getElementById('map'));
-const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'}).addTo(map);
+const coords=points.map(p=>ll(p.coordinates));
+// Arcs bow outside the straight line, so fit to the drawn curves, not only the ports.
+const paths=legs.map(leg=>arc(ll(leg.from),ll(leg.to)));
+const bounds=L.latLngBounds(coords.concat(...paths));
+// The legend sits top-left, so leave room above the route when it is shown.
+const fit=(x,y)=>legend.length?{paddingTopLeft:[x,y+44],paddingBottomRight:[x+34,y],maxZoom:6}:{paddingTopLeft:[x,y],paddingBottomRight:[x+34,y],maxZoom:6};
+const home=()=>map.fitBounds(bounds,fit(28,24));
+map.fitBounds(bounds,fit(35,30));
+new ResizeObserver(()=>{map.invalidateSize();home();}).observe(document.getElementById('map'));
+L.control.zoom({position:'bottomright'}).addTo(map);
+const Recenter=L.Control.extend({options:{position:'bottomright'},onAdd(){
+  const box=L.DomUtil.create('div','leaflet-bar recenter'),a=L.DomUtil.create('a','',box);
+  a.href='#';a.title='Re-centre on the voyage';a.setAttribute('role','button');a.setAttribute('aria-label','Re-centre on the voyage');
+  a.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>';
+  L.DomEvent.disableClickPropagation(box);L.DomEvent.on(a,'click',e=>{L.DomEvent.preventDefault(e);home();});
+  return box;}});
+new Recenter().addTo(map);
+const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a>'}).addTo(map);
 tiles.on('tileerror',()=>showError('Some map tiles could not load. Check your internet connection.'));
 tiles.on('load',()=>{document.getElementById('error').style.display='none';});
-[0,1].forEach(i=>L.polyline([coords[i],coords[i+1]],{color:i?'#12beff':'#a4d7ed',weight:2,dashArray:'5 6'}).addTo(map));
-points.forEach((p,i)=>{const label=document.createElement('span');label.textContent=p.name;L.circleMarker(coords[i],{radius:5,color:'#fff',weight:2,fillColor:i===1?'#16cba1':'#12b9ff',fillOpacity:1}).addTo(map).bindTooltip(label,{permanent:true,direction:'top',offset:[0,-5]});});
+// Faded legs first so the focused voyage is drawn on top.
+const faded=k=>k==='other'||k==='late';
+legs.map((leg,i)=>[leg,paths[i]]).sort((a,b)=>faded(b[0].kind)-faded(a[0].kind))
+  .forEach(([leg,path])=>L.polyline(path,LEG[leg.kind]).addTo(map));
+// Vessel labels sit left and discharge labels right, so nearby ports cannot cover each other.
+const PLACE={left:{direction:'left',offset:[-10,0]},right:{direction:'right',offset:[10,0]},top:{direction:'top',offset:[0,-10]}};
+points.forEach((p,i)=>{const [shape,colour]=PIN[p.kind],size=shape==='port'?16:shape==='focus'?12:9;
+  const pin=document.createElement('div');pin.className='pin '+shape;pin.style.setProperty('--c',colour);if(shape==='port')pin.append(document.createElement('i'));
+  const label=document.createElement('span');label.textContent=p.name;
+  L.marker(coords[i],{icon:L.divIcon({className:'',html:pin,iconSize:[size,size],iconAnchor:[size/2,size/2]}),keyboard:false,zIndexOffset:shape==='minor'?0:500,alt:p.name}).addTo(map)
+   .bindTooltip(label,{permanent:!!p.permanent,...PLACE[p.direction||'top']});});
 }catch(e){showError('Map unavailable. Check your connection to the Leaflet CDN. Calculations are unaffected.');}
 </script></body></html>

@@ -6,6 +6,8 @@ COSTS = {"Commission": "commission_usd", "Bunkers": "bunker_cost_usd",
          "Ports": "port_cost_usd", "Hire": "hire_cost_usd"}
 STAGES = {"Ballast": "ballast_days", "Waiting": "laycan_wait_days",
           "Loading": "loading_days", "Laden": "laden_days", "Discharge": "discharge_days"}
+# One colour per voyage stage, shared by the duration chart and the Voyages stage bars.
+STAGE_COLOURS = dict(zip(STAGES, ["#6099c8", "#f5bd66", "#7486e8", "#21b8c5", "#ad82db"]))
 
 
 def result_frame(rows):
