@@ -1,4 +1,5 @@
 """KingFish dashboard. Run: python -m streamlit run app.py"""
+import json
 from pathlib import Path
 import pandas as pd
 import streamlit as st
@@ -7,15 +8,15 @@ from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
 from voyage.dashboard_data import dashboard_case, candidates_case
 from voyage.voyages_view import voyages_page
-from voyage.dashboard import (apply_theme, heading, voyage_summary, comparison_table, economics, timeline,
-    requirements_notice, result_frame)
+from voyage.dashboard import (apply_theme, heading, voyage_summary, comparison_table, economics, timeline, result_frame)
 from voyage.plan import build_plan, plan_summary
 from voyage import overview
 from voyage.chat_view import render_chat, start_new_chat
+from voyage.commands import COMMANDS
 from voyage.policy import load_policy, conventions
 from voyage.openrouter import load_settings
-from voyage.ui import render_evidence
 from voyage.report import analytics_report
+from voyage.analytics_view import analytics_page
 from voyage.profile import toggle_theme, profile_menu
 
 st.set_page_config(page_title="KingFish · Voyage Decision Support", page_icon=str(Path(__file__).resolve().parent / "assets/oceanflow-crown.png"), layout="wide", initial_sidebar_state="auto")
@@ -39,6 +40,9 @@ selection_from_chat = st.session_state.pop("selection_from_chat", None)
 if selection_from_chat:
     st.session_state.update(selection_from_chat)
     st.session_state.voyage_port = st.session_state.voyage_query = None
+# A chat shortcut such as /voyages switches page; this must happen before the navigation radio exists.
+if goto_page := st.session_state.pop("goto_page", None):
+    st.session_state.page = goto_page
 if st.session_state.pop("close_voyage_selectors", False):
     st.session_state.voyage_selectors = False
 
@@ -94,7 +98,48 @@ st.html("""<script>(() => {
       event.preventDefault(); event.stopPropagation(); closeShippy();
     }
   }, true);
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeShippy(); });
+  // Slash shortcuts: typing "/" in a chat box lists them above it; click or Tab fills one in.
+  const COMMANDS = __COMMANDS__;
+  let menu = null;
+  const menuOpen = () => menu && !menu.hidden;
+  const hideMenu = () => { if (menuOpen()) menu.hidden = true; };
+  const fill = (box, text) => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(box, text);
+    box.dispatchEvent(new Event('input', {bubbles: true}));
+    box.focus(); box.setSelectionRange(text.length, text.length);
+  };
+  const showMenu = box => {
+    const word = box.value.slice(1).toLowerCase();
+    const typed = box.value[0] === '/' && /^[a-z]*$/.test(word);
+    const matches = typed ? COMMANDS.filter(c => c[0].slice(1).startsWith(word)) : [];
+    if (!matches.length) return hideMenu();
+    if (!menu) {
+      menu = document.createElement('div'); menu.className = 'slash-menu'; menu.setAttribute('role', 'listbox');
+      menu.addEventListener('mousedown', event => {
+        const item = event.target.closest('[data-cmd]');
+        if (item) { event.preventDefault(); fill(menu.box, item.dataset.cmd + ' '); }
+      });
+      document.body.append(menu);
+    }
+    menu.box = box;
+    menu.replaceChildren(...matches.map(([name, example, what]) => {
+      const row = document.createElement('div'), b = document.createElement('b'), s = document.createElement('span'), ex = document.createElement('small');
+      row.className = 'slash-item'; row.dataset.cmd = name; row.setAttribute('role', 'option');
+      b.textContent = name; s.textContent = what; ex.textContent = example; row.append(b, s, ex); return row;
+    }));
+    const r = box.closest('[data-testid="stChatInput"]').getBoundingClientRect();
+    Object.assign(menu.style, {left: r.left + 'px', width: r.width + 'px', bottom: (innerHeight - r.top + 6) + 'px'});
+    menu.hidden = false;
+  };
+  const chatBox = el => el instanceof HTMLTextAreaElement && el.closest('[data-testid="stChatInput"]') ? el : null;
+  document.addEventListener('input', event => { const box = chatBox(event.target); if (box) showMenu(box); });
+  document.addEventListener('focusout', event => { if (chatBox(event.target)) hideMenu(); });
+  document.addEventListener('keydown', event => {
+    if (menuOpen() && event.key === 'Tab' && chatBox(event.target)) {
+      event.preventDefault(); fill(event.target, menu.firstChild.dataset.cmd + ' '); return;
+    }
+    if (event.key === 'Escape') { if (menuOpen()) { hideMenu(); return; } closeShippy(); }
+  }, true);
   const syncDrawer = () => {
     const panel = drawer();
     // Guarded: classList.remove rewrites the class attribute even when the class is absent, which
@@ -104,10 +149,25 @@ st.html("""<script>(() => {
     panel.setAttribute('aria-labelledby', 'shippy-title');
     panel.toggleAttribute('inert', !body.classList.contains('shippy-open'));
   };
-  new MutationObserver(() => { relabel(); untitle(); syncDrawer(); }).observe(body, {childList: true, subtree: true, characterData: true});
+  // Chat panels: jump to the newest message when one is added, and otherwise leave the scroll alone.
+  // Charts in an answer draw a moment later, so the jump repeats briefly unless the user scrolls first.
+  const seen = new WeakMap(), touched = new WeakMap();
+  const followChat = () => document.querySelectorAll('[class*="st-key-chat_scroll_"]').forEach(box => {
+    const count = box.querySelectorAll('[data-testid="stChatMessage"]').length;
+    if (count === seen.get(box)) return;
+    if (!seen.has(box)) ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(type =>
+      box.addEventListener(type, () => touched.set(box, performance.now()), {passive: true}));
+    seen.set(box, count);
+    if (!count) return;
+    const asked = performance.now();
+    [0, 150, 500, 1000].forEach(delay => setTimeout(() => {
+      if ((touched.get(box) || 0) < asked) box.scrollTop = box.scrollHeight;
+    }, delay));
+  });
+  new MutationObserver(() => { relabel(); untitle(); syncDrawer(); followChat(); }).observe(body, {childList: true, subtree: true, characterData: true});
   new MutationObserver(syncDrawer).observe(body, {attributes: true, attributeFilter: ['class']});
   untitle(); syncDrawer();
-})();</script>""", unsafe_allow_javascript=True)
+})();</script>""".replace("__COMMANDS__", json.dumps(COMMANDS)), unsafe_allow_javascript=True)
 
 
 def selection_controls():
@@ -181,12 +241,21 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
             else:
                 st.caption("Select a vessel to see its economics, fuel and draft checks and voyage timeline here.")
 
-    elif page in ("Analytics", "Reports") and not case:
+    elif page == "Analytics":
+        def report_button():
+            # The HTML report covers one selected voyage, so it needs a vessel, cargo and lift.
+            if case:
+                st.download_button("Download report", analytics_report(case),
+                    file_name=f'kingfish_{st.session_state.selected_cargo}_{st.session_state.price_period}_report.html',
+                    mime="text/html", icon=":material/download:", key="analytics_report", on_click="ignore")
+            else:
+                st.download_button("Download report", data="", disabled=True, icon=":material/download:",
+                    file_name="kingfish_analytics.html", mime="text/html", key="analytics_report")
+        analytics_page(report_button)
+
+    elif page == "Reports" and not case:
         heading(page)
         st.info("Select a vessel, cargo and tonnage to view voyage results.")
-        if page == "Analytics":
-            st.download_button("Download report", data="", disabled=True,
-                file_name="kingfish_analytics.html", mime="text/html", key="analytics_report")
 
     elif page in ("Fleet", "Freight", "Ports"):
         heading(page + " data", "Vessels, cargoes and ports")
@@ -199,16 +268,6 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
             if name == "market_cargoes":
                 frame["contract_freight_rate_usd_per_tonne"] = "Quote needed"
             st.html('<div class="table-wrap" style="max-height:550px;overflow:auto">'+frame.to_html(index=False, escape=True, classes="ocean-table", border=0)+'</div>')
-
-    elif page == "Analytics":
-        heading("Voyage comparisons", "Current cargo, lift and price month")
-        st.download_button("Download report", analytics_report(case),
-            file_name=f'kingfish_{st.session_state.selected_cargo}_{st.session_state.price_period}_report.html',
-            mime="text/html", icon=":material/download:", key="analytics_report", on_click="ignore")
-        st.caption("HTML report with interactive charts, comparison results and methodology. Opens offline in your browser.")
-        render_evidence([{"tool":"compare_vessels", "result":case["comparison"]}])
-        requirements_notice()
-        st.warning("Scenario analysis and recommendation-switch thresholds are not available yet. The month selector chooses a pricing period.")
 
     elif page == "Reports":
         heading("Export calculated results", "Includes feasibility flags and pricing period")

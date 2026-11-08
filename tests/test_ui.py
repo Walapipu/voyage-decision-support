@@ -161,7 +161,7 @@ class UITests(unittest.TestCase):
         self.assertFalse(app.exception)
         next(r for r in app.radio if r.label == "Navigation").set_value("Analytics").run()
         self.assertFalse(app.exception)
-        self.assertTrue(any("threshold" in w.value for w in app.warning))
+        self.assertIn("Fleet analytics", "".join(h.proto.body for h in app.get("html")))
 
     def test_plan_row_selection_and_all_workspace_pages(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()

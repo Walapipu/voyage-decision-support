@@ -137,10 +137,11 @@ def ticker_items(cc, focus):
 
 
 def ticker(items):
-    # A still strip that scrolls sideways by hand; no looping animation running in the background.
+    # Ticker board: the run is doubled so the scroll loops seamlessly; the copy is hidden from screen readers.
+    # The motion is a transform-only animation, so the compositor runs it without restyling the page.
     run = "".join(f'<span>{e(item)}</span>' for item in items)
     return (f'<div class="ticker" aria-label="{e(" · ".join(items))}">'
-            f'<div class="ticker-track"><div class="ticker-run">{run}</div></div></div>')
+            f'<div class="ticker-track"><div class="ticker-run">{run}</div><div class="ticker-run" aria-hidden="true">{run}</div></div></div>')
 
 
 def matrix(rows, cc, ranks, focus_id):

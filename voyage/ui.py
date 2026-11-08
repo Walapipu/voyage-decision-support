@@ -30,9 +30,31 @@ def compact_evidence(output, key):
         st.caption(f'Voyage engine · {lead["cargo_id"]} at {lead["selected_lift_tonnes"]:,.0f} t · {lead["bunker_price_period"]} bunkers')
 
 
+def pairing_evidence(output, key):
+    """/compare for vessels across cargoes: one row per vessel and cargo pairing, best feasible first."""
+    rows = output["rows"]
+    lead = next((r for r in rows if r["feasible"]), None)
+    body = "".join(
+        f'<tr class="{"lead" if r is lead else ""}"><td><b>{escape(r["vessel_id"])}</b></td><td>{escape(r["cargo_id"])}<small>{r["selected_lift_tonnes"]:,.0f} t</small></td>'
+        f'<td class="num {"neg" if r["tce_usd_per_day"] < 0 else ""}">${r["tce_usd_per_day"]:,.0f}</td>'
+        f'<td class="num {"neg" if r["voyage_contribution_usd"] < 0 else ""}">${r["voyage_contribution_usd"]:,.0f}</td>'
+        f'<td class="num">{r["laycan_slack_days"]:.1f} d</td>'
+        f'<td>{"best" if r is lead else "feasible" if r["feasible"] else escape(", ".join(r["failed_checks"]))}</td></tr>'
+        for r in rows)
+    st.html(f'<table class="answer-table"><thead><tr><th>Vessel</th><th>Cargo</th><th class="num">TCE/day</th>'
+            f'<th class="num">Contribution</th><th class="num">Slack</th><th>Note</th></tr></thead><tbody>{body}</tbody></table>')
+    with st.container(key=f"answer_{key}"):
+        if lead:
+            st.button("Open in Voyages", icon=":material/arrow_forward:", key=key, on_click=open_in_voyages, args=(lead,))
+        st.caption(f'Voyage engine · contract quantities unless a lift was given · {rows[0]["bunker_price_period"]} bunkers')
+
+
 def render_evidence(evidence, key_prefix="analysis", compact=False):
     for idx, item in enumerate(evidence):
         output = item["result"]
+        if item.get("tool") == "compare_cargoes" and output.get("rows"):
+            pairing_evidence(output, f"{key_prefix}_{idx}_open")
+            continue
         if "error" in output:
             st.warning(output["error"])
         if output.get("rows") and compact:

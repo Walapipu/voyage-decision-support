@@ -108,6 +108,23 @@ def ask(text):
     st.session_state.force_comparison = False
 
 
+def shortcut(text):
+    """Run a /shortcut on the engine and record it in the conversation. False when text is a normal question."""
+    from voyage.commands import run_command
+    result = run_command(text, st.session_state)
+    if result is None:
+        return False
+    st.session_state.messages.extend([{"role": "user", "content": text},
+                                      {"role": "assistant", "content": result["reply"], "evidence": result.get("evidence", [])}])
+    if result.get("selection"):
+        st.session_state.selection_from_chat = result["selection"]
+    if result.get("page"):
+        st.session_state.goto_page = result["page"]  # applied before the navigation widget is drawn
+    st.session_state.close_voyage_selectors = True
+    st.session_state.chat_error = None
+    return True
+
+
 def render_chat(controls=None, suggestions=(), compact=False):
     from voyage.chat import chat_reply
 
@@ -116,7 +133,9 @@ def render_chat(controls=None, suggestions=(), compact=False):
             st.session_state[key] = value
     generation = st.session_state.get('chat_generation', 0)
     # Remount the scrolling panel as well as the composer on New chat.
-    with st.container(height=400, border=False, key=f"chat_scroll_{generation}"):
+    # Streamlit's stick-to-bottom autoscroll fights the first upward scroll (a rubber-band), so it is
+    # off; the page script scrolls to the newest message only when a message is added.
+    with st.container(height=400, border=False, key=f"chat_scroll_{generation}", autoscroll=False):
         if not st.session_state.messages and not st.session_state.pending:
             name = escape(st.session_state.get('profile_name', 'Yi Heng'))
             st.html(f'<div class="chat-welcome"><h2>Hello, {name}.</h2><p>Ask about a voyage, cargo or fuel plan</p></div>')
@@ -149,9 +168,10 @@ def render_chat(controls=None, suggestions=(), compact=False):
             with st.container(key="suggestions", horizontal=True, gap="small"):
                 for index, question in enumerate(suggestions):
                     st.button(question, key=f"suggest_{index}", on_click=ask, args=(question,), type="tertiary")
-        prompt = st.chat_input("Ask about a voyage, e.g. CC-02 at 164,000 t in Mar 2026", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
+        prompt = st.chat_input("Ask about a voyage, or type / for shortcuts", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
     if prompt and prompt.strip():
-        ask(prompt.strip())
+        if not shortcut(prompt.strip()):
+            ask(prompt.strip())
         st.rerun()
     if st.session_state.pending and (not st.session_state.chat_error or retry):
         question = {"role": "user", "content": st.session_state.pending}

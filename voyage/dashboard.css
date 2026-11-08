@@ -547,12 +547,18 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 .st-key-voyage_map_panel [data-testid="stElementContainer"]:has(iframe){flex:1 1 0!important;height:auto!important;min-height:0!important;max-height:none!important;}
 .st-key-voyage_map_panel [data-testid="stIFrame"],.st-key-voyage_map_panel iframe{height:100%!important;min-height:0!important;max-height:none!important;}
 .st-key-voyage_map_panel iframe{border:0;width:100%;display:block;border-radius:var(--r-md);}
-/* Ticker board under the map: one still mono line; scroll sideways for the rest. */
-.ticker{position:relative;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;height:28px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--field);
- -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);}
-.ticker::-webkit-scrollbar{display:none;}
-.ticker-track{display:flex;width:max-content;height:100%;}
+/* Ticker board under the map: one mono line scrolling right to left, paused on hover.
+   Transform-only and on its own layer, so it runs on the compositor; the edge fades are overlays,
+   not a mask, so the moving text never forces a repaint of the strip. */
+.ticker{position:relative;overflow:hidden;height:28px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--field);contain:strict;}
+.ticker:before,.ticker:after{content:'';position:absolute;top:0;bottom:0;width:24px;z-index:1;pointer-events:none;}
+.ticker:before{left:0;background:linear-gradient(90deg,var(--field),transparent);}
+.ticker:after{right:0;background:linear-gradient(270deg,var(--field),transparent);}
+.ticker-track{display:flex;width:max-content;height:100%;animation:ticker 60s linear infinite;will-change:transform;}
+.ticker:hover .ticker-track{animation-play-state:paused;}
 .ticker-run{display:flex;align-items:center;flex-shrink:0;}
+@keyframes ticker{from{transform:translate3d(0,0,0);}to{transform:translate3d(-50%,0,0);}}
+@media(prefers-reduced-motion:reduce){.ticker-track{animation:none;}.ticker-run[aria-hidden]{display:none;}.ticker{overflow-x:auto;contain:none;}}
 .ticker-run span{font-family:var(--mono);font-size:11px;line-height:28px;letter-spacing:.02em;color:var(--text2);white-space:nowrap;padding:0 12px;font-variant-numeric:tabular-nums;}
 .ticker-run span:before{content:'';display:inline-block;width:5px;height:5px;margin:0 12px 1px 0;border-radius:50%;background:var(--blue);vertical-align:middle;}
 .st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-matrix_panel){flex:1 1 0!important;height:auto!important;min-height:0!important;overflow:hidden;}
@@ -597,8 +603,9 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 .st-key-search_results [data-testid="stElementContainer"],.st-key-search_results [data-testid="stButton"]{width:100%!important;}
 .st-key-search_results [data-testid="stButton"] button>div,.st-key-search_results [data-testid="stButton"] button [data-testid="stMarkdownContainer"]{justify-content:flex-start!important;width:100%;text-align:left!important;}
 .st-key-shippy .st-key-new_conversation button{width:auto;min-width:0;min-height:28px;padding:0 8px;gap:4px;color:var(--text2);}
-.st-key-shippy .st-key-new_conversation button [data-testid="stMarkdownContainer"]{position:static;width:auto;height:auto;overflow:visible;clip-path:none;}
-.st-key-shippy .st-key-new_conversation button p{font-size:12px;}
+.st-key-shippy .st-key-new_conversation button [data-testid="stMarkdownContainer"]{position:static;width:auto;height:auto;overflow:visible;clip-path:none;display:flex!important;align-items:center;margin:0!important;padding:0!important;}
+.st-key-shippy .st-key-new_conversation button>div{display:flex;align-items:center;gap:4px;}
+.st-key-shippy .st-key-new_conversation button p{font-size:12px;line-height:16px;margin:0!important;padding:0!important;}
 .st-key-shippy .st-key-new_conversation button:hover{background:var(--field);color:var(--text);}
 .st-key-shippy [class*="st-key-answer_"]{gap:0!important;}
 .st-key-shippy [class*="st-key-answer_"] [data-testid="stButton"] button{min-height:28px;padding:0 10px;}
@@ -615,3 +622,39 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 /* Page change: once the incoming page starts streaming in, the outgoing page (now entirely stale) is
    removed instead of sitting above it. Same-page reruns never match, because no other wrapper is fresh. */
 .stMainBlockContainer>[data-testid="stVerticalBlock"]:has(>[data-testid="stLayoutWrapper"] [data-stale="false"])>[data-testid="stLayoutWrapper"]:has([data-stale="true"]):not(:has([data-stale="false"])){display:none!important;}
+
+/* Slash-shortcut menu above the chat box (built by the page script, attached to the page body). Never write angle brackets in this file: the sanitiser drops the whole sheet. */
+.slash-menu{position:fixed;z-index:1000200;box-sizing:border-box;padding:4px;border:1px solid var(--linestrong);border-radius:var(--r-md);background:var(--panel);box-shadow:0 8px 24px rgba(0,0,0,.28);}
+.slash-menu[hidden]{display:none;}
+.slash-item{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:2px 10px;padding:6px 8px;border-radius:6px;cursor:pointer;}
+.slash-item:hover,.slash-item:first-child{background:var(--field);}
+.slash-item b{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);}
+.slash-item span{font-size:12px;color:var(--text2);}
+.slash-item small{grid-column:2;font-family:var(--mono);font-size:11px;color:var(--muted);}
+.slash-item small:empty{display:none;}
+.slash-menu:hover .slash-item:first-child:not(:hover){background:none;}
+.answer-table th,.answer-table td{white-space:nowrap;}
+.answer-table td:last-child{white-space:normal;}
+.answer-table td small{display:block;font-size:11px;color:var(--muted);}
+
+/* Analytics dashboard */
+.st-key-an_filters{flex-wrap:wrap!important;gap:8px 16px!important;padding:2px 0 4px;}
+.st-key-an_filters>div{width:auto!important;flex:0 0 auto!important;}
+.st-key-an_filters label p{font-size:12px!important;color:var(--text2)!important;}
+[class*="st-key-an_"] [data-testid="stPlotlyChart"]{margin-top:-4px;}
+.st-key-an_row1 [data-testid="stColumn"]>div,.st-key-an_row2 [data-testid="stColumn"]>div,.st-key-an_row3 [data-testid="stColumn"]>div{height:100%;}
+.st-key-an_heat,.st-key-an_tce,.st-key-an_costs,.st-key-an_time,.st-key-an_months,.st-key-an_lift{height:100%;}
+.an-facts{display:flex;flex-direction:column;align-items:flex-start;gap:10px;}
+.an-facts dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:13px;}
+.an-facts dt{color:var(--muted);}
+.an-facts dd{margin:0;color:var(--text);font-variant-numeric:tabular-nums;}
+.st-key-an_filters [data-testid="stButtonGroup"] button{min-height:30px!important;height:30px;padding:0 12px!important;background:var(--panel)!important;border-color:var(--linestrong)!important;color:var(--text2)!important;}
+.st-key-an_filters [data-testid="stButtonGroup"] button p{font-size:12px;}
+.st-key-an_filters [data-testid="stButtonGroup"] button:hover{color:var(--text)!important;background:var(--field)!important;}
+.st-key-an_filters [data-testid="stButtonGroup"] button[aria-checked="true"]{background:var(--blue)!important;border-color:var(--blue)!important;color:var(--onblue)!important;}
+.st-key-an_filters button[data-variant="pills"]{min-height:30px!important;padding:0 12px!important;background:var(--panel)!important;border:1px solid var(--linestrong)!important;color:var(--muted)!important;}
+.st-key-an_filters button[data-variant="pills"] p{font-family:var(--mono);font-size:12px;}
+.st-key-an_filters button[data-variant="pills"][data-selected="true"]{background:var(--bluewash)!important;border-color:var(--blue)!important;color:var(--text)!important;}
+.st-key-an_feasible label{align-items:center;min-height:30px;}
+.st-key-an_feasible label>div:not([data-testid]){background:var(--raised)!important;border:1px solid var(--linestrong);}
+.st-key-an_feasible label:has(input:checked)>div:not([data-testid]){background:var(--blue)!important;border-color:var(--blue);}

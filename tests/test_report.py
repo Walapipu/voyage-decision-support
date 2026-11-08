@@ -63,10 +63,10 @@ class ReportTests(unittest.TestCase):
         with patch('streamlit.download_button') as download:
             app.run()
         self.assertFalse(app.exception)
-        self.assertEqual(download.call_args.args[0], 'Download report')
-        self.assertIn('164,000 tonnes', download.call_args.args[1])
-        self.assertEqual(download.call_args.kwargs['file_name'], 'kingfish_CC-02_2026-03_report.html')
-        self.assertEqual(download.call_args.kwargs['on_click'], 'ignore')
+        report = next(c for c in download.call_args_list if c.args[0] == 'Download report')
+        self.assertIn('164,000 tonnes', report.args[1])
+        self.assertEqual(report.kwargs['file_name'], 'kingfish_CC-02_2026-03_report.html')
+        self.assertEqual(report.kwargs['on_click'], 'ignore')
 
 
 if __name__ == '__main__':
