@@ -65,7 +65,7 @@ class ReportTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertEqual(download.call_args.args[0], 'Download report')
         self.assertIn('164,000 tonnes', download.call_args.args[1])
-        self.assertEqual(download.call_args.kwargs['file_name'], 'oceanflow_CC-02_2026-03_report.html')
+        self.assertEqual(download.call_args.kwargs['file_name'], 'kingfish_CC-02_2026-03_report.html')
         self.assertEqual(download.call_args.kwargs['on_click'], 'ignore')
 
 

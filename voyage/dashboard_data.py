@@ -30,6 +30,25 @@ def dashboard_case(cargo_id, lift, period, vessel_id):
             "discharge_eta": timeline[-2]["time"]}
 
 
+def bunker_price_scenarios(case):
+    """Hold the voyage constant and apply each supplied month at its pricing location."""
+    row, cargo = case["row"], case["cargo"]
+    location = case["ports"][cargo["load_port"]]["bunker_pricing_location"]
+    prices = {}
+    for quote in case["tables"]["bunker_forward_curve"]:
+        if quote["pricing_location"] == location:
+            prices.setdefault(quote["period"], {})[quote["fuel_grade"]] = float(quote["price_usd_per_tonne"])
+    revenue = row["freight_revenue_usd"]
+    values = []
+    for month, grades in sorted(prices.items()):
+        if not {"VLSFO", "MGO"}.issubset(grades):
+            continue
+        cost = row["vlsfo_consumption_tonnes"] * grades["VLSFO"] + row["mgo_consumption_tonnes"] * grades["MGO"]
+        contribution = row["voyage_contribution_usd"] + row["bunker_cost_usd"] - cost
+        values.append((month, cost, 100 * contribution / revenue if revenue else None))
+    return values
+
+
 # Nearest Baltic Capesize route for each committed cargo, shown as market context only.
 BALTIC_ROUTES = {"CC-02": ("C5", "West Australia → Qingdao"), "CC-03": ("C3", "Tubarão → Qingdao")}
 

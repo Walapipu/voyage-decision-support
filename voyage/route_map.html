@@ -28,11 +28,15 @@
 .light #legend{background:#fffffff2;color:#22384a;border-color:#b4c5cf}
 #legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 #legend i{display:inline-block;width:18px;border-top:2px dashed currentColor}
-</style></head><body class="__STYLE__"><div id="map" aria-label="Interactive port map"></div><div id="legend" aria-label="Map legend"></div><div id="error"></div>
+#tce-key{position:absolute;z-index:640;top:8px;right:8px;padding:6px 10px;border-radius:6px;background:#0d1b26ee;color:#e8f2fa;font:11px/1.4 Arial,sans-serif}
+.light #tce-key{background:#fffffff2;color:#22384a}
+#tce-key .ramp{height:4px;margin:4px 0;border-radius:2px;background:linear-gradient(90deg,#2972c9,#009e8a,#df9a23)}
+#tce-key .bounds{display:flex;gap:12px;justify-content:space-between}
+</style></head><body class="__STYLE__"><div id="map" aria-label="Interactive port map"></div><div id="legend" aria-label="Map legend"></div><div id="error"></div><div id="tce-key" hidden></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 // points: {name, coordinates:[lon,lat], kind, permanent, direction}; legs: {from, to, kind}; legend: [{label, kind}]
-const points=__POINTS__, legs=__LEGS__, legend=__LEGEND__;
+const points=__POINTS__, legs=__LEGS__, legend=__LEGEND__, showTce=__SHOW_TCE__;
 const LEG={ballast:{color:'#a4d7ed',weight:2,dashArray:'5 6'},laden:{color:'#12beff',weight:2.5},
   other:{color:'#a4d7ed',weight:1.5,opacity:.4,dashArray:'5 6'},late:{color:'#e5484d',weight:1.5,opacity:.7,dashArray:'2 6'}};
 const PIN={load:['port','#16cba1'],discharge:['port','#12b9ff'],vessel:['focus','#12b9ff'],other:['minor','#a4d7ed'],late:['minor','#e5484d']};
@@ -47,10 +51,10 @@ function arc(a,b,bend=.18,steps=48){
 }
 if(legend.length){const box=document.getElementById('legend');box.style.display='flex';legend.forEach(item=>{const s=document.createElement('span'),i=document.createElement('i');i.style.color=LEG[item.kind].color;if(!LEG[item.kind].dashArray)i.style.borderTopStyle='solid';s.append(i,document.createTextNode(item.label));box.append(s);});}
 try {
-const map=L.map('map',{zoomControl:false,scrollWheelZoom:true,zoomSnap:legend.length?.25:1});
+const map=L.map('map',{zoomControl:false,scrollWheelZoom:!showTce,zoomSnap:(showTce || legend.length) ? .25 : 1});
 map.attributionControl.setPrefix(false);
 const borders=__BOUNDARIES__;
-L.geoJSON(borders,{interactive:false,style:{color:document.body.classList.contains('dark')?'#647f90':'#98a8ad',weight:.6,opacity:.8,fill:false}}).addTo(map);
+L.geoJSON(borders,{interactive:false,style:{color:document.body.classList.contains('dark')?'#647f90':'#98a8ad',weight:.6,opacity:.8,fill:showTce,fillColor:document.body.classList.contains('dark')?'#273d51':'#b6cbe0',fillOpacity:.28}}).addTo(map);
 borders.features.forEach(f=>{const p=f.properties;if(['China','India','Australia','Indonesia','Japan','Russia','Brazil','Argentina','South Africa','Guinea','Canada','Mexico','Saudi Arabia','United States of America'].includes(p.NAME)&&p.LABEL_X!=null&&p.LABEL_Y!=null){const label=document.createElement('span');label.textContent=p.NAME;L.marker([p.LABEL_Y,p.LABEL_X],{interactive:false,icon:L.divIcon({className:'country-label',html:label,iconSize:[65,12]})}).addTo(map);}});
 const coords=points.map(p=>ll(p.coordinates));
 // Arcs bow outside the straight line, so fit to the drawn curves, not only the ports.
@@ -59,7 +63,7 @@ const bounds=L.latLngBounds(coords.concat(...paths));
 // The legend sits top-left, so leave room above the route when it is shown.
 const fit=(x,y)=>legend.length?{paddingTopLeft:[x,y+44],paddingBottomRight:[x+34,y],maxZoom:6}:{paddingTopLeft:[x,y],paddingBottomRight:[x+34,y],maxZoom:6};
 const home=()=>map.fitBounds(bounds,fit(28,24));
-map.fitBounds(bounds,fit(35,30));
+home();
 new ResizeObserver(()=>{map.invalidateSize();home();}).observe(document.getElementById('map'));
 L.control.zoom({position:'bottomright'}).addTo(map);
 const Recenter=L.Control.extend({options:{position:'bottomright'},onAdd(){
@@ -78,7 +82,41 @@ legs.map((leg,i)=>[leg,paths[i]]).sort((a,b)=>faded(b[0].kind)-faded(a[0].kind))
   .forEach(([leg,path])=>L.polyline(path,LEG[leg.kind]).addTo(map));
 // Vessel labels sit left and discharge labels right, so nearby ports cannot cover each other.
 const PLACE={left:{direction:'left',offset:[-10,0]},right:{direction:'right',offset:[10,0]},top:{direction:'top',offset:[0,-10]}};
-points.forEach((p,i)=>{const [shape,colour]=PIN[p.kind],size=shape==='port'?16:shape==='focus'?12:9;
+const candidates=points.filter(p=>p.tce!==undefined);
+const feasible=candidates.filter(p=>p.feasible).map(p=>p.tce);
+const low=Math.min(...feasible), high=Math.max(...feasible);
+const dollars=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
+const scale=[[41,114,201],[0,158,138],[223,154,35]];
+function heatColour(value){
+  const fraction=high===low ? .5 : (value-low)/(high-low);
+  const segment=fraction<.5?0:1, t=2*fraction-segment;
+  return 'rgb('+scale[segment].map((v,i)=>Math.round(v+t*(scale[segment+1][i]-v))).join(',')+')';
+}
+if(candidates.length){
+  const key=document.getElementById('tce-key');
+  key.hidden=false;
+  key.textContent=feasible.length?'Feasible TCE · USD/day':'No feasible candidates';
+  if(feasible.length){
+    const ramp=document.createElement('div'), labels=document.createElement('div');
+    ramp.className='ramp'; labels.className='bounds';
+    for(const amount of high===low?[low]:[low,high]){
+      const label=document.createElement('span'); label.textContent=dollars.format(amount); labels.append(label);
+    }
+    if(high!==low)key.append(ramp);
+    key.append(labels);
+  }
+}
+points.forEach((p,i)=>{
+  if(p.tce!==undefined){
+    const colour=p.feasible?heatColour(p.tce):'#8292a1';
+    if(p.feasible)L.circleMarker(coords[i],{radius:17,stroke:false,fillColor:colour,fillOpacity:.24,interactive:false}).addTo(map);
+    const label=document.createElement('span');
+    label.textContent=p.name+' · '+dollars.format(p.tce)+'/day'+(p.feasible?'':' · infeasible');
+    L.circleMarker(coords[i],{radius:p.focused?8:6,color:p.focused?'#ffffff':colour,weight:2,fillColor:colour,fillOpacity:.95})
+      .addTo(map).bindTooltip(label,{direction:'top'});
+    return;
+  }
+  const [shape,colour]=PIN[p.kind],size=shape==='port'?16:shape==='focus'?12:9;
   const pin=document.createElement('div');pin.className='pin '+shape;pin.style.setProperty('--c',colour);if(shape==='port')pin.append(document.createElement('i'));
   const label=document.createElement('span');label.textContent=p.name;
   L.marker(coords[i],{icon:L.divIcon({className:'',html:pin,iconSize:[size,size],iconAnchor:[size/2,size/2]}),keyboard:false,zIndexOffset:shape==='minor'?0:500,alt:p.name}).addTo(map)

@@ -2,7 +2,7 @@
 
 Streamlit chat and calculator for the frozen Capesize case. OpenRouter interprets a question, Python tools calculate the voyage, and a second model call explains it. The model writes an analyst briefing; an interactive Plotly dashboard in the same reply reads Python results directly.
 
-The OceanFlow dashboard follows the supplied reference with a fleet panel, assistant, interactive port map, freight table and estimated timeline. Dark mode is on by default; use the moon button at the far right of the top bar for light mode. Select a vessel, committed cargo, lift and pricing month to update the calculated panels together. Navigation opens source tables, voyage economics, analytics, exports and documentation. Search filters vessel/cargo lists and source-data pages. The name dropdown opens session profile settings and local logout. Desktop panel contents scroll independently so the composer stays visible. See [asset credits](docs/asset_credits.md) for licensed ship photos, Lucide icons and the Leaflet/OpenStreetMap map. Map tiles require internet; photos are stored locally.
+KingFish Home starts with voyage KPIs and the interactive TCE map, followed by vessel search and the assistant. Select a vessel, committed cargo, lift and pricing month to model a voyage. The moon button switches themes, and the sidebar collapses to an icon rail. See [asset credits](docs/asset_credits.md) for map and icon sources.
 
 Ask the assistant to compare a cargo and lift for earnings, cost drivers and voyage-duration charts. The assistant starts with a centred greeting and empty voyage selections; New chat clears them. Profit margins use a red-to-green scale around break-even.
 

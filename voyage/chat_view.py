@@ -18,7 +18,7 @@ def start_new_chat():
         st.session_state[key] = None
 
 
-def render_chat(case, compact=False, controls=None):
+def render_chat(controls=None, compact=False):
     from voyage.chat import chat_reply
 
     for key, value in {"messages": [], "pending": None, "chat_error": None}.items():
@@ -26,7 +26,7 @@ def render_chat(case, compact=False, controls=None):
             st.session_state[key] = value
     generation = st.session_state.get('chat_generation', 0)
     # Remount the scrolling panel as well as the composer on New chat.
-    with st.container(height=400, border=False, key=f"chat_scroll_{generation}"):
+    with st.container(height=112 if compact else 400, border=False, key=f"chat_scroll_{generation}"):
         if not st.session_state.messages and not st.session_state.pending:
             name = escape(st.session_state.get('profile_name', 'Yi Heng'))
             st.html(f'<div class="chat-welcome"><h2>Hello, {name}.</h2><p>Ask about a voyage, cargo or fuel plan</p></div>')
@@ -55,7 +55,7 @@ def render_chat(case, compact=False, controls=None):
     with st.container(key="composer"):
         if controls:
             controls()
-        prompt = st.chat_input("Ask about voyages, freight, vessels or fuel…", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
+        prompt = st.chat_input("Compare CC-02 at 164,000 t in Mar 2026", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
     if prompt and prompt.strip():
         st.session_state.pending = prompt.strip()
         st.session_state.chat_error = None
@@ -67,7 +67,7 @@ def render_chat(case, compact=False, controls=None):
         # Explicit UI selection, not fabricated tool evidence. The model still runs tools.
         selection = {key: st.session_state.get(key) for key in
                      ('selected_vessel', 'selected_cargo', 'selected_lift', 'price_period')}
-        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer conceptual voyage and freight questions normally; redirect unrelated questions to OceanFlow support. Ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.'}
+        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer conceptual voyage and freight questions normally; redirect unrelated questions to KingFish support. Ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.'}
         try:
             with progress, st.spinner("Shipping…"):
                 answer = chat_reply(history + [context, question], force_comparison=st.session_state.get("force_comparison", False))

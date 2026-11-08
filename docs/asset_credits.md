@@ -1,6 +1,6 @@
 # Image, icon and map credits
 
-## OceanFlow logo
+## KingFish logo
 
 The crown logo in `assets/oceanflow-crown.png` was supplied by the user on 30 October 2026. The original PNG and its transparency are preserved.
 

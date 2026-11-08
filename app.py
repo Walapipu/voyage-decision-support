@@ -1,6 +1,5 @@
-"""OceanFlow dashboard. Run: python -m streamlit run app.py"""
+"""KingFish dashboard. Run: python -m streamlit run app.py"""
 from pathlib import Path
-from contextlib import nullcontext
 import pandas as pd
 import streamlit as st
 
@@ -18,7 +17,7 @@ from voyage.ui import render_evidence
 from voyage.report import analytics_report
 from voyage.profile import toggle_theme, profile_menu
 
-st.set_page_config(page_title="OceanFlow · Voyage Decision Support", page_icon=str(Path(__file__).resolve().parent / "assets/oceanflow-crown.png"), layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="KingFish · Voyage Decision Support", page_icon=str(Path(__file__).resolve().parent / "assets/oceanflow-crown.png"), layout="wide", initial_sidebar_state="auto")
 if st.session_state.get("logged_out"):
     st.title("Session ended")
     st.write("Your profile and conversation were cleared for this session.")
@@ -36,8 +35,8 @@ def reset_lift():
     st.session_state.voyage_port = st.session_state.voyage_query = None
 
 with st.sidebar:
-    st.html(f'<div class="brand"><img class="brandmark" src="{brand_logo_uri()}" alt="OceanFlow crown"/><div><b>OceanFlow</b><small>Voyage decision support</small></div></div>')
-    page = st.radio("Navigation", ["Dashboard", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
+    st.html(f'<div class="brand"><img class="brandmark" src="{brand_logo_uri()}" alt="KingFish crown"/><div><b>KingFish</b><small>Voyage planner</small></div></div>')
+    page = st.radio("Navigation", ["Home", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
     with st.container(key="sidebar_foot"):
         user_col, theme_col = st.columns([1, .22], vertical_alignment="center", gap="small")
         with user_col:
@@ -46,12 +45,11 @@ with st.sidebar:
             st.button("", icon=":material/dark_mode:", key="theme_button", on_click=toggle_theme, help="Switch light or dark theme")
 
 tables = load_tables()
-query = ""  # Top-bar search was removed; panels keep their filter hooks.
 apply_theme(st.session_state.dark_mode)
 # Dropdowns opened from the assistant composer always open upward, like the
 # vessel list does, instead of flipping by how much room is left below.
 st.html("""<script>(() => {
-  if (window.__oceanflowDropUp) return; window.__oceanflowDropUp = true;
+  if (window.__kingfishDropUp) return; window.__kingfishDropUp = true;
   let anchor = null;
   const remember = e => { anchor = e.target.closest && e.target.closest('.st-key-composer [data-testid="stSelectbox"]'); };
   document.addEventListener('pointerdown', remember, true);
@@ -77,7 +75,7 @@ st.html("""<script>(() => {
 # The Voyages search accepts free text; Streamlit labels that option "Add: …", which
 # reads as creating a record. Relabel it while the search box has focus.
 st.html("""<script>(() => {
-  if (window.__oceanflowSearchLabel) return; window.__oceanflowSearchLabel = true;
+  if (window.__kingfishSearchLabel) return; window.__kingfishSearchLabel = true;
   const relabel = () => {
     if (!document.activeElement || !document.activeElement.closest('.st-key-voyage_search')) return;
     document.querySelectorAll('[data-testid="stSelectboxVirtualDropdown"] [role="option"]').forEach(option => {
@@ -105,7 +103,7 @@ def selection_controls():
             st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
 
 
-if page not in ("Dashboard", "AI Assistant"):
+if page not in ("Home", "AI Assistant"):
     with st.container(key="workspace"):
         selection_controls()
 
@@ -113,36 +111,30 @@ has_selection = all(st.session_state[k] is not None for k in ("selected_vessel",
 case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel) if has_selection else None
 catalog = {"tables": tables, "ports": index(tables["ports"], "port_code")}
 
-with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant") else nullcontext():
-    if page == "Dashboard":
-        st.html('<h1 class="page-title">Overview</h1>')
+with st.container(key={"Home": "home", "AI Assistant": "assistant_page"}.get(page, "page_content")):
+    if page == "Home":
+        st.html('<h1 class="page-title">Voyage overview</h1>')
         summary_cards(case)
-        with st.container(key="dashboard_grid"):
-            fleet, assistant, planning = st.columns([1.05, 2.65, 1.4], gap="small")
-            with fleet, st.container(border=True, key="fleet_panel"):
-                fleet_panel(catalog, query)
-            with assistant, st.container(border=True, key="assistant_panel"):
+        route_map(case, catalog)
+        with st.container(key="home_lower"):
+            track, assistant = st.columns([1, 1.25], gap="small")
+            with track, st.container(key="track_panel"):
+                fleet_panel(catalog, case)
+            with assistant, st.container(key="assistant_panel"):
                 title, new = st.columns([1, .12], vertical_alignment="center")
                 with title:
                     heading("AI voyage assistant")
                 with new:
                     st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
-                render_chat(case, compact=True, controls=selection_controls)
-            with planning, st.container(key="planning_panel"):
-                if case:
-                    route_map(case)
-                else:
-                    with st.container(key="route_map"):
-                        heading("Route map")
-                        st.caption("Select a vessel, cargo and tonnage to view a route.")
-                with st.container(border=True, key="freight_panel"):
-                    freight_panel(catalog, query)
-        with st.container(border=True, key="timeline_panel"):
+                render_chat(controls=selection_controls, compact=True)
+        with st.expander("Freight and voyage timeline"):
+            with st.container(key="freight_panel"):
+                freight_panel(catalog, "")
             if case:
-                timeline(case)
+                with st.container(key="timeline_panel"):
+                    timeline(case)
             else:
-                heading("Voyage timeline")
-                st.caption("No voyage selected.")
+                st.caption("Select a voyage to see its timeline.")
 
     elif page == "AI Assistant":
         with st.container(key="assistant_full"):
@@ -151,7 +143,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
                 heading("AI voyage assistant", "Commercial analysis")
             with new:
                 st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
-            render_chat(case, controls=selection_controls)
+            render_chat(controls=selection_controls)
 
     elif page == "Voyages":
         cargo_id, lift = st.session_state.selected_cargo, st.session_state.selected_lift
@@ -175,7 +167,7 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
         st.info("Select a vessel, cargo and tonnage to view voyage results.")
         if page == "Analytics":
             st.download_button("Download report", data="", disabled=True,
-                file_name="oceanflow_analytics.html", mime="text/html", key="analytics_report")
+                file_name="kingfish_analytics.html", mime="text/html", key="analytics_report")
 
     elif page in ("Fleet", "Freight", "Ports"):
         heading(page + " data", "Vessels, cargoes and ports")
@@ -187,14 +179,12 @@ with st.container(key="page_content") if page not in ("Dashboard", "AI Assistant
             frame = pd.DataFrame(tables[name])
             if name == "market_cargoes":
                 frame["contract_freight_rate_usd_per_tonne"] = "Quote needed"
-            if query:
-                frame = frame[frame.astype(str).apply(lambda row: query in " ".join(row).lower(), axis=1)]
             st.html('<div class="table-wrap" style="max-height:550px;overflow:auto">'+frame.to_html(index=False, escape=True, classes="ocean-table", border=0)+'</div>')
 
     elif page == "Analytics":
         heading("Voyage comparisons", "Current cargo, lift and price month")
         st.download_button("Download report", analytics_report(case),
-            file_name=f'oceanflow_{st.session_state.selected_cargo}_{st.session_state.price_period}_report.html',
+            file_name=f'kingfish_{st.session_state.selected_cargo}_{st.session_state.price_period}_report.html',
             mime="text/html", icon=":material/download:", key="analytics_report", on_click="ignore")
         st.caption("HTML report with interactive charts, comparison results and methodology. Opens offline in your browser.")
         render_evidence([{"tool":"compare_vessels", "result":case["comparison"]}])

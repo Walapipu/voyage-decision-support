@@ -43,7 +43,7 @@ def analytics_report(case):
     generated = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OceanFlow Analytics - {e(focus['cargo_id'])}</title>
+<title>KingFish Analytics - {e(focus['cargo_id'])}</title>
 <style>
 *{{box-sizing:border-box}}body{{margin:0;background:#f0f4f8;color:#14243b;font:15px/1.6 Arial,sans-serif}}
 main{{max-width:1100px;margin:32px auto;padding:28px;background:white;border-radius:12px}}
@@ -53,7 +53,7 @@ h1{{margin:0;font-size:30px}}h2{{font-size:20px;margin:24px 0 12px}}p{{margin:8p
 li{{margin:8px 0}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}}section{{break-inside:avoid}}
 @media(max-width:600px){{main{{margin:0;padding:16px;border-radius:0}}}}@media print{{body{{background:white}}main{{margin:0;padding:0;max-width:none}}.modebar{{display:none!important}}}}
 </style></head><body><main>
-<header><p class="muted">OceanFlow · Voyage Decision Support</p><h1>Analytics report</h1><p class="muted">Generated {generated}</p></header>
+<header><p class="muted">KingFish · Voyage Decision Support</p><h1>Analytics report</h1><p class="muted">Generated {generated}</p></header>
 <p><b>{e(focus['cargo_id'])}</b> · {e(cargo['load_port'])} → {e(cargo['discharge_port'])} · {focus['selected_lift_tonnes']:,.0f} tonnes · Bunker price month {e(focus['bunker_price_period'])}</p>
 <p>Selected vessel: {e(case['row']['vessel_id'])}. {e(comparison['scope'])}</p>
 <div class="summary"><b>{e(focus_label)}</b><p>{e(focus['vessel_id'])} · Contribution USD {focus['voyage_contribution_usd']:,.2f} · TCE USD {focus['tce_usd_per_day']:,.2f}/day · {facts['feasible_count']} / {facts['evaluated_count']} feasible options</p></div>

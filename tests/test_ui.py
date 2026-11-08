@@ -42,7 +42,7 @@ class UITests(unittest.TestCase):
         self.assertFalse(app.exception)
 
     def test_new_chat_restores_initial_welcome_in_both_views(self):
-        for page in ('Dashboard', 'AI Assistant'):
+        for page in ('Home', 'AI Assistant'):
             with self.subTest(page=page):
                 app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
                 app.session_state.profile_name = 'Yi Heng Test'
@@ -68,7 +68,7 @@ class UITests(unittest.TestCase):
                 self.assertEqual(welcome, next(h.proto.body for h in app.get('html') if 'chat-welcome' in h.proto.body))
                 self.assertIn('Hello, Yi Heng Test.', welcome)
                 # The cleared state persists across reruns and navigation.
-                other = 'AI Assistant' if page == 'Dashboard' else 'Dashboard'
+                other = 'AI Assistant' if page == 'Home' else 'Home'
                 next(r for r in app.radio if r.label == 'Navigation').set_value(other).run()
                 self.assertFalse(app.chat_message)
                 self.assertTrue(any(welcome == h.proto.body for h in app.get('html')))

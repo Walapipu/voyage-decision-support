@@ -1,4 +1,5 @@
 """Reference-inspired dashboard components; all displayed numbers have a source."""
+from base64 import b64encode
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -6,9 +7,10 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 from voyage.analysis import profit_tone
-from voyage.assets import icon_styles, vessel_photo
-from voyage.map_view import render_map
+from voyage.assets import icon_styles
+from voyage.map_view import render_home_map
 from voyage.fuel import shortage_message
+from voyage.dashboard_data import bunker_price_scenarios
 
 
 
@@ -31,14 +33,14 @@ def profit_style(value):
 
 def apply_theme(dark):
     # Chart-room graphite: neutral surfaces, one sea-blue accent, toned semantics.
-    palette = ({"rail":"#090b0e", "bg":"#0d0f13", "panel":"#13161b", "field":"#1b1f25", "raised":"#22272e",
+    palette = ({"rail":"#0b1524", "bg":"#0d0f13", "panel":"#13161b", "field":"#1b1f25", "raised":"#22272e",
                 "line":"rgba(232,236,242,.08)", "linestrong":"rgba(232,236,242,.14)",
                 "text":"#e8ebf0", "text2":"#a3a9b5", "muted":"#858c98",
                 "blue":"#5aa9f0", "bluewash":"rgba(90,169,240,.13)", "onblue":"#0d0f13",
                 "green":"#4cc38a", "greenwash":"rgba(76,195,138,.12)", "amber":"#e0b263", "amberwash":"rgba(224,178,99,.12)",
                 "red":"#e5484d", "redwash":"rgba(229,72,77,.12)"}
                if dark else
-               {"rail":"#f0f2f5", "bg":"#f6f7f9", "panel":"#ffffff", "field":"#f1f3f6", "raised":"#e8ebf0",
+               {"rail":"#13263d", "bg":"#f6f7f9", "panel":"#ffffff", "field":"#f1f3f6", "raised":"#e8ebf0",
                 "line":"rgba(17,24,39,.09)", "linestrong":"rgba(17,24,39,.16)",
                 "text":"#111827", "text2":"#4b5565", "muted":"#6b7487",
                 "blue":"#0a6fd6", "bluewash":"rgba(10,111,214,.08)", "onblue":"#ffffff",
@@ -52,64 +54,84 @@ def heading(title, note=""):
     st.html(f'<div class="panel-head"><h3>{e(title)}</h3><small>{e(note)}</small></div>')
 
 
+def sparkline(series, period, label):
+    if len(series) < 2:
+        return ""
+    values = [value for _, value in series]
+    low, high = min(values), max(values)
+    points = [(3 + i * 58 / (len(series) - 1),
+               13 if low == high else 23 - 20 * (value - low) / (high - low))
+              for i, value in enumerate(values)]
+    path = " ".join(f"{x:.2f},{y:.2f}" for x, y in points)
+    marker = next((point for (month, _), point in zip(series, points) if month == period), None)
+    dark = st.session_state.get("dark_mode", True)
+    colour, outline = ("#5aa9f0", "#13161b") if dark else ("#0a6fd6", "#ffffff")
+    dot = (f'<circle cx="{marker[0]:.2f}" cy="{marker[1]:.2f}" r="2.5" fill="{colour}" stroke="{outline}"/>'
+           if marker else "")
+    title = f"{label} at supplied monthly bunker prices, {series[0][0]} to {series[-1][0]}. Dot marks selected month."
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 26">'
+           f'<polyline points="{path}" fill="none" stroke="{colour}" stroke-width="1.6" stroke-linejoin="round"/>{dot}</svg>')
+    image = b64encode(svg.encode()).decode("ascii")
+    return f'<img class="kpi-spark" src="data:image/svg+xml;base64,{image}" alt="{e(title)}" title="{e(title)}">'
+
+
 def summary_cards(case):
-    if case is None:
-        cards = [("ship", "Active Voyages"), ("chart-pie", "Fleet Utilisation"),
-                 ("fuel", "Fuel Cost (USD)"), ("clock", "ETA Reliability"),
-                 ("trending-up", "Profit Margin")]
-        st.html('<div class="kpi-grid">' + ''.join(
-            f'<div class="kpi"><div class="kpi-icon"><span class="lucide icon-{icon}"></span></div>'
-            f'<div class="kpi-body"><h4>{label}</h4><strong>—</strong><small>'
-            + ('No voyage selected' if icon in ('fuel', 'trending-up') else 'Not connected')
-            + '</small></div></div>' for icon, label in cards) + '</div>')
-        return
-    row = case["row"]
-    status = "Feasible" if row["feasible"] else "Infeasible"
+    row = case["row"] if case else None
+    margin = case["margin_pct"] if case else None
+    status = ("Feasible" if row["feasible"] else "Infeasible") if row else "No voyage selected"
+    scenarios = bunker_price_scenarios(case) if case else []
+    period = row["bunker_price_period"] if row else ""
     cards = [
-        ("ship", "Active Voyages", "—", "Not connected"),
-        ("chart-pie", "Fleet Utilisation", "—", "Not connected"),
-        ("fuel", "Fuel Cost (USD)", usd(row["bunker_cost_usd"]), f'{case["fuel_tonnes"]:,.0f} t consumed · {status.lower()}'),
-        ("clock", "ETA Reliability", "—", "Not connected"),
-        ("trending-up", "Profit Margin", f'{case["margin_pct"]:.1f}%' if case["margin_pct"] is not None else "—", status),
+        ("Active Voyages", "—", "No operating data", [], ""),
+        ("Fleet Utilisation", "—", "No operating data", [], ""),
+        ("Fuel Cost (USD)", usd(row["bunker_cost_usd"]) if row else "—",
+         "Bunker price curve" if scenarios else status, [(month, cost) for month, cost, _ in scenarios], ""),
+        ("ETA Reliability", "—", "No arrival history", [], ""),
+        ("Profit Margin", f"{margin:.1f}%" if margin is not None else "—",
+         f"{status} · bunker curve" if scenarios else status,
+         [(month, pct) for month, _, pct in scenarios] if margin is not None else [],
+         profit_style(margin) if row and row["feasible"] else "--profit-colour:var(--muted);"),
     ]
     tiles = []
-    for icon, label, value, note in cards:
-        is_profit = label == "Profit Margin"
-        # An infeasible voyage's margin is hypothetical, so it is shown in muted grey.
-        style = ("--profit-colour:var(--muted);" if not row["feasible"] else profit_style(case["margin_pct"])) if is_profit else ""
-        gradient = ''
-        if is_profit and case["margin_pct"] is not None:
-            position = max(0, min(100, 50 + case["margin_pct"] * 2))
-            gradient = f'<div class="profit-scale" title="Display scale: −25% to +25%; zero is break-even. Not an industry rating."><i style="left:{position:.1f}%"></i></div>'
-        tiles.append(f'<div class="kpi {"profit-kpi" if is_profit else ""}" style="{style}"><div class="kpi-icon"><span class="lucide icon-{e(icon)}"></span></div><div class="kpi-body"><h4>{e(label)}</h4><strong>{e(value)}</strong><small title="{e(note)}">{e(note)}</small>{gradient}</div></div>')
-    st.html('<div class="kpi-grid">' + ''.join(tiles) + '</div>')
+    for label, value, note, series, style in cards:
+        css_class = "kpi profit-kpi" if style else "kpi"
+        tiles.append(f'<div class="{css_class}" style="{style}"><h4>{e(label)}</h4>'
+                     f'<div class="kpi-reading"><strong>{e(value)}</strong>{sparkline(series, period, label)}</div>'
+                     f'<small>{e(note)}</small></div>')
+    st.html('<div class="kpi-grid">' + "".join(tiles) + "</div>")
 
 
-def fleet_panel(case, query):
-    heading("Fleet overview")
-    group = st.radio("Fleet filter", ["Managed", "Market", "All"], horizontal=True, label_visibility="collapsed")
-    tables = case["tables"]
-    rows = tables["managed_vessels"] if group == "Managed" else tables["market_vessels"] if group == "Market" else tables["managed_vessels"] + tables["market_vessels"]
-    with st.container(height=400, border=False, key="fleet_scroll"):
-        found = 0
-        for vessel in rows:
-            port = case["ports"][vessel["current_port"]]["port_name"]
-            if query and query not in f'{vessel["vessel_id"]} {port} {vessel["vessel_class"]}'.lower():
+def fleet_panel(catalog, case):
+    heading("Track your ship", "Planning snapshot")
+    words = st.text_input("Search vessels, voyages or ports", key="ship_search",
+                          placeholder="Search vessel, cargo or port…", label_visibility="collapsed").lower().split()
+    tables, ports = catalog["tables"], catalog["ports"]
+    st.html('<div class="track-header"><span>Vessel</span><span>Port / route</span><span>Available / ETA (UTC)</span></div>')
+    with st.container(height=140, border=False, key="track_scroll"):
+        found = False
+        for vessel in tables["managed_vessels"] + tables["market_vessels"]:
+            vessel_id, code = vessel["vessel_id"], vessel["current_port"]
+            port = ports[code]["port_name"]
+            route, date = port, stamp(vessel["available_from_utc"]).split(",")[0]
+            cargo_id = ""
+            if case and vessel_id == case["row"]["vessel_id"]:
+                cargo = case["cargo"]
+                cargo_id = cargo["cargo_id"]
+                route = f'{cargo["load_port"]} → {cargo["discharge_port"]}'
+                date = stamp(case["discharge_eta"])
+            if not all(word in f"{vessel_id} {code} {port} {route} {cargo_id}".lower() for word in words):
                 continue
-            found += 1
-            managed = vessel["vessel_id"].startswith("MF")
-            illustration, description = st.columns([1, 2.4], vertical_alignment="center")
-            with illustration:
-                st.image(vessel_photo(vessel["vessel_id"]), width="stretch")
-            with description:
-                if managed:
-                    st.button(vessel["vessel_id"], key="inspect_" + vessel["vessel_id"], on_click=select_vessel, args=(vessel["vessel_id"],), type="tertiary")
-                else:
-                    if st.button(vessel["vessel_id"], key="inspect_" + vessel["vessel_id"], type="tertiary"):
-                        inspect_market_vessel(vessel, port)
-                available = e(stamp(vessel["available_from_utc"]).split(",")[0])
-                status = '<span class="status">Managed</span>' if managed else '<span class="status warn">Quote needed</span>'
-                st.html(f'<div class="fleet-row"><p>Capesize · <span class="num">{float(vessel["dwt_tonnes"]):,.0f}</span> DWT</p><p>{e(port)}</p><p class="fleet-meta">{status} · Available {available}</p></div>')
+            found = True
+            name, location, timing = st.columns([1, 1.75, 1.35], gap="small", vertical_alignment="center")
+            with name:
+                if vessel_id.startswith("MF"):
+                    st.button(vessel_id, key=f"inspect_{vessel_id}", on_click=select_vessel, args=(vessel_id,), type="tertiary")
+                elif st.button(vessel_id, key=f"inspect_{vessel_id}", type="tertiary"):
+                    inspect_market_vessel(vessel, port)
+            with location:
+                st.html(f'<span class="track-value">{e(route)}</span>')
+            with timing:
+                st.html(f'<span class="track-value">{e(date)}</span>')
         if not found:
             st.caption("No vessels match the search.")
 
@@ -125,10 +147,11 @@ def select_vessel(vessel_id):
     st.session_state.selected_vessel = vessel_id
 
 
-def route_map(case):
-    with st.container(key="route_map"):
-        heading("Route map")
-        render_map(case)
+def route_map(case, catalog):
+    with st.container(key="home_map"):
+        note = "Feasible candidates · USD/day" if case else "Committed routes · select a voyage to compare TCE"
+        heading("TCE heat map", note)
+        render_home_map(case, catalog)
 
 
 def freight_panel(case, query):
