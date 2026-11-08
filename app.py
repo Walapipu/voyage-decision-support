@@ -97,7 +97,9 @@ st.html("""<script>(() => {
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeShippy(); });
   const syncDrawer = () => {
     const panel = drawer();
-    if (!panel) { body.classList.remove('shippy-open'); return; }
+    // Guarded: classList.remove rewrites the class attribute even when the class is absent, which
+    // re-fires the class observer below and loops forever once the drawer has left the page.
+    if (!panel) { if (body.classList.contains('shippy-open')) body.classList.remove('shippy-open'); return; }
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-labelledby', 'shippy-title');
     panel.toggleAttribute('inert', !body.classList.contains('shippy-open'));
