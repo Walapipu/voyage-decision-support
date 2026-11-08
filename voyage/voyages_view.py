@@ -70,7 +70,7 @@ def stem_card(cc):
 
 def stage_bar(row):
     total = row["voyage_days"] or 1
-    parts = "".join(f'<i style="width:{100 * row[key] / total:.2f}%;background:{STAGE_COLOURS[name]}" title="{e(name)}: {row[key]:.2f} days"></i>'
+    parts = "".join(f'<i style="width:{100 * row[key] / total:.2f}%;background:{STAGE_COLOURS[name]}"></i>'
                     for name, key in STAGES.items() if row[key] > 0)
     return f'<div class="stage-bar" role="img" aria-label="Voyage stages, {row["voyage_days"]:.1f} days">{parts}</div>'
 
@@ -119,8 +119,7 @@ def candidate_card(row, cc, rank, focus_id):
         if row["vessel_id"] == st.session_state.get("selected_vessel"):
             st.html('<p class="cand-selected"><i class="dot info"></i>Selected · shown on the map and below</p>')
         else:
-            st.button("Select vessel", key=f'pick_{row["vessel_id"]}', on_click=select_vessel, args=(row["vessel_id"],),
-                      help="Use this vessel for the map, the voyage details below and the other pages")
+            st.button("Select vessel", key=f'pick_{row["vessel_id"]}', on_click=select_vessel, args=(row["vessel_id"],))
 
 
 def ticker_items(cc, focus):
@@ -140,8 +139,7 @@ def ticker_items(cc, focus):
 def ticker(items):
     # The run is doubled so the scroll loops seamlessly; the copy is hidden from screen readers.
     run = "".join(f'<span>{e(item)}</span>' for item in items)
-    return (f'<div class="ticker" title="Port positions are approximate and route lines schematic. '
-            f'Distances come from the coursework route table, at economical speeds." aria-label="{e(" · ".join(items))}">'
+    return (f'<div class="ticker" aria-label="{e(" · ".join(items))}">'
             f'<div class="ticker-track"><div class="ticker-run">{run}</div><div class="ticker-run" aria-hidden="true">{run}</div></div></div>')
 
 
@@ -256,8 +254,7 @@ def search_bar():
     st.session_state.voyage_search = current
     st.selectbox("Search load port or cargo", options, format_func=lambda k: labels.get(k, k), index=None,
                  key="voyage_search", on_change=_on_search, accept_new_options=True, filter_mode="contains",
-                 placeholder="Search port, country, cargo or commodity", label_visibility="collapsed",
-                 help="Pick a suggestion, or type any term and press Enter to search ports and cargoes, including charterers.")
+                 placeholder="Search port, country, cargo or commodity", label_visibility="collapsed")
 
 
 def result_list(title, results):

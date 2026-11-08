@@ -33,7 +33,7 @@ def profit_style(value):
 
 def apply_theme(dark):
     # Chart-room graphite: neutral surfaces, one sea-blue accent, toned semantics.
-    palette = ({"rail":"#0b1524", "bg":"#0d0f13", "panel":"#13161b", "field":"#1b1f25", "raised":"#22272e",
+    palette = ({"rail":"#090c12", "bg":"#0d0f13", "panel":"#13161b", "field":"#1b1f25", "raised":"#22272e",
                 "line":"rgba(232,236,242,.08)", "linestrong":"rgba(232,236,242,.14)",
                 "text":"#e8ebf0", "text2":"#a3a9b5", "muted":"#858c98",
                 "blue":"#5aa9f0", "bluewash":"rgba(90,169,240,.13)", "onblue":"#0d0f13",
@@ -72,7 +72,7 @@ def sparkline(series, period, label):
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 26">'
            f'<polyline points="{path}" fill="none" stroke="{colour}" stroke-width="1.6" stroke-linejoin="round"/>{dot}</svg>')
     image = b64encode(svg.encode()).decode("ascii")
-    return f'<img class="kpi-spark" src="data:image/svg+xml;base64,{image}" alt="{e(title)}" title="{e(title)}">'
+    return f'<img class="kpi-spark" src="data:image/svg+xml;base64,{image}" alt="{e(title)}">'
 
 
 def summary_cards(case):
@@ -149,25 +149,9 @@ def select_vessel(vessel_id):
 
 def route_map(case, catalog):
     with st.container(key="home_map"):
-        note = "Feasible candidates · USD/day" if case else "Committed routes · select a voyage to compare TCE"
+        note = "Feasible candidate TCE · USD/day" if case else "Calculate a voyage to show TCE heat"
         heading("TCE heat map", note)
         render_home_map(case, catalog)
-
-
-def freight_panel(case, query):
-    heading("Freight planning")
-    group = st.radio("Cargo filter", ["Committed", "Market"], horizontal=True, label_visibility="collapsed")
-    rows = case["tables"]["committed_cargoes" if group == "Committed" else "market_cargoes"]
-    body = ""
-    for cargo in rows:
-        if query and query not in " ".join(cargo.values()).lower():
-            continue
-        market = cargo["cargo_role"] == "market"
-        rate = "Quote needed" if market else f'${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}'
-        body += (f'<tr><td><span class="code">{e(cargo["cargo_id"])}</span><small>{e(cargo["commodity"].replace("_"," "))}</small></td>'
-                 f'<td><span class="code">{e(cargo["load_port"])}</span><small class="code">→ {e(cargo["discharge_port"])}</small></td>'
-                 f'<td class="num">{e(rate)}</td><td class="num">{float(cargo["nominal_quantity_tonnes"]):,.0f} t</td></tr>')
-    st.html('<div class="table-wrap"><table class="ocean-table freight-table"><thead><tr><th>Cargo</th><th>Route</th><th class="num">USD/t</th><th class="num">Nominal</th></tr></thead><tbody>'+body+'</tbody></table></div>')
 
 
 def voyage_summary(case, compact=False):

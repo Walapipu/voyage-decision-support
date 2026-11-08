@@ -10,15 +10,33 @@ def clear_chat():
     st.session_state.pending = None
     st.session_state.chat_error = None
     st.session_state.force_comparison = False
+    st.session_state.pop("selection_from_chat", None)
 
 
 def start_new_chat():
     clear_chat()
+    st.session_state.close_voyage_selectors = True
     for key in ('selected_vessel', 'selected_cargo', 'selected_lift'):
         st.session_state[key] = None
 
 
-def render_chat(controls=None, compact=False):
+def selection_from_evidence(evidence):
+    """Choose the last calculated voyage or the lead vessel in its comparison."""
+    for item in reversed(evidence):
+        if item["tool"] not in {"compare_vessels", "calculate_voyage"}:
+            continue
+        rows = item["result"].get("rows")
+        if not rows:
+            continue
+        # Comparisons already rank feasible voyages first, then contribution.
+        row = rows[0]
+        return {"selected_vessel": row["vessel_id"], "selected_cargo": row["cargo_id"],
+                "selected_lift": float(row["selected_lift_tonnes"]),
+                "price_period": row["bunker_price_period"]}
+    return None
+
+
+def render_chat(controls=None):
     from voyage.chat import chat_reply
 
     for key, value in {"messages": [], "pending": None, "chat_error": None}.items():
@@ -26,7 +44,7 @@ def render_chat(controls=None, compact=False):
             st.session_state[key] = value
     generation = st.session_state.get('chat_generation', 0)
     # Remount the scrolling panel as well as the composer on New chat.
-    with st.container(height=112 if compact else 400, border=False, key=f"chat_scroll_{generation}"):
+    with st.container(height=400, border=False, key=f"chat_scroll_{generation}"):
         if not st.session_state.messages and not st.session_state.pending:
             name = escape(st.session_state.get('profile_name', 'Yi Heng'))
             st.html(f'<div class="chat-welcome"><h2>Hello, {name}.</h2><p>Ask about a voyage, cargo or fuel plan</p></div>')
@@ -54,10 +72,12 @@ def render_chat(controls=None, compact=False):
             progress = st.empty()
     with st.container(key="composer"):
         if controls:
-            controls()
+            with st.popover("Voyage selectors", icon=":material/tune:", key="voyage_selectors", on_change="rerun"):
+                controls()
         prompt = st.chat_input("Compare CC-02 at 164,000 t in Mar 2026", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
     if prompt and prompt.strip():
         st.session_state.pending = prompt.strip()
+        st.session_state.close_voyage_selectors = True
         st.session_state.chat_error = None
         st.session_state.force_comparison = False
         st.rerun()
@@ -73,6 +93,9 @@ def render_chat(controls=None, compact=False):
                 answer = chat_reply(history + [context, question], force_comparison=st.session_state.get("force_comparison", False))
             if generation == st.session_state.get('chat_generation', 0):
                 st.session_state.messages.extend([question, {"role": "assistant", **answer}])
+                selection = selection_from_evidence(answer.get("evidence", []))
+                if selection:
+                    st.session_state.selection_from_chat = selection
                 st.session_state.pending = None
                 st.session_state.chat_error = None
                 st.session_state.force_comparison = False

@@ -59,7 +59,7 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 [data-testid="stSidebar"]{
  --text:#edf4fd;--text2:#c1d0e4;--muted:#a1b4cc;--field:#1c334c;--raised:#203e5d;
  --line:#ffffff20;--blue:#7fc2ff;
- background:var(--rail);border-right:1px solid var(--line);
+ background:var(--rail)!important;border-right:1px solid var(--line);
  width:216px!important;min-width:0!important;max-width:216px!important;flex:0 0 216px!important;
  overflow:hidden!important;transform:none!important;margin-left:0!important;
  transition:flex-basis 180ms var(--ease),width 180ms var(--ease)!important;}
@@ -90,17 +90,18 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 [data-testid="stSidebar"] [data-testid="stRadioOption"]{display:flex;align-items:center;gap:10px;}
 [data-testid="stSidebar"] [data-testid="stRadioOption"]:before{content:'';position:absolute;left:11px;top:9px;width:18px;height:18px;background:var(--muted);mask-repeat:no-repeat;mask-position:center;mask-size:contain;}
 [data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"]:before{background:var(--blue);}
-.brand{display:flex;align-items:center;gap:8px;height:32px;margin:0 0 16px;padding:0 0 0 44px;}
+.brand{display:flex;align-items:center;gap:8px;height:32px;margin:0 0 16px;padding:0 40px 0 0;}
 .brand>div{min-width:0;}
 .brand b,.brand small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .brandmark{display:block;width:28px;min-width:28px;height:28px;flex-shrink:0;object-fit:contain;}
 .brand b{display:block;color:var(--text)!important;font-size:17px;font-weight:600;line-height:1.2;}
 .brand small{display:block;color:var(--muted)!important;font-size:11px;line-height:1.3;}
-/* Both native collapse actions occupy the same coordinates and hit area. */
+/* Collapse sits after the wordmark. Expand stays centered over the icon rail. */
 [data-testid="stSidebarCollapseButton"],[data-testid="stExpandSidebarButton"]{
  position:fixed!important;left:16px!important;right:auto!important;top:12px!important;width:32px!important;height:32px!important;
  margin:0!important;padding:0!important;visibility:visible!important;opacity:1!important;z-index:1001;transition:none!important;
  pointer-events:auto;background:var(--rail)!important;border-radius:var(--r-md);}
+[data-testid="stSidebarCollapseButton"]{position:absolute!important;left:172px!important;}
 [data-testid="stSidebarCollapseButton"] button{width:32px!important;height:32px!important;margin:0!important;padding:0!important;}
 [data-testid="stSidebarCollapseButton"]:hover,[data-testid="stExpandSidebarButton"]:hover{background:var(--field)!important;}
 [data-testid="stExpandSidebarButton"]{color:#c1d0e4!important;}
@@ -140,7 +141,7 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .st-key-selection [data-testid="stNumberInputStepUp"],.st-key-selection [data-testid="stNumberInputStepDown"]{display:none!important;}
 
 /* ---------- Home reading order ---------- */
-.st-key-home{height:100%!important;min-height:0!important;overflow-y:auto!important;padding:16px!important;box-sizing:border-box;gap:12px!important;container:home / inline-size;}
+.st-key-home{height:100%!important;min-height:0!important;overflow:hidden!important;padding:12px 16px!important;box-sizing:border-box;gap:10px!important;container:home / inline-size;}
 .st-key-assistant_page{height:100%;min-height:0;}
 .st-key-assistant_page>[data-testid="stLayoutWrapper"]{height:100%;min-height:0;}
 .page-title{margin:0;padding:0;font-size:26px;font-weight:600;line-height:1.3;color:var(--text);}
@@ -166,7 +167,24 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .tag.warn{color:var(--amber);background:var(--amberwash);}
 .tag.bad{color:var(--red);background:var(--redwash);}
 
-/* Dashboard grid */
+/* Home fits the viewport. The list and the conversation are the only scroll regions. */
+.st-key-home>[data-testid="stLayoutWrapper"]:has(>.st-key-home_map){flex:0 0 clamp(120px,29dvh,308px)!important;min-height:0;}
+.st-key-home>[data-testid="stLayoutWrapper"]:has(>.st-key-home_lower){flex:1 1 0!important;min-height:0;}
+.st-key-home_map,.st-key-home_lower,
+.st-key-home_lower>[data-testid="stLayoutWrapper"],
+.st-key-home_lower>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{height:100%!important;min-height:0!important;}
+.st-key-home_lower>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]>[data-testid="stVerticalBlock"]{height:100%;min-height:0;}
+.st-key-home_map [data-testid="stElementContainer"]:has(iframe){flex:1 1 0!important;min-height:0!important;height:auto!important;}
+.st-key-home_map [data-testid="stIFrame"],.st-key-home_map iframe{height:100%!important;min-height:0!important;}
+.st-key-track_panel,.st-key-assistant_panel{min-height:0;overflow:hidden;}
+.st-key-track_panel>[data-testid="stLayoutWrapper"]:has(>.st-key-track_scroll),
+.st-key-assistant_panel>[data-testid="stLayoutWrapper"]:has(>[class*="st-key-chat_scroll_"]){flex:1 1 0!important;min-height:0!important;height:auto!important;overflow:hidden;}
+.st-key-track_scroll,.st-key-assistant_panel [class*="st-key-chat_scroll_"]{height:100%!important;min-height:0!important;overflow:auto!important;}
+.st-key-composer .st-key-voyage_selectors button{padding:4px 8px!important;min-height:30px!important;background:var(--field)!important;color:var(--text)!important;border:1px solid var(--linestrong)!important;}
+.st-key-composer .st-key-voyage_selectors button:hover{background:var(--raised)!important;}
+.st-key-composer .st-key-voyage_selectors button p{font-size:12px;}
+[data-testid="stPopoverBody"] .st-key-selection [data-testid="stHorizontalBlock"]{flex-wrap:wrap!important;}
+[role="tooltip"],.modebar-btn[data-title]::before,.modebar-btn[data-title]::after{display:none!important;}
 .st-key-home_lower>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:12px!important;}
 .st-key-home_lower>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{width:100%!important;min-width:0!important;}
 .st-key-home_lower [data-testid="stLayoutWrapper"]:has(>.st-key-track_panel),
@@ -190,12 +208,32 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 @container home (max-width:960px){
  .kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
 }
-@container home (max-width:700px){
- .st-key-home_lower>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{grid-template-columns:minmax(0,1fr);}
+@container home (max-width:580px){
+ .st-key-home_lower>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr));gap:8px!important;}
 }
 @container home (max-width:465px){
- .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+ .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;}
+ .kpi{padding:4px 8px;}
+ .kpi h4{margin:0;}
+ .kpi small{font-size:10px;margin-top:2px;}
+ .kpi-spark{width:36px;height:16px;}
 }
+@media(max-width:767px){
+ .st-key-home{padding:8px!important;gap:8px!important;}
+ .st-key-home .page-title{font-size:20px;}
+ .st-key-home>[data-testid="stLayoutWrapper"]:has(>.st-key-home_map){flex-basis:clamp(96px,19dvh,180px)!important;}
+ .st-key-home_map,.st-key-track_panel,.st-key-assistant_panel{padding:8px!important;gap:4px!important;}
+ .st-key-home .panel-head{min-height:22px;}
+ .st-key-home .panel-head small{font-size:10px;}
+ .st-key-home .track-header{font-size:10px;padding:4px;}
+ .st-key-home .st-key-composer{padding-top:4px;gap:4px!important;}
+}
+@media(max-height:620px){
+ .st-key-home{padding-top:8px!important;padding-bottom:8px!important;gap:6px!important;}
+ .st-key-home .kpi{padding-block:4px;}
+ .st-key-home>[data-testid="stLayoutWrapper"]:has(>.st-key-home_map){flex-basis:clamp(90px,22dvh,132px)!important;}
+}
+
 
 /* Segmented filters inside panels */
 /* Base theme is light; keep unchecked rings on the panel surface in both themes. */
@@ -311,10 +349,6 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
  .stop small:last-of-type{display:none;}
  .kpi strong{font-size:16px;}
 }
-
-/* Set by the drop-up script in app.py for pickers inside the assistant composer.
-   A stylesheet !important rule survives React rewriting the inline position. */
-[data-testid="stSelectboxVirtualDropdown"][data-drop-up]{transform:translate(var(--drop-x),var(--drop-y))!important;max-height:var(--drop-max)!important;}
 
 /* Sidebar toggle: lucide panel-left-close / panel-left-open instead of double chevrons. */
 [data-testid="stSidebarCollapseButton"] button>span,[data-testid="stExpandSidebarButton"]>span{display:none!important;}

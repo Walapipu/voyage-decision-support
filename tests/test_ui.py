@@ -26,6 +26,25 @@ class UITests(unittest.TestCase):
                 self.assertFalse(app.exception, page)
             calculate.assert_not_called()
 
+    def test_chat_calculation_updates_home_and_keeps_it_through_follow_up(self):
+        from voyage.tools import execute_tool
+        result = execute_tool("compare_vessels", '{"cargo_id":"CC-02","lift_tonnes":164000.5,"period":"2026-04"}')
+        row = result["rows"][0]
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
+        evidence = [{"tool": "compare_vessels", "result": result}]
+        with patch("voyage.chat.chat_reply", return_value={"content": "Comparison ready", "evidence": evidence}):
+            app.chat_input[0].set_value("Compare CC-02 at 164000.5 tonnes in April 2026").run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.selectbox(key="selected_vessel").value, row["vessel_id"])
+        self.assertEqual(app.selectbox(key="selected_cargo").value, "CC-02")
+        self.assertEqual(app.selectbox(key="price_period").value, "2026-04")
+        self.assertEqual(app.number_input(key="selected_lift").value, 164000.5)
+        self.assertTrue(any(f'${row["bunker_cost_usd"]:,.0f}' in h.proto.body for h in app.get("html")))
+        self.assertTrue(any("Feasible candidate TCE" in h.proto.body for h in app.get("html")))
+        with patch("voyage.chat.chat_reply", return_value={"content": "Conceptual answer", "evidence": []}):
+            app.chat_input[0].set_value("What is TCE?").run()
+        self.assertEqual(app.selectbox(key="selected_cargo").value, "CC-02")
+
     def test_selection_can_be_cleared_and_cargo_change_clears_lift(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
         app.selectbox(key='selected_vessel').set_value('MF-02').run()

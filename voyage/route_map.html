@@ -28,6 +28,7 @@
 .light #legend{background:#fffffff2;color:#22384a;border-color:#b4c5cf}
 #legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 #legend i{display:inline-block;width:18px;border-top:2px dashed currentColor}
+.tce-heat-layer{position:absolute;top:0;left:0;pointer-events:none}
 #tce-key{position:absolute;z-index:640;top:8px;right:8px;padding:6px 10px;border-radius:6px;background:#0d1b26ee;color:#e8f2fa;font:11px/1.4 Arial,sans-serif}
 .light #tce-key{background:#fffffff2;color:#22384a}
 #tce-key .ramp{height:4px;margin:4px 0;border-radius:2px;background:linear-gradient(90deg,#2972c9,#009e8a,#df9a23)}
@@ -51,7 +52,7 @@ function arc(a,b,bend=.18,steps=48){
 }
 if(legend.length){const box=document.getElementById('legend');box.style.display='flex';legend.forEach(item=>{const s=document.createElement('span'),i=document.createElement('i');i.style.color=LEG[item.kind].color;if(!LEG[item.kind].dashArray)i.style.borderTopStyle='solid';s.append(i,document.createTextNode(item.label));box.append(s);});}
 try {
-const map=L.map('map',{zoomControl:false,scrollWheelZoom:!showTce,zoomSnap:(showTce || legend.length) ? .25 : 1});
+const map=L.map('map',{zoomControl:false,zoomAnimation:!showTce,scrollWheelZoom:!showTce,zoomSnap:(showTce || legend.length) ? .25 : 1});
 map.attributionControl.setPrefix(false);
 const borders=__BOUNDARIES__;
 L.geoJSON(borders,{interactive:false,style:{color:document.body.classList.contains('dark')?'#647f90':'#98a8ad',weight:.6,opacity:.8,fill:showTce,fillColor:document.body.classList.contains('dark')?'#273d51':'#b6cbe0',fillOpacity:.28}}).addTo(map);
@@ -66,9 +67,10 @@ const home=()=>map.fitBounds(bounds,fit(28,24));
 home();
 new ResizeObserver(()=>{map.invalidateSize();home();}).observe(document.getElementById('map'));
 L.control.zoom({position:'bottomright'}).addTo(map);
+map.getContainer().querySelectorAll('.leaflet-control-zoom a[title]').forEach(a=>a.removeAttribute('title'));
 const Recenter=L.Control.extend({options:{position:'bottomright'},onAdd(){
   const box=L.DomUtil.create('div','leaflet-bar recenter'),a=L.DomUtil.create('a','',box);
-  a.href='#';a.title='Re-centre on the voyage';a.setAttribute('role','button');a.setAttribute('aria-label','Re-centre on the voyage');
+  a.href='#';a.setAttribute('role','button');a.setAttribute('aria-label','Re-centre on the voyage');
   a.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>';
   L.DomEvent.disableClickPropagation(box);L.DomEvent.on(a,'click',e=>{L.DomEvent.preventDefault(e);home();});
   return box;}});
@@ -83,14 +85,63 @@ legs.map((leg,i)=>[leg,paths[i]]).sort((a,b)=>faded(b[0].kind)-faded(a[0].kind))
 // Vessel labels sit left and discharge labels right, so nearby ports cannot cover each other.
 const PLACE={left:{direction:'left',offset:[-10,0]},right:{direction:'right',offset:[10,0]},top:{direction:'top',offset:[0,-10]}};
 const candidates=points.filter(p=>p.tce!==undefined);
-const feasible=candidates.filter(p=>p.feasible).map(p=>p.tce);
+const samples=candidates.filter(p=>p.feasible);
+const feasible=samples.map(p=>p.tce);
 const low=Math.min(...feasible), high=Math.max(...feasible);
 const dollars=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
 const scale=[[41,114,201],[0,158,138],[223,154,35]];
 function heatColour(value){
   const fraction=high===low ? .5 : (value-low)/(high-low);
   const segment=fraction<.5?0:1, t=2*fraction-segment;
-  return 'rgb('+scale[segment].map((v,i)=>Math.round(v+t*(scale[segment+1][i]-v))).join(',')+')';
+  return scale[segment].map((v,i)=>Math.round(v+t*(scale[segment+1][i]-v)));
+}
+if(samples.length){
+  const canvas=document.createElement('canvas');
+  canvas.className='tce-heat-layer';
+  canvas.setAttribute('aria-hidden','true');
+  const heatPane=map.createPane('tceHeat');
+  heatPane.style.zIndex=350;
+  heatPane.style.pointerEvents='none';
+  heatPane.append(canvas);
+  const context=canvas.getContext('2d');
+  const pixel=4, radius=58;
+  let frame=0;
+  function redrawHeat(){
+    frame=0;
+    const size=map.getSize();
+    L.DomUtil.setPosition(canvas,map.containerPointToLayerPoint([0,0]));
+    canvas.style.width=size.x+'px';
+    canvas.style.height=size.y+'px';
+    canvas.width=Math.ceil(size.x/pixel);
+    canvas.height=Math.ceil(size.y/pixel);
+    if(!canvas.width || !canvas.height)return;
+    const raster=context.createImageData(canvas.width,canvas.height);
+    const projected=samples.map(p=>({point:map.latLngToContainerPoint(ll(p.coordinates)),value:p.tce}));
+    for(let y=0;y<canvas.height;y++){
+      for(let x=0;x<canvas.width;x++){
+        let weight=0,total=0;
+        for(const {point,value} of projected){
+          const distance=((x+.5)*pixel-point.x)**2+((y+.5)*pixel-point.y)**2;
+          if(distance>=radius**2)continue;
+          const influence=(1-distance/radius**2)**2;
+          weight+=influence;
+          total+=value*influence;
+        }
+        if(!weight)continue;
+        // Colour represents a local, distance-weighted TCE. Opacity fades outside the sampled ports.
+        const [r,g,b]=heatColour(Math.max(low,Math.min(high,total/weight)));
+        const i=4*(y*canvas.width+x);
+        raster.data[i]=r;
+        raster.data[i+1]=g;
+        raster.data[i+2]=b;
+        raster.data[i+3]=Math.min(208,weight*208);
+      }
+    }
+    context.putImageData(raster,0,0);
+  }
+  const schedule=()=>{if(!frame)frame=requestAnimationFrame(redrawHeat);};
+  map.on('move zoom resize',schedule);
+  schedule();
 }
 if(candidates.length){
   const key=document.getElementById('tce-key');
@@ -108,18 +159,19 @@ if(candidates.length){
 }
 points.forEach((p,i)=>{
   if(p.tce!==undefined){
-    const colour=p.feasible?heatColour(p.tce):'#8292a1';
-    if(p.feasible)L.circleMarker(coords[i],{radius:17,stroke:false,fillColor:colour,fillOpacity:.24,interactive:false}).addTo(map);
+    const colour=p.feasible?'rgb('+heatColour(p.tce).join(',')+')':'#8292a1';
     const label=document.createElement('span');
     label.textContent=p.name+' · '+dollars.format(p.tce)+'/day'+(p.feasible?'':' · infeasible');
     L.circleMarker(coords[i],{radius:p.focused?8:6,color:p.focused?'#ffffff':colour,weight:2,fillColor:colour,fillOpacity:.95})
-      .addTo(map).bindTooltip(label,{direction:'top'});
+      .addTo(map).bindPopup(label);
     return;
   }
   const [shape,colour]=PIN[p.kind],size=shape==='port'?16:shape==='focus'?12:9;
   const pin=document.createElement('div');pin.className='pin '+shape;pin.style.setProperty('--c',colour);if(shape==='port')pin.append(document.createElement('i'));
   const label=document.createElement('span');label.textContent=p.name;
-  L.marker(coords[i],{icon:L.divIcon({className:'',html:pin,iconSize:[size,size],iconAnchor:[size/2,size/2]}),keyboard:false,zIndexOffset:shape==='minor'?0:500,alt:p.name}).addTo(map)
-   .bindTooltip(label,{permanent:!!p.permanent,...PLACE[p.direction||'top']});});
+  const marker=L.marker(coords[i],{icon:L.divIcon({className:'',html:pin,iconSize:[size,size],iconAnchor:[size/2,size/2]}),keyboard:false,zIndexOffset:shape==='minor'?0:500,alt:p.name}).addTo(map);
+  if(p.permanent)marker.bindTooltip(label,{permanent:true,...PLACE[p.direction||'top']});
+  else marker.bindPopup(label);
+});
 }catch(e){showError('Map unavailable. Check your connection to the Leaflet CDN. Calculations are unaffected.');}
 </script></body></html>

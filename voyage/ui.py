@@ -35,15 +35,15 @@ def render_evidence(evidence, key_prefix="analysis"):
             prefix = f"{key_prefix}_{idx}"
             with tabs[0]:
                 if facts["feasible_count"]:
-                    st.plotly_chart(earnings_chart(rows, dark), width="stretch", theme=None, key=prefix+"_earnings", config=config)
+                    st.plotly_chart(earnings_chart(rows, dark).update_layout(hovermode=False), width="stretch", theme=None, key=prefix+"_earnings", config=config)
                     st.caption("Feasible options · contribution after hire · voyage durations differ")
                 else:
                     st.info("Earnings ranking unavailable: all options fail feasibility checks.")
             with tabs[1]:
-                st.plotly_chart(cost_chart(focus, dark), width="stretch", theme=None, key=prefix+"_costs", config=config)
+                st.plotly_chart(cost_chart(focus, dark).update_layout(hovermode=False), width="stretch", theme=None, key=prefix+"_costs", config=config)
                 st.caption("Revenue less commission, bunkers, port charges and hire. Canal cost assumed zero.")
             with tabs[2]:
-                st.plotly_chart(duration_chart(rows, dark), width="stretch", theme=None, key=prefix+"_duration", config=config)
+                st.plotly_chart(duration_chart(rows, dark).update_layout(hovermode=False), width="stretch", theme=None, key=prefix+"_duration", config=config)
                 st.caption("All evaluated options; check feasibility before selecting a vessel.")
             with st.expander("Comparison table"):
                 frame = result_frame(rows)

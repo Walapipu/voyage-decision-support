@@ -8,7 +8,7 @@ from voyage.data import load_tables, index
 from voyage.dashboard_data import dashboard_case, candidates_case
 from voyage.voyages_view import voyages_page
 from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
-    route_map, freight_panel, voyage_summary, comparison_table, economics, timeline,
+    route_map, voyage_summary, comparison_table, economics, timeline,
     requirements_notice, result_frame)
 from voyage.chat_view import render_chat, start_new_chat
 from voyage.policy import load_policy, conventions
@@ -29,6 +29,15 @@ for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":No
     if key not in st.session_state:
         st.session_state[key] = value
 
+# Apply chat results before Streamlit instantiates the bound selector widgets.
+selection_from_chat = st.session_state.pop("selection_from_chat", None)
+if selection_from_chat:
+    st.session_state.update(selection_from_chat)
+    st.session_state.voyage_port = st.session_state.voyage_query = None
+if st.session_state.pop("close_voyage_selectors", False):
+    st.session_state.voyage_selectors = False
+
+
 def reset_lift():
     st.session_state.selected_lift = None
     # A cargo picked in the top bar ends any Voyages search in progress.
@@ -42,36 +51,10 @@ with st.sidebar:
         with user_col:
             profile_menu()
         with theme_col:
-            st.button("", icon=":material/dark_mode:", key="theme_button", on_click=toggle_theme, help="Switch light or dark theme")
+            st.button("", icon=":material/dark_mode:", key="theme_button", on_click=toggle_theme)
 
 tables = load_tables()
 apply_theme(st.session_state.dark_mode)
-# Dropdowns opened from the assistant composer always open upward, like the
-# vessel list does, instead of flipping by how much room is left below.
-st.html("""<script>(() => {
-  if (window.__kingfishDropUp) return; window.__kingfishDropUp = true;
-  let anchor = null;
-  const remember = e => { anchor = e.target.closest && e.target.closest('.st-key-composer [data-testid="stSelectbox"]'); };
-  document.addEventListener('pointerdown', remember, true);
-  document.addEventListener('focusin', remember, true);
-  const place = dd => {
-    if (!anchor || !anchor.isConnected) { dd.removeAttribute('data-drop-up'); return; }
-    const field = (anchor.querySelector('[role="group"]') || anchor).getBoundingClientRect();
-    const room = Math.max(120, field.top - 12);
-    dd.style.setProperty('--drop-max', room + 'px');
-    const height = Math.min(dd.scrollHeight, dd.getBoundingClientRect().height || dd.scrollHeight, room);
-    dd.style.setProperty('--drop-x', field.left + 'px');
-    dd.style.setProperty('--drop-y', Math.max(8, field.top - height - 4) + 'px');
-    dd.setAttribute('data-drop-up', '');
-  };
-  new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(n => {
-    if (n.nodeType !== 1) return;
-    const dd = n.matches('[data-testid="stSelectboxVirtualDropdown"]') ? n : n.querySelector('[data-testid="stSelectboxVirtualDropdown"]');
-    if (!dd) return;
-    requestAnimationFrame(() => place(dd));
-    new ResizeObserver(() => place(dd)).observe(dd);
-  }))).observe(document.body, {childList: true, subtree: true});
-})();</script>""", unsafe_allow_javascript=True)
 # The Voyages search accepts free text; Streamlit labels that option "Add: …", which
 # reads as creating a record. Relabel it while the search box has focus.
 st.html("""<script>(() => {
@@ -98,7 +81,7 @@ def selection_controls():
         with cargo_col:
             st.selectbox("Committed cargo", [None] + [c["cargo_id"] for c in tables["committed_cargoes"]], format_func=lambda c: c or "Cargo", key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="Cargo")
         with lift_col:
-            st.number_input("Selected lift (tonnes)", min_value=1, max_value=1000000, value=None, step=500, key="selected_lift", label_visibility="collapsed", placeholder="Lift, tonnes")
+            st.number_input("Selected lift (tonnes)", min_value=0.0, max_value=1000000.0, value=None, step=500.0, format="%.12g", key="selected_lift", label_visibility="collapsed", placeholder="Lift, tonnes")
         with period_col:
             st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
 
@@ -107,7 +90,8 @@ if page not in ("Home", "AI Assistant"):
     with st.container(key="workspace"):
         selection_controls()
 
-has_selection = all(st.session_state[k] is not None for k in ("selected_vessel", "selected_cargo", "selected_lift"))
+lift_selected = (st.session_state.selected_lift or 0) > 0
+has_selection = lift_selected and all(st.session_state[k] is not None for k in ("selected_vessel", "selected_cargo"))
 case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel) if has_selection else None
 catalog = {"tables": tables, "ports": index(tables["ports"], "port_code")}
 
@@ -126,15 +110,7 @@ with st.container(key={"Home": "home", "AI Assistant": "assistant_page"}.get(pag
                     heading("AI voyage assistant")
                 with new:
                     st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
-                render_chat(controls=selection_controls, compact=True)
-        with st.expander("Freight and voyage timeline"):
-            with st.container(key="freight_panel"):
-                freight_panel(catalog, "")
-            if case:
-                with st.container(key="timeline_panel"):
-                    timeline(case)
-            else:
-                st.caption("Select a voyage to see its timeline.")
+                render_chat(controls=selection_controls)
 
     elif page == "AI Assistant":
         with st.container(key="assistant_full"):
@@ -147,7 +123,7 @@ with st.container(key={"Home": "home", "AI Assistant": "assistant_page"}.get(pag
 
     elif page == "Voyages":
         cargo_id, lift = st.session_state.selected_cargo, st.session_state.selected_lift
-        cc = candidates_case(cargo_id, lift, st.session_state.price_period) if cargo_id is not None and lift is not None else None
+        cc = candidates_case(cargo_id, lift, st.session_state.price_period) if cargo_id is not None and lift_selected else None
         voyages_page(cc)
         if cc and not (st.session_state.get("voyage_port") or st.session_state.get("voyage_query")):
             if case:
