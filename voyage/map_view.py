@@ -26,33 +26,6 @@ def _draw(points, legs, legend=(), height=200, alt="Interactive map of selected 
     st.iframe(markup, height=height, alt=alt)
 
 
-def render_home_map(case, catalog):
-    """Show committed routes before selection and calculated candidate TCE afterwards."""
-    where, ports = locations(), catalog["ports"]
-    cargoes = [case["cargo"]] if case else catalog["tables"]["committed_cargoes"]
-    points, legs = [], []
-    seen = set()
-    for cargo in cargoes:
-        load, discharge = cargo["load_port"], cargo["discharge_port"]
-        for code, kind in ((load, "load"), (discharge, "discharge")):
-            if code not in seen:
-                points.append({"name": ports[code]["port_name"], "coordinates": _coordinates(code, where), "kind": kind})
-                seen.add(code)
-        legs.append({"from": _coordinates(load, where), "to": _coordinates(discharge, where), "kind": "laden"})
-    if case:
-        vessels = {v["vessel_id"]: v for v in catalog["tables"]["managed_vessels"]}
-        for row in case["comparison"]["rows"]:
-            vessel_id = row["vessel_id"]
-            code = vessels[vessel_id]["current_port"]
-            origin = _coordinates(code, where)
-            focused = vessel_id == case["row"]["vessel_id"]
-            points.append({"name": f'{vessel_id} · {ports[code]["port_name"]}', "coordinates": origin,
-                           "kind": "vessel", "focused": focused, "tce": row["tce_usd_per_day"], "feasible": row["feasible"]})
-            legs.append({"from": origin, "to": _coordinates(case["cargo"]["load_port"], where),
-                         "kind": "ballast" if focused else "other" if row["feasible"] else "late"})
-    _draw(points, legs, height=184, alt="TCE heat map and committed voyage routes", show_tce=True)
-
-
 def render_candidate_map(cargo, rows, focus_id, ports, vessels, height=320):
     """Every evaluated vessel's ballast leg into the load port, with the focused one emphasised.
 

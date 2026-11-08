@@ -8,9 +8,9 @@ import pandas as pd
 import streamlit as st
 from voyage.analysis import profit_tone
 from voyage.assets import icon_styles
-from voyage.map_view import render_home_map
 from voyage.fuel import shortage_message
 from voyage.dashboard_data import bunker_price_scenarios
+from voyage.search import fuzzy_score
 
 
 
@@ -33,7 +33,7 @@ def profit_style(value):
 
 def apply_theme(dark):
     # Chart-room graphite: neutral surfaces, one sea-blue accent, toned semantics.
-    palette = ({"rail":"#090c12", "bg":"#0d0f13", "panel":"#13161b", "field":"#1b1f25", "raised":"#22272e",
+    palette = ({"rail":"#0a0c0f", "bg":"#0d0f13", "panel":"#13161b", "field":"#1b1f25", "raised":"#22272e",
                 "line":"rgba(232,236,242,.08)", "linestrong":"rgba(232,236,242,.14)",
                 "text":"#e8ebf0", "text2":"#a3a9b5", "muted":"#858c98",
                 "blue":"#5aa9f0", "bluewash":"rgba(90,169,240,.13)", "onblue":"#0d0f13",
@@ -46,6 +46,12 @@ def apply_theme(dark):
                 "blue":"#0a6fd6", "bluewash":"rgba(10,111,214,.08)", "onblue":"#ffffff",
                 "green":"#16803c", "greenwash":"rgba(22,128,60,.08)", "amber":"#9a6410", "amberwash":"rgba(154,100,16,.09)",
                 "red":"#c62828", "redwash":"rgba(198,40,40,.08)"})
+    # The rail follows the theme: graphite in dark mode, harbour navy in light mode.
+    palette.update({"railtext":"#e8ebf0", "railtext2":"#a3a9b5", "railmuted":"#858c98", "railfield":"#16191e",
+                    "railraised":"#1d2127", "railline":"rgba(232,236,242,.08)", "railaccent":"#5aa9f0"}
+                   if dark else
+                   {"railtext":"#edf4fd", "railtext2":"#c1d0e4", "railmuted":"#a1b4cc", "railfield":"#1c334c",
+                    "railraised":"#203e5d", "railline":"rgba(255,255,255,.13)", "railaccent":"#7fc2ff"})
     variables = ";".join(f"--{key}:{value}" for key, value in palette.items())
     st.html("<style>:root{" + variables + ";color-scheme:" + ("dark" if dark else "light") + ";}" + Path(__file__).with_name("dashboard.css").read_text(encoding="utf-8") + icon_styles() + "</style>")
 
@@ -103,25 +109,26 @@ def summary_cards(case):
 
 def fleet_panel(catalog, case):
     heading("Track your ship", "Planning snapshot")
-    words = st.text_input("Search vessels, voyages or ports", key="ship_search",
-                          placeholder="Search vessel, cargo or port…", label_visibility="collapsed").lower().split()
+    query = st.text_input("Search vessels, voyages or ports", key="ship_search",
+                          placeholder="Search vessel, cargo or port", label_visibility="collapsed")
     tables, ports = catalog["tables"], catalog["ports"]
     st.html('<div class="track-header"><span>Vessel</span><span>Port / route</span><span>Available / ETA (UTC)</span></div>')
     with st.container(height=140, border=False, key="track_scroll"):
-        found = False
-        for vessel in tables["managed_vessels"] + tables["market_vessels"]:
+        matches = []
+        for order, vessel in enumerate(tables["managed_vessels"] + tables["market_vessels"]):
             vessel_id, code = vessel["vessel_id"], vessel["current_port"]
             port = ports[code]["port_name"]
             route, date = port, stamp(vessel["available_from_utc"]).split(",")[0]
-            cargo_id = ""
+            terms = f"{vessel_id} {code} {port} {ports[code]['country']}"
             if case and vessel_id == case["row"]["vessel_id"]:
                 cargo = case["cargo"]
-                cargo_id = cargo["cargo_id"]
                 route = f'{cargo["load_port"]} → {cargo["discharge_port"]}'
                 date = stamp(case["discharge_eta"])
-            if not all(word in f"{vessel_id} {code} {port} {route} {cargo_id}".lower() for word in words):
-                continue
-            found = True
+                terms += f' {cargo["cargo_id"]} {route} {case["ports"][cargo["load_port"]]["port_name"]} {case["ports"][cargo["discharge_port"]]["port_name"]}'
+            score = fuzzy_score(query, terms)
+            if score:
+                matches.append((-score, order, vessel, vessel_id, port, route, date))
+        for _, _, vessel, vessel_id, port, route, date in sorted(matches, key=lambda m: m[:2]):
             name, location, timing = st.columns([1, 1.75, 1.35], gap="small", vertical_alignment="center")
             with name:
                 if vessel_id.startswith("MF"):
@@ -132,8 +139,8 @@ def fleet_panel(catalog, case):
                 st.html(f'<span class="track-value">{e(route)}</span>')
             with timing:
                 st.html(f'<span class="track-value">{e(date)}</span>')
-        if not found:
-            st.caption("No vessels match the search.")
+        if not matches:
+            st.caption("No vessels match the search")
 
 
 @st.dialog("Vessel details")
@@ -147,11 +154,69 @@ def select_vessel(vessel_id):
     st.session_state.selected_vessel = vessel_id
 
 
-def route_map(case, catalog):
+HEAT_RAMP = {True: ((24, 38, 56), (90, 169, 240)), False: ((226, 237, 250), (10, 111, 214))}
+CHECK_NAMES = {"laycan": "Misses laycan", "deadweight": "Over deadweight", "draft": "Over draft",
+               "quantity": "Lift out of range", "fuel": "Fuel short", "port_draft": "Port draft"}
+
+
+def select_cell(vessel_id, cargo_id, lift):
+    st.session_state.selected_vessel = vessel_id
+    st.session_state.selected_cargo = cargo_id
+    st.session_state.selected_lift = lift
+    st.session_state.voyage_port = st.session_state.voyage_query = None
+
+
+def _heat_colour(value, low, high, dark):
+    start, end = HEAT_RAMP[dark]
+    t = .5 if high == low else (value - low) / (high - low)
+    rgb = [round(a + t * (b - a)) for a, b in zip(start, end)]
+    # Pick whichever ink has the higher WCAG contrast against this fill.
+    def lum(c):
+        c = [v / 255 for v in c]
+        c = [v / 12.92 if v <= .03928 else ((v + .055) / 1.055) ** 2.4 for v in c]
+        return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]
+    fill, light_ink, dark_ink = lum(rgb), (255, 255, 255), (13, 15, 19)
+    contrast = lambda ink: (max(fill, lum(ink)) + .05) / (min(fill, lum(ink)) + .05)
+    return "rgb({},{},{})".format(*rgb), ("#ffffff" if contrast(light_ink) >= contrast(dark_ink) else "#0d0f13")
+
+
+def tce_heatmap(matrix, ports):
+    """Vessel by cargo TCE grid. Every cell comes from the engine; clicking one selects that voyage."""
+    dark = st.session_state.get("dark_mode", True)
+    values = [r["tce_usd_per_day"] for col in matrix["columns"] for r in col["rows"].values()]
+    low, high = min(values), max(values)
+    start, end = HEAT_RAMP[dark]
+    ramp = f'linear-gradient(90deg,rgb{start},rgb{end})'
+    selected = (st.session_state.get("selected_vessel"), st.session_state.get("selected_cargo"))
+    rules = []
     with st.container(key="home_map"):
-        note = "Feasible candidate TCE · USD/day" if case else "Calculate a voyage to show TCE heat"
-        heading("TCE heat map", note)
-        render_home_map(case, catalog)
+        st.html(f'<div class="panel-head"><h3>TCE heat map</h3><div class="heat-key"><small>TCE before hire · USD/day</small>'
+                f'<span class="heat-ramp" style="background:{ramp}"></span><small class="num">{usd(low)} – {usd(high)}</small>'
+                f'<small><i class="heat-hatch"></i>Fails a check</small></div></div>')
+        with st.container(key="heat_grid"):
+            head = st.columns([.55] + [1] * len(matrix["columns"]), gap="small")
+            head[0].html('<div class="heat-corner">Vessel</div>')
+            for slot, col in zip(head[1:], matrix["columns"]):
+                cargo = col["cargo"]
+                route = f'{ports[cargo["load_port"]]["port_name"]} → {ports[cargo["discharge_port"]]["port_name"]}'
+                slot.html(f'<div class="heat-col"><b>{e(cargo["cargo_id"])}</b><small>{e(route)} · {col["lift"]:,.0f} t</small></div>')
+            for vessel_id in matrix["vessels"]:
+                cells = st.columns([.55] + [1] * len(matrix["columns"]), gap="small")
+                cells[0].html(f'<div class="heat-row">{e(vessel_id)}</div>')
+                for slot, col in zip(cells[1:], matrix["columns"]):
+                    row, cargo_id = col["rows"][vessel_id], col["cargo"]["cargo_id"]
+                    key = f"heat_{vessel_id}_{cargo_id}"
+                    fill, ink = _heat_colour(row["tce_usd_per_day"], low, high, dark)
+                    note = CHECK_NAMES.get((row["failed_checks"] or [""])[0], "")
+                    rules.append(f'.st-key-{key} button{{--heat:{fill};--ink:{ink};}}'
+                                 + (f'.st-key-{key} button:after{{content:"{note}";}}' if note else ""))
+                    classes = ("heat-pick " if (vessel_id, cargo_id) == selected else "") + ("" if row["feasible"] else "heat-fail")
+                    with slot, st.container(key=f"cell_{vessel_id}_{cargo_id}"):
+                        if classes:
+                            st.html(f'<span class="heat-flag {classes}"></span>')
+                        st.button(usd(row["tce_usd_per_day"]), key=key, on_click=select_cell,
+                                  args=(vessel_id, cargo_id, col["lift"]), width="stretch")
+        st.html("<style>" + "".join(rules) + "</style>")
 
 
 def voyage_summary(case, compact=False):

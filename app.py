@@ -5,10 +5,10 @@ import streamlit as st
 
 from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
-from voyage.dashboard_data import dashboard_case, candidates_case
+from voyage.dashboard_data import dashboard_case, candidates_case, tce_matrix
 from voyage.voyages_view import voyages_page
 from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
-    route_map, voyage_summary, comparison_table, economics, timeline,
+    tce_heatmap, voyage_summary, comparison_table, economics, timeline,
     requirements_notice, result_frame)
 from voyage.chat_view import render_chat, start_new_chat
 from voyage.policy import load_policy, conventions
@@ -67,7 +67,10 @@ st.html("""<script>(() => {
         if (node.nodeValue.startsWith('Add: ')) node.nodeValue = 'Search all: ' + node.nodeValue.slice(5);
     });
   };
-  new MutationObserver(relabel).observe(document.body, {childList: true, subtree: true, characterData: true});
+  // No hover tooltips anywhere: drop native title attributes as elements appear.
+  const untitle = () => document.querySelectorAll('[title]').forEach(el => el.removeAttribute('title'));
+  new MutationObserver(() => { relabel(); untitle(); }).observe(document.body, {childList: true, subtree: true, characterData: true});
+  untitle();
 })();</script>""", unsafe_allow_javascript=True)
 
 
@@ -99,7 +102,8 @@ with st.container(key={"Home": "home", "AI Assistant": "assistant_page"}.get(pag
     if page == "Home":
         st.html('<h1 class="page-title">Voyage overview</h1>')
         summary_cards(case)
-        route_map(case, catalog)
+        tce_heatmap(tce_matrix(st.session_state.price_period, st.session_state.selected_cargo,
+                               st.session_state.selected_lift), catalog["ports"])
         with st.container(key="home_lower"):
             track, assistant = st.columns([1, 1.25], gap="small")
             with track, st.container(key="track_panel"):

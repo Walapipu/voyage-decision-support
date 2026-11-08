@@ -6,7 +6,7 @@ from streamlit.testing.v1 import AppTest
 
 class UITests(unittest.TestCase):
     def test_empty_selection_does_not_calculate_or_block_chat(self):
-        with patch('voyage.dashboard_data.compare_vessels') as calculate:
+        with patch('voyage.dashboard_data.dashboard_case') as calculate:
             app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
             self.assertFalse(app.exception)
             self.assertEqual(app.selectbox(key='selected_vessel').options[0], 'Vessel')
@@ -40,7 +40,7 @@ class UITests(unittest.TestCase):
         self.assertEqual(app.selectbox(key="price_period").value, "2026-04")
         self.assertEqual(app.number_input(key="selected_lift").value, 164000.5)
         self.assertTrue(any(f'${row["bunker_cost_usd"]:,.0f}' in h.proto.body for h in app.get("html")))
-        self.assertTrue(any("Feasible candidate TCE" in h.proto.body for h in app.get("html")))
+        self.assertTrue(any("heat-pick" in h.proto.body for h in app.get("html")))
         with patch("voyage.chat.chat_reply", return_value={"content": "Conceptual answer", "evidence": []}):
             app.chat_input[0].set_value("What is TCE?").run()
         self.assertEqual(app.selectbox(key="selected_cargo").value, "CC-02")

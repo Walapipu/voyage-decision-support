@@ -5,9 +5,42 @@ frozen tables today; a live database only needs to replace `search` and
 `open_cargoes` with queries that return the same shapes. Only committed
 cargoes are searched, because market cargoes cannot be evaluated yet.
 """
+import re
 from datetime import datetime
+from difflib import SequenceMatcher
 
 from voyage.data import index, load_tables
+
+
+def _fold(text):
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+
+
+def _word_score(word, haystack, tokens):
+    """1 for a substring hit, else the best of an in-order subsequence or a close spelling."""
+    if word in haystack or word in haystack.replace(" ", ""):
+        return 1.0
+    best = 0.0
+    for token in tokens:
+        letters = iter(token)
+        if len(word) >= 2 and token[:1] == word[:1] and all(ch in letters for ch in word):
+            best = max(best, .85)  # "mf1" → "mf 01", "rzh" → "rizhao"
+        best = max(best, SequenceMatcher(None, word, token[:len(word) + 2]).ratio())
+    return best
+
+
+def fuzzy_score(query, text):
+    """How well every typed word matches `text`, from 0 to 1. Typos and skipped
+    letters still match: "rizao", "laem chabng" and "mf2" all find their row."""
+    words = _fold(query).split()
+    if not words:
+        return 1.0
+    haystack = _fold(text)
+    parts = haystack.split()
+    # Neighbouring words joined, so "mf2" can match "mf 02" and "cc2" can match "cc 02".
+    tokens = parts + ["".join(parts[i:i + 3]) for i in range(len(parts))]
+    scores = [_word_score(word, haystack, tokens) for word in words]
+    return 0.0 if min(scores) < .82 else sum(scores) / len(scores)
 
 
 def _laycan(cargo):

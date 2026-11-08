@@ -30,6 +30,26 @@ def dashboard_case(cargo_id, lift, period, vessel_id):
             "discharge_eta": timeline[-2]["time"]}
 
 
+def heat_lift(cargo, selected_cargo, selected_lift):
+    """The lift a heat-map column is priced at: the user's lift for the selected cargo
+    when it is inside the contract range, otherwise the cargo's nominal quantity."""
+    low, high = float(cargo["minimum_quantity_tonnes"]), float(cargo["maximum_quantity_tonnes"])
+    if cargo["cargo_id"] == selected_cargo and selected_lift and low <= selected_lift <= high:
+        return float(selected_lift)
+    return float(cargo["nominal_quantity_tonnes"])
+
+
+def tce_matrix(period, selected_cargo=None, selected_lift=None):
+    """TCE for every managed vessel against every committed cargo, from the engine."""
+    tables = load_tables()
+    columns = []
+    for cargo in tables["committed_cargoes"]:
+        lift = heat_lift(cargo, selected_cargo, selected_lift)
+        rows = {r["vessel_id"]: r for r in compare_vessels(cargo["cargo_id"], lift, period)["rows"]}
+        columns.append({"cargo": cargo, "lift": lift, "rows": rows})
+    return {"vessels": [v["vessel_id"] for v in tables["managed_vessels"]], "columns": columns}
+
+
 def bunker_price_scenarios(case):
     """Hold the voyage constant and apply each supplied month at its pricing location."""
     row, cargo = case["row"], case["cargo"]
