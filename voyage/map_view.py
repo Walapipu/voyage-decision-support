@@ -1,13 +1,24 @@
 """Detailed external basemap with display-only port locations; engine data unchanged."""
 import json
+from functools import lru_cache
 from pathlib import Path
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def locations():
+@lru_cache(maxsize=1)
+def _template():
+    return Path(__file__).with_name("route_map.html").read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
+def _locations():
     return json.loads((ROOT / "data/map_locations.json").read_text())
+
+
+def locations():
+    return _locations()
 
 
 def _coordinates(code, where):
@@ -18,11 +29,9 @@ def _draw(points, legs, legend=(), height=200, alt="Interactive map of selected 
     def payload(value):
         return json.dumps(list(value)).replace("<", "\\u003c")
     style = "dark" if st.session_state.get("dark_mode", True) else "light"
-    markup = (Path(__file__).with_name("route_map.html").read_text(encoding="utf-8")
-              .replace("__POINTS__", payload(points)).replace("__LEGS__", payload(legs))
+    markup = (_template().replace("__POINTS__", payload(points)).replace("__LEGS__", payload(legs))
               .replace("__LEGEND__", payload(legend)).replace("__STYLE__", style)
-              .replace("__SHOW_TCE__", json.dumps(show_tce))
-              .replace("__BOUNDARIES__", (ROOT / "data/map_boundaries.geojson").read_text(encoding="utf-8")))
+              .replace("__SHOW_TCE__", json.dumps(show_tce)))
     st.iframe(markup, height=height, alt=alt)
 
 

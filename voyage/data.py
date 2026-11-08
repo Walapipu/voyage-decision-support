@@ -1,6 +1,7 @@
 """Read the frozen source files without changing them."""
 
 import csv
+from functools import lru_cache
 from pathlib import Path
 
 RAW = Path(__file__).resolve().parent.parent / "data" / "raw"
@@ -18,6 +19,12 @@ def index(rows, *columns):
 
 
 def load_tables(root=RAW):
+    """Fresh copies of the cached tables, so a caller's edits never leak into another's."""
+    return {name: [dict(row) for row in rows] for name, rows in _load_tables(Path(root)).items()}
+
+
+@lru_cache(maxsize=4)
+def _load_tables(root):
     tables = {}
     for path in sorted(root.rglob("*.csv")):
         with path.open(encoding="utf-8-sig", newline="") as handle:

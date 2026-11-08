@@ -1,5 +1,6 @@
 """Reference-inspired dashboard components; all displayed numbers have a source."""
 from datetime import datetime
+from functools import lru_cache
 from html import escape
 from pathlib import Path
 
@@ -50,7 +51,12 @@ def apply_theme(dark):
                    {"railtext":"#edf4fd", "railtext2":"#c1d0e4", "railmuted":"#a1b4cc", "railfield":"#1c334c",
                     "railraised":"#203e5d", "railline":"rgba(255,255,255,.13)", "railaccent":"#7fc2ff"})
     variables = ";".join(f"--{key}:{value}" for key, value in palette.items())
-    st.html("<style>:root{" + variables + ";color-scheme:" + ("dark" if dark else "light") + ";}" + Path(__file__).with_name("dashboard.css").read_text(encoding="utf-8") + icon_styles() + "</style>")
+    st.html("<style>:root{" + variables + ";color-scheme:" + ("dark" if dark else "light") + ";}" + _stylesheet() + "</style>")
+
+
+@lru_cache(maxsize=1)
+def _stylesheet():
+    return Path(__file__).with_name("dashboard.css").read_text(encoding="utf-8") + icon_styles()
 
 
 def heading(title, note=""):

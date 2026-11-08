@@ -195,7 +195,9 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 /* Header */
 .st-key-overview_head [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;}
 .st-key-overview_head [data-testid="stColumn"]:first-child{flex:1 1 0!important;min-width:0!important;}
-.st-key-overview_head [data-testid="stColumn"]:nth-child(2){flex:0 0 160px!important;min-width:0!important;}
+.st-key-overview_head [data-testid="stColumn"]:nth-child(2){flex:0 0 auto!important;width:auto!important;min-width:0!important;}
+.st-key-overview_head [data-testid="stColumn"]:nth-child(3){flex:0 0 132px!important;min-width:0!important;}
+.pricing-label{font-size:12px;color:var(--muted);white-space:nowrap;}
 .st-key-overview_head [data-testid="stColumn"]:last-child{flex:0 0 auto!important;width:auto!important;min-width:0!important;}
 .overview-title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;}
 .overview-title h1{margin:0;padding:0;font-size:24px;font-weight:600;line-height:1.3;color:var(--text);}
@@ -215,6 +217,8 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .st-key-home .kpi{padding:10px 16px;}
 .st-key-home .kpi strong{display:block;font-size:clamp(18px,1.6vw,24px);font-weight:500;}
 .kpi.warn strong,.kpi.warn small{color:var(--amber);}
+.kpi.good-note small{color:var(--green);}
+.kpi.bad-note small{color:var(--red);}
 
 /* Plan table: one grid shared by header and rows; each row has a full-size button underneath */
 .plan-grid{display:grid;grid-template-columns:52px 44px minmax(0,1fr) 72px 92px 104px;gap:12px;align-items:center;padding:0 8px;}
@@ -227,7 +231,7 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .plan-row .route{display:flex;flex-direction:column;min-width:0;color:var(--text2);line-height:1.35;}
 .plan-row .route small{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
 .plan-row .status{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
-.plan-row .tag{font-size:11px;padding:0 6px;}
+.plan-row .tag{font-size:12px;padding:0 6px;}
 [class*="st-key-plan_row_"]:hover .plan-row{background:var(--field);}
 .plan-row.picked{background:var(--field);box-shadow:inset 2px 0 0 var(--blue);}
 [class*="st-key-plan_row_"] [data-testid="stElementContainer"]:has([data-testid="stButton"]){position:absolute;inset:0;width:auto!important;}
@@ -237,15 +241,15 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 [class*="st-key-plan_row_"] [data-testid="stButton"] button:focus-visible{outline:2px solid var(--blue);outline-offset:-2px;}
 
 /* Route map */
-.st-key-map_panel [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;}
-.st-key-map_panel [data-testid="stColumn"]{min-width:0!important;}
-.st-key-map_panel [data-testid="stColumn"]:last-child{display:flex;justify-content:flex-end;}
-.st-key-map_panel [data-testid="stButtonGroup"] button{min-height:28px!important;height:28px;padding:0 10px!important;background:var(--field)!important;border-color:var(--line)!important;color:var(--text2)!important;}
+.st-key-map_panel{position:relative;padding:0!important;gap:0!important;}
+.st-key-map_panel [data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]){position:absolute;top:8px;right:8px;z-index:5;width:auto!important;}
+.st-key-map_panel [data-testid="stButtonGroup"] button{min-height:28px!important;height:28px;padding:0 10px!important;background:var(--panel)!important;border-color:var(--linestrong)!important;color:var(--text2)!important;}
 .st-key-map_panel [data-testid="stButtonGroup"] button p{font-size:12px;}
-.st-key-map_panel [data-testid="stButtonGroup"] button[aria-checked="true"]{background:var(--raised)!important;border-color:var(--linestrong)!important;color:var(--text)!important;}
+.st-key-map_panel [data-testid="stButtonGroup"] button:hover{color:var(--text)!important;}
+.st-key-map_panel [data-testid="stButtonGroup"] button[aria-checked="true"]{background:var(--blue)!important;border-color:var(--blue)!important;color:var(--onblue)!important;}
 .st-key-map_panel [data-testid="stElementContainer"]:has(iframe){flex:1 1 0!important;min-height:0!important;height:auto!important;}
 .st-key-map_panel [data-testid="stIFrame"],.st-key-map_panel iframe{height:100%!important;min-height:0!important;}
-.st-key-map_panel iframe{display:block;width:100%;border:0;border-radius:var(--r-md);}
+.st-key-map_panel iframe{display:block;width:100%;border:0;border-radius:0;}
 
 /* Fleet timeline: stage segments, laycan bracket and slack */
 .stage-key{display:flex;flex-wrap:wrap;gap:4px 10px;}
@@ -265,7 +269,7 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .tl-axis span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;font-variant-numeric:tabular-nums;}
 .tl-axis span:first-child{transform:none;}
 .tl-body{flex:1 1 0;min-height:0;overflow:auto;scrollbar-width:thin;}
-.tl-row{height:36px;border-radius:var(--r-sm);}
+.tl-row{height:36px;}
 .tl-row.picked{background:var(--field);box-shadow:inset 2px 0 0 var(--blue);}
 .tl-row b{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;}
 .tl-row b span{color:var(--muted);}
@@ -601,3 +605,15 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 .st-key-shippy [class*="st-key-answer_"]{gap:0!important;}
 .st-key-shippy [class*="st-key-answer_"] [data-testid="stButton"] button{min-height:28px;padding:0 10px;}
 .st-key-shippy [class*="st-key-answer_"] [data-testid="stButton"] button p{font-size:12px;}
+
+/* Skeleton: anything still waiting on a slow rerun (a page change, a new pricing month) turns into
+   a shimmering placeholder. The delay keeps quick reruns from flashing. */
+@keyframes kf-shimmer{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes kf-appear{from{opacity:0}to{opacity:1}}
+.stMain [data-testid="stElementContainer"][data-stale="true"]{position:relative;}
+.stMain [data-testid="stElementContainer"][data-stale="true"]::after{content:"";position:absolute;inset:0;z-index:4;border-radius:var(--r-md);
+ background:linear-gradient(100deg,var(--field) 30%,var(--raised) 50%,var(--field) 70%);background-size:300% 100%;
+ animation:kf-appear 150ms 350ms both,kf-shimmer 1.4s linear infinite;}
+/* Page change: once the incoming page starts streaming in, the outgoing page (now entirely stale) is
+   removed instead of sitting above it. Same-page reruns never match, because no other wrapper is fresh. */
+.stMainBlockContainer>[data-testid="stVerticalBlock"]:has(>[data-testid="stLayoutWrapper"] [data-stale="false"])>[data-testid="stLayoutWrapper"]:has([data-stale="true"]):not(:has([data-stale="false"])){display:none!important;}

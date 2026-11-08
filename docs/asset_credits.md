@@ -22,9 +22,9 @@ Sidebar and KPI icons: [Lucide](https://lucide.dev), ISC licence (with upstream 
 ## Detailed map
 
 - [Leaflet](https://leafletjs.com/) 1.9.4, loaded from the pinned public unpkg CDN.
-- [OpenStreetMap](https://www.openstreetmap.org/copyright) raster tiles, with attribution visible on the map. No API key is required. Dark mode applies a display filter. Follow the [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) for deployment; no bulk downloading or offline caching is implemented.
-- Country borders and labels: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain. The bundled 1:110m overview GeoJSON comes from [natural-earth-vector](https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_admin_0_countries.geojson), with properties reduced to label fields. Borders are cartographic context, not claims about sovereignty. Detailed zoom tiles remain OpenStreetMap.
-- Zoom controls provide more geographic detail. Internet is required; WebGL is not. A tile-loading error is shown if unavailable.
+- Land, country borders and country names: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain. The bundled 1:110m overview GeoJSON comes from [natural-earth-vector](https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_admin_0_countries.geojson), with properties reduced to label fields and coordinates rounded to 0.01 degrees. It is served from `static/` and fetched once by the map, so the browser caches it. Borders are cartographic context, not claims about sovereignty.
+- No raster tile server is used, so every place name on the map is in English and no tile API key or usage policy applies. Country names for smaller countries appear from zoom level 4.
+- Internet is required for the Leaflet CDN; WebGL is not. If the outlines cannot load, routes and ports still render and a notice is shown.
 - Display-only port-vicinity coordinates and individual source links are in `data/map_locations.json`. These are not berth positions. Kamsar is explicitly an approximate industrial-area reference. Source codes are the teaching-case aliases, not asserted official UN/LOCODE equivalences.
 - Dashed port-to-port links show the relationship between legs, not navigable sea routes. No live positions, congestion, canal routing or weather is claimed. The economics engine continues to use the original frozen CSV distances, not map geometry.
 

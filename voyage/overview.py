@@ -44,13 +44,15 @@ def focus_row(vessel_id, cargo_id, lift):
 
 def header(plan, periods):
     with st.container(key="overview_head"):
-        title, pricing, ask = st.columns([1, .2, .14], vertical_alignment="center", gap="small")
+        title, label, pricing, ask = st.columns([1, .08, .16, .14], vertical_alignment="center", gap="small")
         stamp = plan["computed"].astimezone(timezone.utc).strftime("%d %b, %H:%M UTC")
         month = datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y")
         title.html(f'<div class="overview-title"><h1>Overview</h1><span class="computed">'
                    f'<i></i>Computed {e(stamp)} · {e(month)} curve</span></div>')
+        label.html('<label class="pricing-label" for="price_period">Pricing</label>')
         with pricing:
-            st.selectbox("Pricing", periods, key="price_period", format_func=lambda p: f"Pricing {p}",
+            st.selectbox("Pricing", periods, key="price_period",
+                         format_func=lambda p: datetime.strptime(p, "%Y-%m").strftime("%b %Y"),
                          label_visibility="collapsed")
         ask.html('<button type="button" class="ask-shippy" data-shippy-open aria-haspopup="dialog">'
                  '<span class="lucide icon-message-circle" aria-hidden="true"></span>Ask Shippy</button>')
@@ -68,15 +70,16 @@ def banner(plan):
 def kpis(plan):
     tightest = plan["tightest"]
     avg, fivetc = plan["avg_tce"], plan["fivetc"]
-    vs = f'vs 5TC {money(fivetc)} · {100 * (avg - fivetc) / fivetc:+.0f}%' if avg is not None and fivetc else "5TC not supplied"
+    premium = 100 * (avg - fivetc) / fivetc if avg is not None and fivetc else None
+    vs = f'vs 5TC {money(fivetc)} · {premium:+.0f}%' if premium is not None else "5TC not supplied"
     covered = plan["committed"] - len(plan["uncovered"])
     month = datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y")
     tiles = [
         ("Portfolio contribution", money(plan["contribution"]), f'after hire · {len(plan["voyages"])} voyages', ""),
-        ("Avg TCE", money(avg) if avg is not None else "—", vs, ""),
+        ("Avg TCE", money(avg) if avg is not None else "—", vs, "" if premium is None else "good-note" if premium > 0 else "bad-note"),
         ("Committed cargoes covered", f"{covered} of {plan['committed']}",
          "all obligations met" if not plan["uncovered"] else "uncovered: " + ", ".join(plan["uncovered"]),
-         "" if not plan["uncovered"] else "warn"),
+         "good-note" if not plan["uncovered"] else "warn"),
         ("Bunker cost", money(plan["bunker_cost"]), f"VLSFO and MGO · {month} curve", ""),
         ("Tightest laycan slack", f'{tightest["slack"]:.1f} d' if tightest else "—",
          f'{tightest["vessel_id"]} → {tightest["cargo_id"]}' + (f" · under {TIGHT_SLACK_DAYS:g} d" if tightest["tight"] else "")
@@ -118,11 +121,9 @@ def plan_table(plan, focus):
 def route_map(plan, focus, ports):
     where = locations()
     with st.container(key="map_panel"):
-        title, view = st.columns([1, .9], vertical_alignment="center", gap="small")
-        title.html(f'<div class="panel-head"><h3>{e(focus["vessel_id"] + " → " + focus["cargo_id"]) if focus else "All voyages"}</h3></div>')
-        with view:
-            st.segmented_control("Map view", ["Selected", "All voyages"], key="map_view",
-                                 label_visibility="collapsed", required=True)
+        # The view switch floats over the map's top-right corner; the map fills the panel.
+        st.segmented_control("Map view", ["Selected", "All voyages"], key="map_view",
+                             label_visibility="collapsed", required=True)
         shown = plan["voyages"]
         if st.session_state.get("map_view") == "Selected" and focus:
             shown = [focus]
