@@ -18,7 +18,7 @@ def icon_styles():
     rules = []
     for idx, name in enumerate(NAV_ICONS, 1):
         rules.append(f'[data-testid="stSidebar"] [role="radiogroup"]>div:nth-child({idx}) [data-testid="stRadioOption"]:before{{mask-image:url("{icon_uri(name)}");}}')
-    for name in ["ship", "chart-pie", "fuel", "clock", "trending-up", "bot", "anchor"]:
+    for name in ["ship", "chart-pie", "fuel", "clock", "trending-up", "bot", "anchor", "message-circle", "x"]:
         rules.append(f'.icon-{name}{{mask-image:url("{icon_uri(name)}");}}')
     return "\n".join(rules)
 

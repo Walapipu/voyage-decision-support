@@ -39,7 +39,8 @@
 // points: {name, coordinates:[lon,lat], kind, permanent, direction}; legs: {from, to, kind}; legend: [{label, kind}]
 const points=__POINTS__, legs=__LEGS__, legend=__LEGEND__, showTce=__SHOW_TCE__;
 const LEG={ballast:{color:'#a4d7ed',weight:2,dashArray:'5 6'},laden:{color:'#12beff',weight:2.5},
-  other:{color:'#a4d7ed',weight:1.5,opacity:.4,dashArray:'5 6'},late:{color:'#e5484d',weight:1.5,opacity:.7,dashArray:'2 6'}};
+  other:{color:'#a4d7ed',weight:1.5,opacity:.4,dashArray:'5 6'},late:{color:'#e5484d',weight:1.5,opacity:.7,dashArray:'2 6'},
+  'ballast-dim':{color:'#a4d7ed',weight:1.5,opacity:.3,dashArray:'5 6'},'laden-dim':{color:'#12beff',weight:1.5,opacity:.3}};
 const PIN={load:['port','#16cba1'],discharge:['port','#12b9ff'],vessel:['focus','#12b9ff'],other:['minor','#a4d7ed'],late:['minor','#e5484d']};
 function showError(message){const e=document.getElementById('error');e.textContent=message;e.style.display='block';}
 function ll(c){return [c[1],c[0]];}
@@ -79,7 +80,7 @@ const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoo
 tiles.on('tileerror',()=>showError('Some map tiles could not load. Check your internet connection.'));
 tiles.on('load',()=>{document.getElementById('error').style.display='none';});
 // Faded legs first so the focused voyage is drawn on top.
-const faded=k=>k==='other'||k==='late';
+const faded=k=>k==='other'||k==='late'||k.endsWith('-dim');
 legs.map((leg,i)=>[leg,paths[i]]).sort((a,b)=>faded(b[0].kind)-faded(a[0].kind))
   .forEach(([leg,path])=>L.polyline(path,LEG[leg.kind]).addTo(map));
 // Vessel labels sit left and discharge labels right, so nearby ports cannot cover each other.

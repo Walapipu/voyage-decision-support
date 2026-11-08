@@ -1,5 +1,4 @@
 """Reference-inspired dashboard components; all displayed numbers have a source."""
-from base64 import b64encode
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -9,8 +8,6 @@ import streamlit as st
 from voyage.analysis import profit_tone
 from voyage.assets import icon_styles
 from voyage.fuel import shortage_message
-from voyage.dashboard_data import bunker_price_scenarios
-from voyage.search import fuzzy_score
 
 
 
@@ -60,163 +57,8 @@ def heading(title, note=""):
     st.html(f'<div class="panel-head"><h3>{e(title)}</h3><small>{e(note)}</small></div>')
 
 
-def sparkline(series, period, label):
-    if len(series) < 2:
-        return ""
-    values = [value for _, value in series]
-    low, high = min(values), max(values)
-    points = [(3 + i * 58 / (len(series) - 1),
-               13 if low == high else 23 - 20 * (value - low) / (high - low))
-              for i, value in enumerate(values)]
-    path = " ".join(f"{x:.2f},{y:.2f}" for x, y in points)
-    marker = next((point for (month, _), point in zip(series, points) if month == period), None)
-    dark = st.session_state.get("dark_mode", True)
-    colour, outline = ("#5aa9f0", "#13161b") if dark else ("#0a6fd6", "#ffffff")
-    dot = (f'<circle cx="{marker[0]:.2f}" cy="{marker[1]:.2f}" r="2.5" fill="{colour}" stroke="{outline}"/>'
-           if marker else "")
-    title = f"{label} at supplied monthly bunker prices, {series[0][0]} to {series[-1][0]}. Dot marks selected month."
-    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 26">'
-           f'<polyline points="{path}" fill="none" stroke="{colour}" stroke-width="1.6" stroke-linejoin="round"/>{dot}</svg>')
-    image = b64encode(svg.encode()).decode("ascii")
-    return f'<img class="kpi-spark" src="data:image/svg+xml;base64,{image}" alt="{e(title)}">'
-
-
-def summary_cards(case):
-    row = case["row"] if case else None
-    margin = case["margin_pct"] if case else None
-    status = ("Feasible" if row["feasible"] else "Infeasible") if row else "No voyage selected"
-    scenarios = bunker_price_scenarios(case) if case else []
-    period = row["bunker_price_period"] if row else ""
-    cards = [
-        ("Active Voyages", "—", "No operating data", [], ""),
-        ("Fleet Utilisation", "—", "No operating data", [], ""),
-        ("Fuel Cost (USD)", usd(row["bunker_cost_usd"]) if row else "—",
-         "Bunker price curve" if scenarios else status, [(month, cost) for month, cost, _ in scenarios], ""),
-        ("ETA Reliability", "—", "No arrival history", [], ""),
-        ("Profit Margin", f"{margin:.1f}%" if margin is not None else "—",
-         f"{status} · bunker curve" if scenarios else status,
-         [(month, pct) for month, _, pct in scenarios] if margin is not None else [],
-         profit_style(margin) if row and row["feasible"] else "--profit-colour:var(--muted);"),
-    ]
-    tiles = []
-    for label, value, note, series, style in cards:
-        css_class = "kpi profit-kpi" if style else "kpi"
-        tiles.append(f'<div class="{css_class}" style="{style}"><h4>{e(label)}</h4>'
-                     f'<div class="kpi-reading"><strong>{e(value)}</strong>{sparkline(series, period, label)}</div>'
-                     f'<small>{e(note)}</small></div>')
-    st.html('<div class="kpi-grid">' + "".join(tiles) + "</div>")
-
-
-def fleet_panel(catalog, case):
-    heading("Track your ship", "Planning snapshot")
-    query = st.text_input("Search vessels, voyages or ports", key="ship_search",
-                          placeholder="Search vessel, cargo or port", label_visibility="collapsed")
-    tables, ports = catalog["tables"], catalog["ports"]
-    st.html('<div class="track-header"><span>Vessel</span><span>Port / route</span><span>Available / ETA (UTC)</span></div>')
-    with st.container(height=140, border=False, key="track_scroll"):
-        matches = []
-        for order, vessel in enumerate(tables["managed_vessels"] + tables["market_vessels"]):
-            vessel_id, code = vessel["vessel_id"], vessel["current_port"]
-            port = ports[code]["port_name"]
-            route, date = port, stamp(vessel["available_from_utc"]).split(",")[0]
-            terms = f"{vessel_id} {code} {port} {ports[code]['country']}"
-            if case and vessel_id == case["row"]["vessel_id"]:
-                cargo = case["cargo"]
-                route = f'{cargo["load_port"]} → {cargo["discharge_port"]}'
-                date = stamp(case["discharge_eta"])
-                terms += f' {cargo["cargo_id"]} {route} {case["ports"][cargo["load_port"]]["port_name"]} {case["ports"][cargo["discharge_port"]]["port_name"]}'
-            score = fuzzy_score(query, terms)
-            if score:
-                matches.append((-score, order, vessel, vessel_id, port, route, date))
-        for _, _, vessel, vessel_id, port, route, date in sorted(matches, key=lambda m: m[:2]):
-            name, location, timing = st.columns([1, 1.75, 1.35], gap="small", vertical_alignment="center")
-            with name:
-                if vessel_id.startswith("MF"):
-                    st.button(vessel_id, key=f"inspect_{vessel_id}", on_click=select_vessel, args=(vessel_id,), type="tertiary")
-                elif st.button(vessel_id, key=f"inspect_{vessel_id}", type="tertiary"):
-                    inspect_market_vessel(vessel, port)
-            with location:
-                st.html(f'<span class="track-value">{e(route)}</span>')
-            with timing:
-                st.html(f'<span class="track-value">{e(date)}</span>')
-        if not matches:
-            st.caption("No vessels match the search")
-
-
-@st.dialog("Vessel details")
-def inspect_market_vessel(vessel, port):
-    st.subheader(vessel["vessel_id"])
-    st.write(f'Capesize bulk carrier · {float(vessel["dwt_tonnes"]):,.0f} DWT · {port}')
-    st.dataframe(pd.DataFrame([vessel]).T.rename(columns={0:"Value"}), width="stretch")
-
-
 def select_vessel(vessel_id):
     st.session_state.selected_vessel = vessel_id
-
-
-HEAT_RAMP = {True: ((24, 38, 56), (90, 169, 240)), False: ((226, 237, 250), (10, 111, 214))}
-CHECK_NAMES = {"laycan": "Misses laycan", "deadweight": "Over deadweight", "draft": "Over draft",
-               "quantity": "Lift out of range", "fuel": "Fuel short", "port_draft": "Port draft"}
-
-
-def select_cell(vessel_id, cargo_id, lift):
-    st.session_state.selected_vessel = vessel_id
-    st.session_state.selected_cargo = cargo_id
-    st.session_state.selected_lift = lift
-    st.session_state.voyage_port = st.session_state.voyage_query = None
-
-
-def _heat_colour(value, low, high, dark):
-    start, end = HEAT_RAMP[dark]
-    t = .5 if high == low else (value - low) / (high - low)
-    rgb = [round(a + t * (b - a)) for a, b in zip(start, end)]
-    # Pick whichever ink has the higher WCAG contrast against this fill.
-    def lum(c):
-        c = [v / 255 for v in c]
-        c = [v / 12.92 if v <= .03928 else ((v + .055) / 1.055) ** 2.4 for v in c]
-        return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]
-    fill, light_ink, dark_ink = lum(rgb), (255, 255, 255), (13, 15, 19)
-    contrast = lambda ink: (max(fill, lum(ink)) + .05) / (min(fill, lum(ink)) + .05)
-    return "rgb({},{},{})".format(*rgb), ("#ffffff" if contrast(light_ink) >= contrast(dark_ink) else "#0d0f13")
-
-
-def tce_heatmap(matrix, ports):
-    """Vessel by cargo TCE grid. Every cell comes from the engine; clicking one selects that voyage."""
-    dark = st.session_state.get("dark_mode", True)
-    values = [r["tce_usd_per_day"] for col in matrix["columns"] for r in col["rows"].values()]
-    low, high = min(values), max(values)
-    start, end = HEAT_RAMP[dark]
-    ramp = f'linear-gradient(90deg,rgb{start},rgb{end})'
-    selected = (st.session_state.get("selected_vessel"), st.session_state.get("selected_cargo"))
-    rules = []
-    with st.container(key="home_map"):
-        st.html(f'<div class="panel-head"><h3>TCE heat map</h3><div class="heat-key"><small>TCE before hire · USD/day</small>'
-                f'<span class="heat-ramp" style="background:{ramp}"></span><small class="num">{usd(low)} – {usd(high)}</small>'
-                f'<small><i class="heat-hatch"></i>Fails a check</small></div></div>')
-        with st.container(key="heat_grid"):
-            head = st.columns([.55] + [1] * len(matrix["columns"]), gap="small")
-            head[0].html('<div class="heat-corner">Vessel</div>')
-            for slot, col in zip(head[1:], matrix["columns"]):
-                cargo = col["cargo"]
-                route = f'{ports[cargo["load_port"]]["port_name"]} → {ports[cargo["discharge_port"]]["port_name"]}'
-                slot.html(f'<div class="heat-col"><b>{e(cargo["cargo_id"])}</b><small>{e(route)} · {col["lift"]:,.0f} t</small></div>')
-            for vessel_id in matrix["vessels"]:
-                cells = st.columns([.55] + [1] * len(matrix["columns"]), gap="small")
-                cells[0].html(f'<div class="heat-row">{e(vessel_id)}</div>')
-                for slot, col in zip(cells[1:], matrix["columns"]):
-                    row, cargo_id = col["rows"][vessel_id], col["cargo"]["cargo_id"]
-                    key = f"heat_{vessel_id}_{cargo_id}"
-                    fill, ink = _heat_colour(row["tce_usd_per_day"], low, high, dark)
-                    note = CHECK_NAMES.get((row["failed_checks"] or [""])[0], "")
-                    rules.append(f'.st-key-{key} button{{--heat:{fill};--ink:{ink};}}'
-                                 + (f'.st-key-{key} button:after{{content:"{note}";}}' if note else ""))
-                    classes = ("heat-pick " if (vessel_id, cargo_id) == selected else "") + ("" if row["feasible"] else "heat-fail")
-                    with slot, st.container(key=f"cell_{vessel_id}_{cargo_id}"):
-                        if classes:
-                            st.html(f'<span class="heat-flag {classes}"></span>')
-                        st.button(usd(row["tce_usd_per_day"]), key=key, on_click=select_cell,
-                                  args=(vessel_id, cargo_id, col["lift"]), width="stretch")
-        st.html("<style>" + "".join(rules) + "</style>")
 
 
 def voyage_summary(case, compact=False):

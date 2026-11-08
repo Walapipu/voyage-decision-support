@@ -5,11 +5,12 @@ import streamlit as st
 
 from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
-from voyage.dashboard_data import dashboard_case, candidates_case, tce_matrix
+from voyage.dashboard_data import dashboard_case, candidates_case
 from voyage.voyages_view import voyages_page
-from voyage.dashboard import (apply_theme, heading, summary_cards, fleet_panel,
-    tce_heatmap, voyage_summary, comparison_table, economics, timeline,
+from voyage.dashboard import (apply_theme, heading, voyage_summary, comparison_table, economics, timeline,
     requirements_notice, result_frame)
+from voyage.plan import build_plan, plan_summary
+from voyage import overview
 from voyage.chat_view import render_chat, start_new_chat
 from voyage.policy import load_policy, conventions
 from voyage.openrouter import load_settings
@@ -25,9 +26,13 @@ if st.session_state.get("logged_out"):
         st.session_state.logged_out = False
         st.rerun()
     st.stop()
-for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":"2026-03"}.items():
+for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":"2026-03", "map_view":"All voyages"}.items():
     if key not in st.session_state:
         st.session_state[key] = value
+# The Overview has no vessel, cargo or lift widgets; re-assigning keeps these values when
+# their widgets are not drawn on a run instead of letting Streamlit discard them.
+for key in ("selected_vessel", "selected_cargo", "selected_lift", "price_period", "map_view"):
+    st.session_state[key] = st.session_state[key]
 
 # Apply chat results before Streamlit instantiates the bound selector widgets.
 selection_from_chat = st.session_state.pop("selection_from_chat", None)
@@ -45,7 +50,7 @@ def reset_lift():
 
 with st.sidebar:
     st.html(f'<div class="brand"><img class="brandmark" src="{brand_logo_uri()}" alt="KingFish crown"/><div><b>KingFish</b><small>Voyage planner</small></div></div>')
-    page = st.radio("Navigation", ["Home", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed")
+    page = st.radio("Navigation", ["Overview", "AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"], label_visibility="collapsed", key="page")
     with st.container(key="sidebar_foot"):
         user_col, theme_col = st.columns([1, .22], vertical_alignment="center", gap="small")
         with user_col:
@@ -69,8 +74,37 @@ st.html("""<script>(() => {
   };
   // No hover tooltips anywhere: drop native title attributes as elements appear.
   const untitle = () => document.querySelectorAll('[title]').forEach(el => el.removeAttribute('title'));
-  new MutationObserver(() => { relabel(); untitle(); }).observe(document.body, {childList: true, subtree: true, characterData: true});
-  untitle();
+  // Ask Shippy drawer. Opening and closing stay in the browser, so the drawer remains mounted
+  // and the conversation and any unsent draft survive while it is closed.
+  const body = document.body, drawer = () => document.querySelector('.st-key-shippy');
+  const openShippy = () => {
+    body.classList.add('shippy-open');
+    setTimeout(() => drawer()?.querySelector('textarea')?.focus(), 160);
+  };
+  const closeShippy = () => {
+    if (!body.classList.contains('shippy-open')) return;
+    body.classList.remove('shippy-open');
+    document.querySelector('.ask-shippy')?.focus();
+  };
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-shippy-open]')) openShippy();
+    else if (event.target.closest('[data-shippy-close]')) closeShippy();
+    else if (body.classList.contains('shippy-open') && event.target.closest('[data-testid="stSidebar"]')) {
+      // A click on the dimmed rail closes the drawer instead of navigating.
+      event.preventDefault(); event.stopPropagation(); closeShippy();
+    }
+  }, true);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeShippy(); });
+  const syncDrawer = () => {
+    const panel = drawer();
+    if (!panel) { body.classList.remove('shippy-open'); return; }
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-labelledby', 'shippy-title');
+    panel.toggleAttribute('inert', !body.classList.contains('shippy-open'));
+  };
+  new MutationObserver(() => { relabel(); untitle(); syncDrawer(); }).observe(body, {childList: true, subtree: true, characterData: true});
+  new MutationObserver(syncDrawer).observe(body, {attributes: true, attributeFilter: ['class']});
+  untitle(); syncDrawer();
 })();</script>""", unsafe_allow_javascript=True)
 
 
@@ -89,7 +123,7 @@ def selection_controls():
             st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
 
 
-if page not in ("Home", "AI Assistant"):
+if page not in ("Overview", "AI Assistant"):
     with st.container(key="workspace"):
         selection_controls()
 
@@ -98,23 +132,26 @@ has_selection = lift_selected and all(st.session_state[k] is not None for k in (
 case = dashboard_case(st.session_state.selected_cargo, st.session_state.selected_lift, st.session_state.price_period, st.session_state.selected_vessel) if has_selection else None
 catalog = {"tables": tables, "ports": index(tables["ports"], "port_code")}
 
-with st.container(key={"Home": "home", "AI Assistant": "assistant_page"}.get(page, "page_content")):
-    if page == "Home":
-        st.html('<h1 class="page-title">Voyage overview</h1>')
-        summary_cards(case)
-        tce_heatmap(tce_matrix(st.session_state.price_period, st.session_state.selected_cargo,
-                               st.session_state.selected_lift), catalog["ports"])
-        with st.container(key="home_lower"):
-            track, assistant = st.columns([1, 1.25], gap="small")
-            with track, st.container(key="track_panel"):
-                fleet_panel(catalog, case)
-            with assistant, st.container(key="assistant_panel"):
-                title, new = st.columns([1, .12], vertical_alignment="center")
-                with title:
-                    heading("AI voyage assistant")
-                with new:
-                    st.button("New chat", icon=":material/edit_square:", key="new_conversation", on_click=start_new_chat)
-                render_chat(controls=selection_controls)
+plan = build_plan(st.session_state.price_period) if page == "Overview" else None
+with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get(page, "page_content")):
+    if page == "Overview":
+        focus = overview.focus_voyage(plan)
+        st.session_state.plan_context = plan_summary(plan)
+        overview.header(plan, sorted({r["period"] for r in tables["bunker_forward_curve"]}))
+        overview.banner(plan)
+        overview.kpis(plan)
+        with st.container(key="overview_main"):
+            left, right = st.columns([1.5, 1], gap="small")
+            with left:
+                overview.plan_table(plan, focus)
+            with right:
+                overview.route_map(plan, focus, catalog["ports"])
+        with st.container(key="overview_lower"):
+            left, right = st.columns([1.5, 1], gap="small")
+            with left:
+                overview.fleet_timeline(plan, focus)
+            with right:
+                overview.next_availability(plan)
 
     elif page == "AI Assistant":
         with st.container(key="assistant_full"):
@@ -197,3 +234,6 @@ with st.container(key={"Home": "home", "AI Assistant": "assistant_page"}.get(pag
             st.error(str(exc))
         st.json(conventions(load_policy()))
         st.caption("The API key is excluded from Git and is not exposed by this screen. Market economics, sensitivity analysis and fleet allocation are not enabled yet.")
+
+if page == "Overview":
+    overview.shippy_drawer(plan, focus, render_chat, start_new_chat)

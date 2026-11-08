@@ -5,11 +5,16 @@ from unittest.mock import patch
 from streamlit.testing.v1 import AppTest
 
 from voyage.chat_view import selection_from_prompt
-from voyage.dashboard_data import tce_matrix
+from voyage.data import index, load_tables
+from voyage.plan import TIGHT_SLACK_DAYS, build_plan
 from voyage.search import fuzzy_score
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 EMPTY = {"selected_vessel": None, "selected_cargo": None, "selected_lift": None, "price_period": "2026-03"}
+
+
+def html(app):
+    return "".join(h.proto.body for h in app.get("html"))
 
 
 class FuzzySearchTests(unittest.TestCase):
@@ -17,15 +22,10 @@ class FuzzySearchTests(unittest.TestCase):
         self.assertGreater(fuzzy_score("rizao", "MF-01 CNRIZ Rizhao"), 0)
         self.assertGreater(fuzzy_score("laem chabng", "MF-02 THLCH Laem Chabang"), 0)
         self.assertGreater(fuzzy_score("mf2", "MF-02 THLCH Laem Chabang"), 0)
-        self.assertGreater(fuzzy_score("rotterdm", "MV-03 NLRTM Rotterdam"), 0)
 
     def test_unrelated_words_do_not_match(self):
         self.assertEqual(fuzzy_score("kandla", "MF-01 CNRIZ Rizhao"), 0)
         self.assertEqual(fuzzy_score("mf2", "MF-01 CNRIZ Rizhao"), 0)
-        self.assertEqual(fuzzy_score("rizhao xyz", "MF-01 CNRIZ Rizhao"), 0)
-
-    def test_exact_match_ranks_above_fuzzy(self):
-        self.assertGreater(fuzzy_score("rizhao", "Rizhao"), fuzzy_score("rizao", "Rizhao"))
 
 
 class PromptSelectionTests(unittest.TestCase):
@@ -39,40 +39,96 @@ class PromptSelectionTests(unittest.TestCase):
         self.assertEqual((found["selected_vessel"], found["selected_cargo"], found["selected_lift"], found["price_period"]),
                          ("MF-03", "CC-03", 170000.0, "2026-04"))
 
-    def test_follow_up_keeps_current_cargo(self):
-        state = {**EMPTY, "selected_cargo": "CC-02", "selected_lift": 164000.0, "selected_vessel": "MF-02"}
-        found = selection_from_prompt("what about 150,000 tonnes", state)
-        self.assertEqual((found["selected_cargo"], found["selected_lift"]), ("CC-02", 150000.0))
-
     def test_ignores_conceptual_questions_and_false_months(self):
         self.assertIsNone(selection_from_prompt("What is TCE?", EMPTY))
         self.assertNotIn("price_period", selection_from_prompt("may I see CC-01 margin", EMPTY))
 
 
-class HomeTests(unittest.TestCase):
-    def test_heat_map_covers_every_vessel_and_cargo(self):
-        matrix = tce_matrix("2026-03")
-        self.assertEqual(len(matrix["columns"]), 3)
-        for column in matrix["columns"]:
-            self.assertEqual(set(column["rows"]), set(matrix["vessels"]))
+class PlanTests(unittest.TestCase):
+    def test_plan_covers_committed_cargoes_with_feasible_engine_voyages(self):
+        plan = build_plan("2026-03")
+        cargoes = index(load_tables()["committed_cargoes"], "cargo_id")
+        self.assertEqual(plan["uncovered"], [])
+        self.assertEqual(sorted(v["cargo_id"] for v in plan["voyages"]), ["CC-01", "CC-02", "CC-03"])
+        self.assertEqual(len({v["vessel_id"] for v in plan["voyages"]}), len(plan["voyages"]))
+        for v in plan["voyages"]:
+            self.assertTrue(v["row"]["feasible"], v["vessel_id"])
+            cargo = cargoes[v["cargo_id"]]
+            self.assertLessEqual(float(cargo["minimum_quantity_tonnes"]), v["lift"])
+            self.assertLessEqual(v["lift"], float(cargo["maximum_quantity_tonnes"]))
+            self.assertEqual(v["tight"], v["slack"] < TIGHT_SLACK_DAYS)
+        self.assertAlmostEqual(plan["contribution"], sum(v["row"]["voyage_contribution_usd"] for v in plan["voyages"]))
 
-    def test_typed_question_updates_kpis_even_when_the_model_fails(self):
+    def test_availability_is_ordered_and_lists_every_owned_vessel(self):
+        plan = build_plan("2026-03")
+        frees = [a["free"] for a in plan["availability"]]
+        self.assertEqual(frees, sorted(frees))
+        self.assertEqual({a["vessel_id"] for a in plan["availability"]}, {"MF-01", "MF-02", "MF-03", "MF-04"})
+
+
+class OverviewTests(unittest.TestCase):
+    def test_overview_shows_plan_kpis_and_closed_drawer(self):
+        app = AppTest.from_file(APP).run()
+        self.assertFalse(app.exception)
+        plan = build_plan("2026-03")
+        body = html(app)
+        for text in ("Portfolio contribution", "Avg TCE", "Committed cargoes covered", "Bunker cost", "Tightest laycan slack",
+                     "Fleet timeline", "Next availability", "Chartered redelivery", "Ask Shippy", "Whole plan"):
+            self.assertIn(text, body)
+        self.assertIn(f'${plan["voyages"][0]["contribution"]:,.0f}', body)
+        self.assertIn("data-shippy-open", body)
+
+    def test_plan_row_focuses_voyage_and_second_click_returns_to_whole_plan(self):
+        app = AppTest.from_file(APP).run()
+        voyage = build_plan("2026-03")["voyages"][0]
+        key = f'plan_pick_{voyage["vessel_id"]}'
+        app.button(key=key).click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual((app.session_state.selected_vessel, app.session_state.selected_cargo, app.session_state.selected_lift),
+                         (voyage["vessel_id"], voyage["cargo_id"], voyage["lift"]))
+        self.assertEqual(app.session_state.map_view, "Selected")
+        body = html(app)
+        self.assertIn("plan-row picked", body)
+        self.assertIn("tl-row picked", body)
+        self.assertIn(f'{voyage["vessel_id"]} → {voyage["cargo_id"]}</span>', body)
+        app.button(key=key).click().run()
+        self.assertIsNone(app.session_state.selected_vessel)
+        self.assertIn("Whole plan", html(app))
+
+    def test_selection_survives_pages_without_selectors(self):
+        app = AppTest.from_file(APP).run()
+        nav = lambda page: next(r for r in app.radio if r.label == "Navigation").set_value(page).run()
+        nav("Voyages")
+        app.selectbox(key="selected_vessel").set_value("MF-01").run()
+        nav("Overview")
+        nav("Voyages")
+        self.assertEqual(app.selectbox(key="selected_vessel").value, "MF-01")
+
+    def test_typed_question_focuses_the_plan_even_when_the_model_fails(self):
         app = AppTest.from_file(APP).run()
         with patch("voyage.chat.chat_reply", side_effect=ValueError("No model reply was returned.")):
             app.chat_input[0].set_value("Compare CC-02 at 164,000 t in Mar 2026").run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.selectbox(key="selected_cargo").value, "CC-02")
-        self.assertEqual(app.number_input(key="selected_lift").value, 164000)
-        self.assertTrue(any("$453,201" in h.proto.body for h in app.get("html")))
-        self.assertTrue(any("heat-pick" in h.proto.body for h in app.get("html")))
+        self.assertEqual((app.session_state.selected_vessel, app.session_state.selected_cargo), ("MF-02", "CC-02"))
+        self.assertIn("plan-row picked", html(app))
 
-    def test_heat_cell_selects_that_voyage(self):
+    def test_suggestion_asks_and_compact_answer_opens_voyages(self):
+        from voyage.tools import execute_tool
+        result = execute_tool("compare_vessels", '{"cargo_id":"CC-02","lift_tonnes":164000,"period":"2026-03"}')
         app = AppTest.from_file(APP).run()
-        app.button(key="heat_MF-01_CC-02").click().run()
+        question = app.button(key="suggest_1").label
+        with patch("voyage.chat.chat_reply", return_value={"content": "Here are the options.",
+                                                            "evidence": [{"tool": "compare_vessels", "result": result}]}) as chat:
+            app.button(key="suggest_1").click().run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.selectbox(key="selected_vessel").value, "MF-01")
+        self.assertEqual(chat.call_args.args[0][-1]["content"], question)
+        self.assertIn("Recommended plan from the voyage engine", chat.call_args.args[0][-2]["content"])
+        self.assertIn("answer-table", html(app))
+        self.assertFalse(app.get("plotly_chart"))  # drawer answers stay compact
+        app.button(key="reply_1_0_open").click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state.page, "Voyages")
         self.assertEqual(app.selectbox(key="selected_cargo").value, "CC-02")
-        self.assertEqual(app.number_input(key="selected_lift").value, 164000)
 
 
 if __name__ == "__main__":

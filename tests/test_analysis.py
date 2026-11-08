@@ -79,6 +79,8 @@ class AnalysisTests(unittest.TestCase):
 
     def test_repeated_analyst_replies_render_unique_dashboards(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
+        # Full dashboards belong to the assistant page; the Overview drawer shows compact tables.
+        next(r for r in app.radio if r.label == "Navigation").set_value("AI Assistant").run()
         output = execute_tool("compare_vessels", '{"cargo_id":"CC-02","lift_tonnes":164000}')
         answer = {"content":"MF-02 offers the highest feasible contribution.", "model":"test", "truncated":False,
                   "evidence":[{"tool":"compare_vessels", "result":output}]}

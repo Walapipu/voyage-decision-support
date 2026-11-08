@@ -6,11 +6,38 @@ from voyage.charts import earnings_chart, cost_chart, duration_chart
 from voyage.fuel import shortage_message
 
 
-def render_evidence(evidence, key_prefix="analysis"):
+def open_in_voyages(row):
+    """Answer action: show this comparison on the Voyages page."""
+    st.session_state.update(page="Voyages", selected_vessel=row["vessel_id"], selected_cargo=row["cargo_id"],
+                            selected_lift=float(row["selected_lift_tonnes"]), price_period=row["bunker_price_period"],
+                            voyage_port=None, voyage_query=None)
+
+
+def compact_evidence(output, key):
+    """Drawer-sized answer: a short comparison table and one action."""
+    rows = output["rows"]
+    lead = rows[0]
+    body = "".join(
+        f'<tr class="{"lead" if r is lead and r["feasible"] else ""}"><td><b>{escape(r["vessel_id"])}</b></td>'
+        f'<td class="num {"neg" if r["voyage_contribution_usd"] < 0 else ""}">${r["voyage_contribution_usd"]:,.0f}</td>'
+        f'<td class="num">{r["laycan_slack_days"]:.1f} d</td>'
+        f'<td>{"best" if r is lead and r["feasible"] else "feasible" if r["feasible"] else escape(", ".join(r["failed_checks"]))}</td></tr>'
+        for r in rows)
+    st.html(f'<table class="answer-table"><thead><tr><th>Vessel</th><th class="num">Contribution</th><th class="num">Slack</th><th>Note</th></tr></thead>'
+            f'<tbody>{body}</tbody></table>')
+    with st.container(key=f"answer_{key}"):
+        st.button("Open in Voyages", icon=":material/arrow_forward:", key=key, on_click=open_in_voyages, args=(lead,))
+        st.caption(f'Voyage engine · {lead["cargo_id"]} at {lead["selected_lift_tonnes"]:,.0f} t · {lead["bunker_price_period"]} bunkers')
+
+
+def render_evidence(evidence, key_prefix="analysis", compact=False):
     for idx, item in enumerate(evidence):
         output = item["result"]
         if "error" in output:
             st.warning(output["error"])
+        if output.get("rows") and compact:
+            compact_evidence(output, f"{key_prefix}_{idx}_open")
+            continue
         if output.get("rows"):
             rows = output["rows"]
             facts = output.get("analysis") or analyst_facts(rows)

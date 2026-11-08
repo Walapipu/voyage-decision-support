@@ -97,7 +97,18 @@ def selection_label():
     return "Voyage inputs" + (" · " + " · ".join(chosen) if chosen else "")
 
 
-def render_chat(controls=None):
+def ask(text):
+    """Queue a question and point the selection at any voyage it names."""
+    st.session_state.pending = text
+    typed = selection_from_prompt(text, st.session_state)
+    if typed:
+        st.session_state.selection_from_chat = typed
+    st.session_state.close_voyage_selectors = True
+    st.session_state.chat_error = None
+    st.session_state.force_comparison = False
+
+
+def render_chat(controls=None, suggestions=(), compact=False):
     from voyage.chat import chat_reply
 
     for key, value in {"messages": [], "pending": None, "chat_error": None}.items():
@@ -116,7 +127,7 @@ def render_chat(controls=None):
                     st.caption(message["notice"])
                 if message.get("truncated"):
                     st.warning("The answer reached its response limit and may be incomplete.")
-                render_evidence(message.get("evidence", []), key_prefix=f"reply_{message_index}")
+                render_evidence(message.get("evidence", []), key_prefix=f"reply_{message_index}", compact=compact)
         retry = False
         if st.session_state.pending:
             with st.chat_message("user"):
@@ -134,15 +145,13 @@ def render_chat(controls=None):
             # Collapsed by default and after every question, so answers keep the room.
             with st.expander(selection_label(), icon=":material/tune:", key="voyage_selectors", on_change="rerun"):
                 controls()
-        prompt = st.chat_input("Ask about a voyage, e.g. CC-02 at 164,000 t", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
+        if suggestions and not st.session_state.pending:
+            with st.container(key="suggestions", horizontal=True, gap="small"):
+                for index, question in enumerate(suggestions):
+                    st.button(question, key=f"suggest_{index}", on_click=ask, args=(question,), type="tertiary")
+        prompt = st.chat_input("Ask about a voyage, e.g. CC-02 at 164,000 t in Mar 2026", key=f'chat_prompt_{st.session_state.get("chat_generation", 0)}', max_chars=4000, disabled=bool(st.session_state.pending))
     if prompt and prompt.strip():
-        st.session_state.pending = prompt.strip()
-        typed = selection_from_prompt(prompt, st.session_state)
-        if typed:
-            st.session_state.selection_from_chat = typed
-        st.session_state.close_voyage_selectors = True
-        st.session_state.chat_error = None
-        st.session_state.force_comparison = False
+        ask(prompt.strip())
         st.rerun()
     if st.session_state.pending and (not st.session_state.chat_error or retry):
         question = {"role": "user", "content": st.session_state.pending}
@@ -150,7 +159,7 @@ def render_chat(controls=None):
         # Explicit UI selection, not fabricated tool evidence. The model still runs tools.
         selection = {key: st.session_state.get(key) for key in
                      ('selected_vessel', 'selected_cargo', 'selected_lift', 'price_period')}
-        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer conceptual voyage and freight questions normally; redirect unrelated questions to KingFish support. Ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.'}
+        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer conceptual voyage and freight questions normally; redirect unrelated questions to KingFish support. Ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.' + (f' Recommended plan from the voyage engine: {st.session_state.plan_context}' if st.session_state.get('plan_context') else '')}
         try:
             with progress, st.spinner("Shipping…"):
                 answer = chat_reply(history + [context, question], force_comparison=st.session_state.get("force_comparison", False))
