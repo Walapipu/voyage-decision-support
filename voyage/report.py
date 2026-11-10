@@ -54,7 +54,7 @@ def analytics_report(case):
         focus_label = ranking["label"]
     stress_note = ""
     if ranking and ranking["winner"]:
-        stress_note = (f'<p>{e(ranking["status"])} · Stressed contribution '
+        stress_note = (f'<p>{e(ranking["status_display"])} · Stressed contribution '
                        f'USD {focus["stress_contribution_usd"]:,.2f}.</p>')
     if ranking:
         scenario = comparison["stress_scenario"]

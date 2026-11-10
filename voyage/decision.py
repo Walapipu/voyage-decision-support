@@ -71,6 +71,7 @@ def ranking_evidence(ranked, objective, objective_winners):
     metric, label, unit = OBJECTIVES[objective]
     if not ranked:
         return {"objective": objective, "label": label, "status": "No feasible recommendation",
+                "draft_limited": False, "status_display": "No feasible recommendation",
                 "winner": None, "runner_up": None, "difference": None, "unit": unit,
                 "dominant_vs_runner_up": False}
     winner = ranked[0]
@@ -79,18 +80,23 @@ def ranking_evidence(ranked, objective, objective_winners):
     deltas = {k: winner[k] - runner[k] for k in metrics} if runner else {}
     dominance = [deltas[k] if k != "voyage_days" else -deltas[k] for k in deltas]
     dominant = bool(dominance) and min(dominance) >= -1e-7 and max(dominance) > 1e-7
+    # The lift search fills each vessel to its draft limit, so nearly every winner
+    # sits within 0.10 m of the minimum. Report that as a qualifier, not the status,
+    # or it would hide the objective and dominance comparison on every cargo.
     minimum = winner["required_summer_draft_margin_m"]
+    draft_limited = winner["limiting_draft_margin_m"] < minimum + 0.10
     if not winner["stress_feasible"] or winner["stress_contribution_usd"] < 0:
         status = "Scenario-sensitive"
-    elif winner["limiting_draft_margin_m"] < minimum + 0.10:
-        status = "Qualified"
     elif len(set(objective_winners.values())) > 1:
         status = "Objective-dependent"
     elif dominant:
         status = "Dominant"
     else:
-        status = "Trade-off" if runner else "Qualified"
+        status = "Trade-off" if runner else "Sole feasible option"
+    display = status + (f' · draft-limited lift ({winner["limiting_draft_margin_m"]:.3f} m limiting margin)'
+                        if draft_limited else "")
     return {"objective": objective, "label": label, "status": status,
+            "draft_limited": draft_limited, "status_display": display,
             "winner": winner["vessel_id"], "lift_tonnes": winner["selected_lift_tonnes"],
             "speed": winner["speed"], "runner_up": runner["vessel_id"] if runner else None,
             "difference": winner[metric] - runner[metric] if runner else None, "unit": unit,

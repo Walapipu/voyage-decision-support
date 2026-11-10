@@ -26,7 +26,7 @@ def compact_evidence(output, key):
         if lead_eligible:
             st.html(f'<div class="report-head"><b>{escape(label)} · {escape(lead["vessel_id"])} / {escape(lead["cargo_id"])}</b>'
                     f'<span>{lead["selected_lift_tonnes"]:,.0f} t · {escape(lead["bunker_price_period"])}</span></div>')
-            st.caption(ranking["status"])
+            st.caption(ranking["status_display"])
         else:
             st.caption("No voyage passes the checks for this objective.")
         if objective == "stress_contribution":
@@ -93,7 +93,7 @@ def render_evidence(evidence, key_prefix="analysis", compact=False):
             label = "Highest contribution" if len(rows) > 1 and focus["feasible"] else "Voyage analysis"
             if ranking and ranking["winner"]:
                 label = ranking["label"]
-                note = ranking["status"]
+                note = ranking["status_display"]
                 if ranking["runner_up"]:
                     note += f' · {ranking["unit"]} {ranking["difference"]:,.0f} ahead of {ranking["runner_up"]}'
                 st.caption(note)
