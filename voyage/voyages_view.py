@@ -1,4 +1,6 @@
-"""Voyages page: every managed vessel evaluated against one committed cargo and lift.
+"""Voyages page: every vessel that may carry one cargo, evaluated at one lift.
+
+Managed vessels always; chartered-in market vessels as well when the cargo is committed.
 
 Everything shown comes from the engine rows or the source tables. Items in the
 reference sketch without source data (scrubber fitting, AIS density, weather,
@@ -8,6 +10,8 @@ from datetime import datetime
 
 import pandas as pd
 import streamlit as st
+
+from voyage.market import all_cargoes
 
 from voyage.analysis import STAGES, STAGE_COLOURS
 from voyage.dashboard import e, usd, profit_style, select_vessel, heading
@@ -61,7 +65,7 @@ def stem_card(cc):
             ("Lift", f'{cc["lift"]:,.0f} t'),
             ("Permitted", f'{float(cargo["minimum_quantity_tonnes"]):,.0f}–{float(cargo["maximum_quantity_tonnes"]):,.0f} t'),
             ("Laycan", _laycan(cargo)),
-            ("Contract freight", f'${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}/t')]
+            (_freight_label(cargo), f'${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}/t')]
     st.html(f'<div class="stem-card"><div class="stem-head"><span class="stem-icon"><span class="lucide icon-anchor"></span></span>'
             f'<div><b>{e(load["port_name"])} <span class="code">{e(cargo["load_port"])}</span></b>'
             f'<small>{e(place)} · load port</small></div></div><div class="stem-grid">'
@@ -85,21 +89,24 @@ def candidate_card(row, cc, rank, focus_id):
     port = cc["ports"][vessel["current_port"]]["port_name"]
     feasible = row["feasible"]
     tags = f'<span class="tag">Rank {rank}</span>' if rank else ""
+    hired = row["vessel_id"].startswith("MV")
     if rank == 1:
         tags += '<span class="tag info">Highest contribution</span>'
     status = ('<span class="tag good">Feasible</span>' if feasible else
               f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in row["failed_checks"]))}</span>')
     head = (f'<div class="cand-head"><span class="cand-id"><i class="dot {"good" if feasible else "bad"}"></i>'
             f'<b class="code">{e(row["vessel_id"])}</b>{tags}</span>{status}</div>'
-            f'<p class="cand-spec">Capesize · <span class="num">{float(vessel["dwt_tonnes"]):,.0f}</span> DWT · Open {e(port)} · {e(_utc(vessel["available_from_utc"]).strftime("%d %b"))}</p>')
+            f'<p class="cand-spec">{"Chartered in" if hired else "Capesize"} · <span class="num">{float(vessel["dwt_tonnes"]):,.0f}</span> DWT · '
+            f'Open {e(port)} · {e(_utc(vessel["available_from_utc"]).strftime("%d %b"))}'
+            + (f' · hire <span class="num">{e(usd(float(vessel["hire_rate_usd_per_day"])))}</span>/day assumed' if hired else "") + '</p>')
     margin = 100 * row["voyage_contribution_usd"] / row["freight_revenue_usd"] if row["freight_revenue_usd"] else None
     if feasible:
         cells = [("TCE before hire", f'{usd(row["tce_usd_per_day"])}/day', _sign_style(row["tce_usd_per_day"])),
                  ("Contribution", usd(row["voyage_contribution_usd"]), profit_style(margin)),
-                 ("Laycan slack", f'{_signed(row["laycan_slack_days"])} d', _sign_style(row["laycan_slack_days"])),
+                 ("Laycan slack", f'{_signed(row["laycan_slack_days"])} days', _sign_style(row["laycan_slack_days"])),
                  ("Summer-draft headroom", f'{row["draft_margin_m"]:.2f} m', "")]
     else:
-        cells = [("Laycan slack", f'{_signed(row["laycan_slack_days"])} d', _sign_style(row["laycan_slack_days"])),
+        cells = [("Laycan slack", f'{_signed(row["laycan_slack_days"])} days', _sign_style(row["laycan_slack_days"])),
                  ("Load arrival (UTC)", _when(row["arrival_at_load_utc"]), ""),
                  ("Summer-draft headroom", f'{_signed(row["draft_margin_m"])} m', _sign_style(row["draft_margin_m"] - row["required_summer_draft_margin_m"])),
                  ("Deadweight margin", f'{_signed(row["deadweight_margin_tonnes"], 0)} t', _sign_style(row["deadweight_margin_tonnes"]))]
@@ -132,7 +139,7 @@ def ticker_items(cc, focus):
     items.append(f'{focus["vessel_id"]} BALLAST {focus["ballast_distance_nm"]:,.0f} NM + LADEN {focus["laden_distance_nm"]:,.0f} NM')
     items.append(f'ECONOMICAL SPEED {vessel["economical_ballast_speed_knots"]} / {vessel["economical_laden_speed_knots"]} KN')
     for row in cc["rows"]:
-        items.append(f'{row["vessel_id"]} ETA {_when(row["arrival_at_load_utc"]).upper()} · SLACK {_signed(row["laycan_slack_days"])} D')
+        items.append(f'{row["vessel_id"]} ETA {_when(row["arrival_at_load_utc"]).upper()} · SLACK {_signed(row["laycan_slack_days"])} DAYS')
     return items
 
 
@@ -156,9 +163,9 @@ def matrix(rows, cc, ranks, focus_id):
         body += (f'<tr class="{"selected" if r["vessel_id"] == focus_id else ""}">'
                  f'<td><b class="code">{e(r["vessel_id"])}</b><small>{e(rank)} · {float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}</small></td>'
                  f'<td>{status}</td>'
-                 f'<td class="num">{e(_when(r["arrival_at_load_utc"]))}<small class="signed-metric" style="{slack_style}"><strong>{_signed(r["laycan_slack_days"])} d slack</strong></small></td>'
-                 f'<td class="num">{r["ballast_days"]:.1f} / {r["laden_days"]:.1f} d<small>{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm</small></td>'
-                 f'<td class="num">{r["voyage_days"]:.1f} d<small>wait {r["laycan_wait_days"]:.1f} d</small></td>'
+                 f'<td class="num">{e(_when(r["arrival_at_load_utc"]))}<small class="signed-metric" style="{slack_style}"><strong>{_signed(r["laycan_slack_days"])} days slack</strong></small></td>'
+                 f'<td class="num">{r["ballast_days"]:.1f} / {r["laden_days"]:.1f} days<small>{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm</small></td>'
+                 f'<td class="num">{r["voyage_days"]:.1f} days<small>wait {r["laycan_wait_days"]:.1f} days</small></td>'
                  f'<td class="num">{v["economical_ballast_speed_knots"]} / {v["economical_laden_speed_knots"]} kn</td>'
                  f'<td class="num">{float(v["vlsfo_rob_tonnes"]):,.0f} / {float(v["mgo_rob_tonnes"]):,.0f} t'
                  f'<small>buy {r["vlsfo_purchase_tonnes"]:,.0f} / {r["mgo_purchase_tonnes"]:,.0f} t</small></td>'
@@ -180,9 +187,13 @@ def export_frame(rows, cc):
     return frame
 
 
+def _freight_label(cargo):
+    return "Assumed freight" if cargo["cargo_id"].startswith("MC") else "Contract freight"
+
+
 def market_strip(cc):
     cargo = cc["cargo"]
-    items = [f'Contract freight <b>${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}/t</b>']
+    items = [f'{_freight_label(cargo)} <b>${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}/t</b>']
     if cc["baltic"]:
         b = cc["baltic"]
         items.append(f'Baltic {e(b["route"])} {e(b["name"])} ({e(b["period"])}) <b>${b["usd_per_tonne"]:.2f}/t</b>, market context only')
@@ -192,7 +203,7 @@ def market_strip(cc):
     if cc["best"]:
         items.append(f'Highest contribution <b>{e(cc["best"]["vessel_id"])} ({e(usd(cc["best"]["voyage_contribution_usd"]))})</b>')
     else:
-        items.append('<b>No managed vessel is feasible at this lift</b>')
+        items.append('<b>No vessel is feasible at this lift</b>')
     if cc["lead"]:
         lead = cc["lead"]
         pct = f' ({lead["pct"]:.1f}% above)' if lead["pct"] is not None else ""
@@ -205,7 +216,7 @@ def market_strip(cc):
 # ---------- Search: load port or cargo ----------
 
 def _choose_cargo(cargo_id):
-    cargo = index(load_tables()["committed_cargoes"], "cargo_id")[cargo_id]
+    cargo = all_cargoes()[cargo_id]
     st.session_state.selected_cargo = cargo_id
     # A new cargo starts at its nominal lift; the lift box in the top strip stays editable.
     st.session_state.selected_lift = int(float(cargo["nominal_quantity_tonnes"]))
@@ -250,7 +261,7 @@ def search_bar():
     port, query, cargo_id = (st.session_state.get(k) for k in ("voyage_port", "voyage_query", "selected_cargo"))
     current = query or (f"port:{port}" if port else None)
     if current is None and cargo_id:
-        current = "port:" + index(load_tables()["committed_cargoes"], "cargo_id")[cargo_id]["load_port"]
+        current = "port:" + all_cargoes()[cargo_id]["load_port"]
     options = list(labels) + ([current] if current and current not in labels else [])
     st.session_state.voyage_search = current
     st.selectbox("Search load port or cargo", options, format_func=lambda k: labels.get(k, k), index=None,
@@ -261,7 +272,7 @@ def search_bar():
 def result_list(title, results):
     heading(title, f"{len(results)} found")
     if not results:
-        st.caption("No load ports or committed cargoes match. Try a port, country, commodity or cargo ID.")
+        st.caption("No load ports or cargoes match. Try a port, country, commodity or cargo ID.")
     with st.container(key="search_results"):
         for r in results:
             st.button(r["label"], key=f'open_{r["kind"]}_{r["id"]}', on_click=_open, args=(f'{r["kind"]}:{r["id"]}',),
@@ -281,7 +292,7 @@ def browse_panel():
     else:
         heading("Find a voyage")
         st.caption("Search a load port or cargo above, or pick a cargo and lift in the top bar. "
-                   "Every managed vessel is then evaluated against it; choosing a vessel is optional.")
+                   "Every vessel that may carry it is then evaluated; choosing a vessel is optional.")
 
 
 def voyages_page(cc):
@@ -313,7 +324,7 @@ def voyages_page(cc):
                 for row in shown:
                     candidate_card(row, cc, ranks.get(row["vessel_id"]), focus["vessel_id"])
                 if not shown:
-                    st.caption("No managed vessel passes every check at this lift.")
+                    st.caption("No vessel passes every check at this lift.")
         with right, st.container(key="voyage_right"):
             with st.container(border=True, key="voyage_map_panel"):
                 note = f'Focused: {focus["vessel_id"]}' + ("" if focus["vessel_id"] == selected else " (top ranked)" if cc["best"] else " (none feasible)")

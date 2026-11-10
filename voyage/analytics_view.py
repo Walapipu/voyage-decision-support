@@ -55,7 +55,9 @@ def filters(report_button):
     with st.container(key="an_filters", horizontal=True, vertical_alignment="bottom", gap="small"):
         st.segmented_control("Lift basis", list(data.BASES), format_func=SHORT_BASES.get, key="an_basis", default="best", required=True)
         st.pills("Vessels", data.vessel_ids(), selection_mode="multi", key="an_vessels", default=data.vessel_ids())
-        st.pills("Cargoes", data.cargo_ids(), selection_mode="multi", key="an_cargoes", default=data.cargo_ids())
+        # Committed cargoes are shown by default; market cargoes are one click away.
+        st.pills("Cargoes", data.cargo_ids(), selection_mode="multi", key="an_cargoes", default=data.committed_ids() + [c for c in [st.session_state.get("selected_cargo")]
+                                             if c and c not in data.committed_ids()])
         # A one-option pill rather than a toggle, so it matches the other buttons in size and theme.
         st.pills("Show", [FEASIBLE_ONLY], selection_mode="single", key="an_show")
         with st.container(key="an_report"):
@@ -71,7 +73,7 @@ def kpis(rows, period):
          f'{best["vessel_id"]} → {best["cargo_id"]} · {best["selected_lift_tonnes"]:,.0f} t' if best else "no feasible pairing", ""),
         ("Avg TCE, feasible", f'{money(s["avg_tce"])}/day' if s["avg_tce"] is not None else "—", "before hire", ""),
         ("Avg bunker cost", money(s["bunker_cost"]) if s["bunker_cost"] is not None else "—", "per feasible voyage · " + (f"{_month(period)} prices" if period else "laycan-month prices"), ""),
-        ("Tightest laycan slack", f'{tight["laycan_slack_days"]:.1f} d' if tight else "—",
+        ("Tightest laycan slack", f'{tight["laycan_slack_days"]:.1f} days' if tight else "—",
          f'{tight["vessel_id"]} → {tight["cargo_id"]}' if tight else "no feasible pairing",
          "warn" if tight and tight["laycan_slack_days"] < 3 else ""),
     ]
@@ -93,7 +95,7 @@ def detail(focus, dark):
     facts = [("Lift", f'{row["selected_lift_tonnes"]:,.0f} t'), ("Freight revenue", money(row["freight_revenue_usd"])),
              ("Contribution", money(row["voyage_contribution_usd"]) + (f" · {m:.1f}%" if m is not None else "")),
              ("TCE before hire", f'{money(row["tce_usd_per_day"])}/day'), ("Voyage", f'{row["voyage_days"]:.1f} days'),
-             ("Laycan slack", f'{row["laycan_slack_days"]:+.1f} d'), ("Draft headroom", f'{row["limiting_draft_margin_m"]:.3f} m'),
+             ("Laycan slack", f'{row["laycan_slack_days"]:+.1f} days'), ("Draft headroom", f'{row["limiting_draft_margin_m"]:.3f} m'),
              ("Deadweight margin", f'{row["deadweight_margin_tonnes"]:,.0f} t'),
              ("Bunkers bought", f'{row["vlsfo_purchase_tonnes"]:,.0f} t VLSFO · {row["mgo_purchase_tonnes"]:,.0f} t MGO')]
     status = ('<span class="tag good">Feasible</span>' if row["feasible"] else
@@ -141,7 +143,7 @@ def analytics_page(report_button, ranking_panel):
     ranking_panel()
     basis = state.get("an_basis") or "best"
     vessels = state.get("an_vessels") or data.vessel_ids()
-    cargoes = state.get("an_cargoes") or data.cargo_ids()
+    cargoes = state.get("an_cargoes") or data.committed_ids()
     vessels = [v for v in data.vessel_ids() if v in vessels]
     cargoes = [c for c in data.cargo_ids() if c in cargoes]
     rows = data.grid(period, basis, vessels, cargoes, state.get("an_show") == FEASIBLE_ONLY)
@@ -159,7 +161,7 @@ def analytics_page(report_button, ranking_panel):
         left, right = st.columns([1, 1.15], gap="small")
         with left, panel("an_heat", "Contribution by vessel and cargo", f"after hire · {basis_note}"):
             st.plotly_chart(charts.heatmap(rows, shown_vessels, shown_cargoes, focus, dark), width="stretch", theme=None, key="an_heatmap", config=CONFIG)
-            st.caption("Empty cells fail a check, which is named. The blue outline marks the focus")
+            st.caption("A cross marks a failed check; hover any cell for its figures and checks. The blue outline marks the focus")
         with right, panel("an_tce", "TCE against laycan slack", "bubble area is contribution · click a bubble to focus it"):
             st.plotly_chart(charts.scatter(rows, focus, dark), width="stretch", theme=None, key="an_scatter", config=CONFIG,
                             on_select=_on_pick, selection_mode="points")
@@ -175,7 +177,7 @@ def analytics_page(report_button, ranking_panel):
             series = data.month_series(basis, shown_vessels, shown_cargoes)
             st.plotly_chart(charts.months(series, shown_cargoes, shown_vessels, focus, dark), width="stretch", theme=None,
                             key="an_month_lines", config=CONFIG)
-        cargo = next(c for c in data.load_tables()["committed_cargoes"] if c["cargo_id"] == focus[1])
+        cargo = data.all_cargoes()[focus[1]]
         with right, panel("an_lift", f"Lift sensitivity · {focus[1]}", "contract range · dotted where a check fails"):
             curves = {v: data.lift_curve(v, focus[1], period) for v in shown_vessels}
             st.plotly_chart(charts.lift_sensitivity(curves, cargo, (*focus, focus_row["selected_lift_tonnes"]), dark),

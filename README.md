@@ -41,7 +41,7 @@ Tests mock model replies and do not use API quota. The connection check authenti
 
 The catalog contains 15 vessels and 11 cargoes. Calculations currently cover four managed vessels and three committed cargoes. Python checks quantity, laycan, draft and deadweight, and returns TCE before hire and contribution after hire. Source files are preserved in `data/raw/`. The single supplied validation row is regression tested; MF-02's comparison is derived, not a second official reference.
 
-Market quotes, recommendation-switch thresholds and fleet allocation are outside the current ranking scope. See the assumptions for the 2 November methodology. No live prices replace frozen data.
+The Overview plan allocates owned and chartered vessels across committed and market cargoes, using the stated market rate assumptions. Recommendation-switch thresholds are not yet modelled. See the assumptions for the 2 November methodology. No live prices replace frozen data.
 
 ## Secrets and deployment
 

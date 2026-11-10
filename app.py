@@ -179,9 +179,9 @@ def selection_controls():
     with st.container(key="selection"):
         vessel_col, cargo_col, lift_col, period_col = st.columns(4, vertical_alignment="center", gap="small")
         with vessel_col:
-            st.selectbox("Selected vessel", [None] + [v["vessel_id"] for v in tables["managed_vessels"]], format_func=lambda v: v or "Vessel", key="selected_vessel", label_visibility="collapsed", placeholder="Vessel")
+            st.selectbox("Selected vessel", [None] + [v["vessel_id"] for v in tables["managed_vessels"] + tables["market_vessels"]], format_func=lambda v: v or "Vessel", key="selected_vessel", label_visibility="collapsed", placeholder="Vessel")
         with cargo_col:
-            st.selectbox("Committed cargo", [None] + [c["cargo_id"] for c in tables["committed_cargoes"]], format_func=lambda c: c or "Cargo", key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="Cargo")
+            st.selectbox("Cargo", [None] + [c["cargo_id"] for c in tables["committed_cargoes"] + tables["market_cargoes"]], format_func=lambda c: c or "Cargo", key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="Cargo")
         with lift_col:
             st.number_input("Selected lift (tonnes)", min_value=0.0, max_value=1000000.0, value=None, step=500.0, format="%.12g", key="selected_lift", label_visibility="collapsed", placeholder="Lift, tonnes")
         with period_col:
@@ -334,7 +334,7 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
         except ValueError as exc:
             st.error(str(exc))
         st.json(conventions(load_policy()))
-        st.caption("The API key is excluded from Git and is not exposed by this screen. Market quotes and fleet allocation are outside the current ranking scope.")
+        st.caption("The API key is excluded from Git and is not exposed by this screen. Market hire and freight are stated assumptions; see Documents.")
 
 if page == "Overview":
     overview.shippy_drawer(plan, focus, render_chat, start_new_chat)

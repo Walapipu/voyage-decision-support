@@ -18,7 +18,9 @@ class VoyagesTests(unittest.TestCase):
     def test_candidates_rank_lead_and_market_context(self):
         cc = candidates_case("CC-02", 164000, "2026-03")
         self.assertEqual([r["vessel_id"] for r in cc["rows"]][:2], ["MF-02", "MF-01"])
-        self.assertEqual(cc["feasible_count"], 2)
+        self.assertEqual(cc["feasible_count"], 7)  # chartered market vessels are candidates for a committed cargo
+        self.assertEqual(len(cc["rows"]), 15)
+        self.assertEqual(len(candidates_case("MC-07", 166000, "2026-03")["rows"]), 4)  # owned fleet only for market cargo
         best, runner = cc["rows"][0], cc["rows"][1]
         self.assertAlmostEqual(cc["lead"]["usd"], best["voyage_contribution_usd"] - runner["voyage_contribution_usd"])
         self.assertEqual(cc["baltic"]["route"], "C5")
@@ -42,9 +44,9 @@ class VoyagesTests(unittest.TestCase):
         app.number_input(key="selected_lift").set_value(164000).run()
         self.assertFalse(app.exception)
         body = html(app)
-        for text in ("$21,612/day", "$186,749", "+2.78 d", "Laycan missed", "Baltic C5", "+$44,987"):
+        for text in ("$21,612/day", "$186,749", "+2.78 days", "Laycan missed", "Baltic C5", "+$44,987"):
             self.assertIn(text, body)
-        self.assertIn("Focused: MF-02 (top ranked) · top 3 of 4 on map", body)
+        self.assertIn("Focused: MF-02 (top ranked) · top 3 of 15 on map", body)
 
     def test_select_vessel_and_feasible_filter(self):
         app = open_voyages()
@@ -65,32 +67,31 @@ class VoyagesTests(unittest.TestCase):
         app.number_input(key="selected_lift").set_value(178000).run()
         self.assertFalse(app.exception)
         body = html(app)
-        self.assertIn("No managed vessel is feasible at this lift", body)
+        self.assertIn("No vessel is feasible at this lift", body)
         self.assertIn("Economics hypothetical", body)
         app.radio(key="voyage_filter").set_value("feasible").run()
         self.assertFalse(app.exception)
-        self.assertTrue(any("No managed vessel passes" in c.value for c in app.caption))
+        self.assertTrue(any("No vessel passes" in c.value for c in app.caption))
 
 
 class SearchTests(unittest.TestCase):
     def test_search_matches_every_word_across_fields(self):
         from voyage.search import search
         labels = lambda q: [r["id"] for r in search(q)]
-        self.assertEqual(labels("brazil"), ["BRIGI", "CC-03"])
+        self.assertEqual(labels("brazil"), ["BRIGI", "BRPDM", "BRTUB", "CC-03", "MC-02", "MC-08"])
         self.assertEqual(labels("cc-02"), ["CC-02"])
         self.assertEqual(labels("principal-03"), ["CC-03"])  # charterer is searchable, not shown
-        self.assertEqual(labels("hedland ore"), ["AUPHE", "CC-02"])
+        self.assertEqual(labels("hedland ore"), ["AUPHE", "CC-02", "MC-07"])
         self.assertEqual(labels("zzz"), [])
-        self.assertEqual(len(search("")), 6)
+        self.assertEqual(len(search("")), 20)  # 9 load ports, 3 committed and 8 market cargoes
 
     def test_pick_port_with_one_cargo_selects_it_at_nominal_lift(self):
         app = open_voyages()
-        app.selectbox(key="voyage_search").set_value("port:AUPHE").run()
+        app.selectbox(key="voyage_search").set_value("port:BRIGI").run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state.selected_cargo, "CC-02")
-        self.assertEqual(app.session_state.selected_lift, 164000)
-        self.assertEqual(app.selectbox(key="voyage_search").value, "port:AUPHE")
-        self.assertIn("$186,749", html(app))
+        self.assertEqual(app.session_state.selected_cargo, "CC-03")
+        self.assertEqual(app.session_state.selected_lift, 177000)
+        self.assertEqual(app.selectbox(key="voyage_search").value, "port:BRIGI")
 
     def test_free_text_search_lists_results_and_opens_one(self):
         app = open_voyages()
@@ -98,8 +99,9 @@ class SearchTests(unittest.TestCase):
         app.run()
         self.assertFalse(app.exception)
         self.assertIn('Results for &quot;iron&quot;', html(app))
+        from voyage.search import search
         self.assertEqual(sorted(b.key for b in app.button if b.key and b.key.startswith("open_")),
-                         ["open_cargo_CC-02", "open_cargo_CC-03", "open_port_AUPHE", "open_port_BRIGI"])
+                         sorted(f'open_{r["kind"]}_{r["id"]}' for r in search("iron")))
         app.button(key="open_cargo_CC-03").click().run()
         self.assertEqual((app.session_state.selected_cargo, app.session_state.selected_lift), ("CC-03", 177000))
         self.assertIsNone(app.session_state.voyage_query)
@@ -138,15 +140,15 @@ class SearchTests(unittest.TestCase):
             self.assertIsNone(app.session_state.selected_cargo)
             self.assertIn("Open cargoes at Port Hedland", html(app))
             self.assertEqual(sorted(b.key for b in app.button if b.key and b.key.startswith("open_")),
-                             ["open_cargo_CC-02", "open_cargo_CC-09"])
+                             ["open_cargo_CC-02", "open_cargo_CC-09", "open_cargo_MC-07"])
 
     def test_map_shows_top_three_plus_a_lower_selected_vessel(self):
         app = open_voyages()
         app.selectbox(key="voyage_search").set_value("cargo:CC-02").run()
-        self.assertIn("top 3 of 4 on map", html(app))
+        self.assertIn("top 3 of 15 on map", html(app))
         app.button(key="pick_MF-03").click().run()
         self.assertFalse(app.exception)
-        self.assertNotIn("on map", html(app))
+        self.assertIn("Focused: MF-03 · top 3 of 15 on map", html(app))  # the picked vessel is drawn as well
 
     def test_top_bar_cargo_change_ends_a_search(self):
         app = open_voyages()

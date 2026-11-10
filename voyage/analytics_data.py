@@ -1,4 +1,4 @@
-"""Analytics dataset: every managed vessel against every committed cargo, from the voyage engine.
+"""Analytics dataset: every managed vessel against every cargo, committed and market, from the voyage engine.
 
 All numbers are engine rows (cached in voyage.plan), never estimates. A "lift basis" decides
 which tonnage each pairing is evaluated at:
@@ -10,6 +10,7 @@ which tonnage each pairing is evaluated at:
 from functools import lru_cache
 
 from voyage.data import load_tables
+from voyage.market import all_cargoes
 from voyage.plan import _row, best_voyage
 
 BASES = {"best": "Best feasible lift", "nominal": "Contract quantity", "min": "Contract minimum", "max": "Contract maximum"}
@@ -21,6 +22,11 @@ def vessel_ids():
 
 
 def cargo_ids():
+    tables = load_tables()
+    return [c["cargo_id"] for c in tables["committed_cargoes"] + tables["market_cargoes"]]
+
+
+def committed_ids():
     return [c["cargo_id"] for c in load_tables()["committed_cargoes"]]
 
 
@@ -29,7 +35,7 @@ def periods():
 
 
 def _cargo(cargo_id):
-    return next(c for c in load_tables()["committed_cargoes"] if c["cargo_id"] == cargo_id)
+    return all_cargoes()[cargo_id]
 
 
 def pairing(vessel_id, cargo_id, period, basis="best"):

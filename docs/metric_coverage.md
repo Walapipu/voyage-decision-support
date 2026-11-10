@@ -31,10 +31,10 @@ The five reference KPI slots are retained. Unsupported operational metrics are s
 | Laycan slack and pass/fail checks | Visible. Negative slack is infeasible; no “optimal route” claim. |
 | Selected lift versus permitted range, DWT and draft restrictions | Lift range, estimated draft and draft headroom shown; full deadweight/quantity checks in engine output. All four constraints feed feasibility. |
 | Transparent pricing month, speed and TCE conventions | Visible selection controls, source results, Settings, methodology export. |
-| Market vessel/cargo comparison and missing commercial inputs | Data visible; 11 hire offers and 8 freight quotes still required. Economics for market alternatives not implemented. |
+| Market vessel/cargo comparison and missing commercial inputs | Hire offers and freight quotes are stated assumptions derived from the pack's FFA references; see Market rate assumptions. |
 | Bunker-price and port-delay sensitivity | Analytics and chat can rank by stressed contribution using a defined bunker-price, port-charge and load-port delay case. |
 | Threshold where a recommendation switches | Pending. |
-| Fleet allocation/employment recommendation | Not yet implemented. Current ranking covers one committed cargo with either a selected lift or a search over contractual tolerance. |
+| Fleet allocation/employment recommendation | Overview plan allocates the four owned vessels across committed and market cargoes and charters in market vessels where that covers a committed cargo more profitably. The Alternatives panel prices dropping each pairing, swapping two owned vessels and every other use of a focused vessel or cargo. |
 | Export results | Comparison CSV and methodology downloads available in Reports. |
 
 Break-even or target-TCE freight estimates, interactive sliders and portfolio optimisation algorithms are optional extensions in the brief. They should not displace the required scenario/threshold work.

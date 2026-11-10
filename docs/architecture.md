@@ -59,7 +59,7 @@ Every chat request first passes a separate relevance check, with recent conversa
 
 ## Next additions
 
-Market quote inputs, recommendation-switch thresholds, and fleet allocation on a common horizon.
+Recommendation-switch thresholds, and fleet allocation on a common time horizon.
 
 The free router may select different models/providers per call. Evaluate and pin a free tool-capable model before demonstration. Native tool support is requested; unavailable providers produce a visible error. A model can still omit tools or answer inaccurately, so numeric evidence is displayed separately and AI prose requires review. This is not a guarantee against hallucinations.
 

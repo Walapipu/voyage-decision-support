@@ -143,3 +143,17 @@ def quote_table():
              "vs C3": f'{q["rate_usd_per_tonne"] / q["c3_usd_per_tonne"]:.2f}×',
              "vs C5": f'{q["rate_usd_per_tonne"] / q["c5_usd_per_tonne"]:.2f}×'} for cid, q in market_rates()["quotes"].items()]
 
+
+
+@lru_cache(maxsize=1)
+def all_vessels():
+    """Managed and market vessels by id; market rows carry the assumed hire."""
+    tables = load_tables()
+    return index(tables["managed_vessels"] + [priced_vessel(v) for v in tables["market_vessels"]], "vessel_id")
+
+
+@lru_cache(maxsize=1)
+def all_cargoes():
+    """Committed and market cargoes by id; market rows carry the assumed freight."""
+    tables = load_tables()
+    return index(tables["committed_cargoes"] + [priced_cargo(c) for c in tables["market_cargoes"]], "cargo_id")

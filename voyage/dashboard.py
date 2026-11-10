@@ -70,8 +70,9 @@ def select_vessel(vessel_id):
 def voyage_summary(case, compact=False):
     r, v, c = case["row"], case["vessel"], case["cargo"]
     best = next((x for x in case["comparison"]["rows"] if x["feasible"]), None)
-    verdict = f'Highest contribution at this lift: <b>{e(best["vessel_id"])}</b>.' if best else "No managed vessel is feasible at this lift."
-    st.html(f'<div class="callout"><b>{e(v["vessel_id"])} / {e(c["cargo_id"])}</b> · {r["selected_lift_tonnes"]:,.0f} tonnes<br>{verdict} {case["feasible_count"]}/4 managed vessels pass all checks. This compares one cargo, not a fleet allocation.</div>')
+    verdict = f'Highest contribution at this lift: <b>{e(best["vessel_id"])}</b>.' if best else "No vessel is feasible at this lift."
+    pool = len(case["comparison"]["rows"])
+    st.html(f'<div class="callout"><b>{e(v["vessel_id"])} / {e(c["cargo_id"])}</b> · {r["selected_lift_tonnes"]:,.0f} tonnes<br>{verdict} {case["feasible_count"]} of {pool} vessels pass all checks. This compares one cargo; the Overview plan allocates the fleet.</div>')
     if not r["feasible"]:
         st.warning("Selected voyage is infeasible: " + ", ".join(r["failed_checks"]) + ". Its economics are hypothetical, not a recommendation.")
     if not r["fuel_pass"]:
@@ -111,7 +112,7 @@ def voyage_summary(case, compact=False):
 
 def comparison_table(case, compact=False):
     if not compact:
-        heading("Managed vessel comparison", "Feasible first · contribution ranking")
+        heading("Vessel comparison", "Feasible first · contribution ranking")
     body = ""
     for r in case["comparison"]["rows"]:
         body += f'<tr class="{"selected" if r["vessel_id"] == case["vessel"]["vessel_id"] else ""}"><td><b>{e(r["vessel_id"])}</b></td><td><span class="tag {"good" if r["feasible"] else "bad"}">{"Feasible" if r["feasible"] else e(", ".join(r["failed_checks"]))}</span></td><td class="num">{r["voyage_days"]:.2f}</td><td class="num">{usd(r["tce_usd_per_day"])}</td><td class="num">{usd(r["voyage_contribution_usd"])}</td></tr>'
@@ -152,12 +153,12 @@ def laycan_track(case):
     order = [i for i in range(len(stops)) if i != 1] + [1]
     ticks = "".join(f'<i class="tick{" arrival" if i == 1 else ""}" style="left:{at(stops[i]):.2f}%"></i>' for i in order)
     return (f'<div class="laycan-track {"late" if slack < 0 else ""}" role="img" aria-label="Laycan {e(window)}; load arrival {e(stamp(case["timeline"][1]["time"]))}; {slack:.1f} days to laycan close">'
-            f'<span class="laycan-band" style="left:{left:.2f}%;width:{max(right - left, 0.6):.2f}%"><em class="{edge}">Laycan {e(window)} · {slack:.1f} d slack</em></span>'
+            f'<span class="laycan-band" style="left:{left:.2f}%;width:{max(right - left, 0.6):.2f}%"><em class="{edge}">Laycan {e(window)} · {slack:.1f} days slack</em></span>'
             f'{ticks}</div>')
 
 
 def requirements_notice():
-    st.html('<div class="gap-note"><b>Analysis coverage</b> · managed vessels and committed cargoes. Stress rankings use the stated scenario. Market quotes and fleet allocation are outside this comparison.</div>')
+    st.html('<div class="gap-note"><b>Analysis coverage</b> · managed vessels for any cargo, plus chartered-in market vessels for committed cargoes. Market hire and freight are stated assumptions. Stress rankings use the stated scenario. Fleet allocation is on the Overview.</div>')
 
 
 def result_frame(case):

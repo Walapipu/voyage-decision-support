@@ -12,7 +12,7 @@ class DashboardTests(unittest.TestCase):
         start = datetime.fromisoformat(case["timeline"][0]["time"])
         finish = datetime.fromisoformat(case["timeline"][-1]["time"])
         self.assertAlmostEqual((finish-start).total_seconds()/86400, r["voyage_days"], places=7)
-        self.assertEqual(case["feasible_count"], 2)
+        self.assertEqual(case["feasible_count"], 7)  # MF-01, MF-02 and five chartered market vessels
         self.assertEqual(r["fuel_status"], "covered by planning-purchase assumption")
         self.assertLess(datetime.fromisoformat(case["discharge_eta"]), finish)
 

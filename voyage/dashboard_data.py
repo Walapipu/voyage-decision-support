@@ -3,15 +3,16 @@ from datetime import datetime, timedelta
 
 from voyage.data import index, load_tables
 from voyage.decision import compare_vessels
+from voyage.market import all_cargoes, all_vessels
 
 
 def dashboard_case(cargo_id, lift, period, vessel_id, *, objective="contribution"):
     tables = load_tables()
-    comparison = compare_vessels(cargo_id, lift, period, objective=objective)
+    comparison = compare_vessels(cargo_id, lift, period, objective=objective, include_market=True)
     row = next((r for r in comparison["rows"] if r["vessel_id"] == vessel_id), comparison["rows"][0])
     vessel_id = row["vessel_id"]
-    vessel = index(tables["managed_vessels"], "vessel_id")[vessel_id]
-    cargo = index(tables["committed_cargoes"], "cargo_id")[cargo_id]
+    vessel = all_vessels()[vessel_id]
+    cargo = all_cargoes()[cargo_id]
     ports = index(tables["ports"], "port_code")
     start = datetime.fromisoformat(vessel["available_from_utc"].replace("Z", "+00:00"))
     stages = [("Available", 0, ports[vessel["current_port"]]["port_name"]),
@@ -64,12 +65,14 @@ def _reference_period(period, available):
 
 
 def candidates_case(cargo_id, lift, period):
-    """All managed vessels evaluated for one cargo and lift, plus display context."""
+    """Every vessel that may carry one cargo at one lift, plus display context.
+
+    Managed vessels always; chartered-in market vessels too when the cargo is committed."""
     tables = load_tables()
-    comparison = compare_vessels(cargo_id, lift, period)
+    comparison = compare_vessels(cargo_id, lift, period, include_market=True)
     rows = comparison["rows"]
     period = rows[0]["bunker_price_period"]
-    cargo = index(tables["committed_cargoes"], "cargo_id")[cargo_id]
+    cargo = all_cargoes()[cargo_id]
     ports = index(tables["ports"], "port_code")
     location = ports[cargo["load_port"]]["bunker_pricing_location"]
     prices = {r["fuel_grade"]: float(r["price_usd_per_tonne"]) for r in tables["bunker_forward_curve"]
@@ -88,7 +91,7 @@ def candidates_case(cargo_id, lift, period):
         if ref:
             baltic = {"route": route, "name": name, "period": ref, "usd_per_tonne": float(ffa[ref]["reference_value"])}
     return {"rows": rows, "cargo": cargo, "ports": ports, "conventions": comparison["conventions"],
-            "vessels": index(tables["managed_vessels"], "vessel_id"),
+            "vessels": all_vessels(),
             "best": feasible[0] if feasible else None, "feasible_count": len(feasible),
             "lead": lead, "baltic": baltic, "bunker_prices": prices, "pricing_location": location,
             "period": period, "lift": float(lift)}

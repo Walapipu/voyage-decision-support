@@ -172,7 +172,9 @@ class UITests(unittest.TestCase):
     def test_plan_row_selection_and_all_workspace_pages(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
         app.button(key="plan_pick_MF-01").click().run()
+        self.assertEqual(app.session_state.plan_focus[0], "MF-01")
         next(r for r in app.radio if r.label == "Navigation").set_value("Voyages").run()
+        app.selectbox(key="selected_vessel").set_value("MF-01").run()
         self.assertEqual(app.selectbox(key="selected_vessel").value, "MF-01")
         for page in ["AI Assistant", "Voyages", "Fleet", "Freight", "Ports", "Analytics", "Reports", "Documents", "Settings"]:
             next(r for r in app.radio if r.label == "Navigation").set_value(page).run()

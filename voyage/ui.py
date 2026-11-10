@@ -43,7 +43,7 @@ def compact_evidence(output, key):
             f'<tr class="{"lead" if row is lead and eligible else ""}"><td><b>{escape(row["vessel_id"])}</b>'
             f'<small>{row["selected_lift_tonnes"]:,.0f} t</small></td>'
             f'<td class="num {"neg" if row[metric] < 0 else ""}">&#36;{row[metric]:,.0f}</td>'
-            f'<td class="num">{row["laycan_slack_days"]:.1f} d</td><td>{escape(note)}</td></tr>'
+            f'<td class="num">{row["laycan_slack_days"]:.1f} days</td><td>{escape(note)}</td></tr>'
         )
     st.html(f'<table class="answer-table"><thead><tr><th>Vessel</th><th class="num">{escape(label)}</th>'
             f'<th class="num">Slack</th><th>Note</th></tr></thead><tbody>{"".join(body)}</tbody></table>')
@@ -60,7 +60,7 @@ def pairing_evidence(output, key):
         f'<tr class="{"lead" if r is lead else ""}"><td><b>{escape(r["vessel_id"])}</b></td><td>{escape(r["cargo_id"])}<small>{r["selected_lift_tonnes"]:,.0f} t</small></td>'
         f'<td class="num {"neg" if r["tce_usd_per_day"] < 0 else ""}">${r["tce_usd_per_day"]:,.0f}</td>'
         f'<td class="num {"neg" if r["voyage_contribution_usd"] < 0 else ""}">${r["voyage_contribution_usd"]:,.0f}</td>'
-        f'<td class="num">{r["laycan_slack_days"]:.1f} d</td>'
+        f'<td class="num">{r["laycan_slack_days"]:.1f} days</td>'
         f'<td>{"best" if r is lead else "feasible" if r["feasible"] else escape(", ".join(r["failed_checks"]))}</td></tr>'
         for r in rows)
     st.html(f'<table class="answer-table"><thead><tr><th>Vessel</th><th>Cargo</th><th class="num">TCE/day</th>'

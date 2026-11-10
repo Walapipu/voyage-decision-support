@@ -221,7 +221,7 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 
 /* Plan table: one grid shared by header and rows; each row has a full-size button underneath */
 .plan-grid{display:grid;grid-template-columns:52px 44px minmax(0,1fr) 72px 92px 104px;gap:12px;align-items:center;padding:0 8px;}
-.plan-head{padding-block:6px;background:var(--field);border-radius:var(--r-sm);font-size:11px;font-weight:500;color:var(--muted);}
+.plan-head{padding-block:4px;font-size:11px;font-weight:500;color:var(--muted);}
 .st-key-plan_panel>[data-testid="stLayoutWrapper"]:has(>.st-key-plan_scroll){flex:1 1 0!important;min-height:0!important;}
 .st-key-plan_scroll{height:100%;min-height:0;overflow:auto;gap:0!important;scrollbar-width:thin;}
 [class*="st-key-plan_row_"]{position:relative;gap:0!important;}
@@ -260,7 +260,7 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .st-key-timeline_panel_home [data-testid="stElementContainer"]:has(.tl),.st-key-availability_panel [data-testid="stElementContainer"]:has(.avail){flex:1 1 0!important;min-height:0!important;}
 .st-key-timeline_panel_home [data-testid="stHtml"]:has(.tl),.st-key-availability_panel [data-testid="stHtml"]:has(.avail){height:100%;}
 .tl{display:flex;flex-direction:column;height:100%;min-height:0;}
-.tl-axis,.tl-row{display:grid;grid-template-columns:112px minmax(0,1fr) 48px;gap:12px;align-items:center;padding:0 8px;}
+.tl-axis,.tl-row{display:grid;grid-template-columns:112px minmax(0,1fr) 72px;gap:12px;align-items:center;padding:0 8px;}
 .tl-axis{padding-block:4px;font-size:11px;color:var(--muted);}
 .tl-axis b,.tl-axis em{font-weight:500;font-style:normal;}
 .tl-axis em,.tl-row em{text-align:right;}
@@ -667,3 +667,38 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 .st-key-an_filters>div:has(>.st-key-an_report){margin-left:auto;}
 .st-key-an_report button:disabled,.st-key-an_report button:disabled:hover{background:var(--panel)!important;border-color:var(--line)!important;color:var(--muted)!important;cursor:not-allowed;opacity:.7;}
 .st-key-an_report button:disabled p,.st-key-an_report button:disabled svg{color:var(--muted)!important;}
+
+/* ---------- Overview: hired and spot markers, Alternatives panel ---------- */
+.plan-row .cell{display:flex;flex-direction:column;min-width:0;line-height:1.35;}
+.plan-row .cell small{font-size:11px;font-weight:400;line-height:1.3;color:var(--muted);}
+.st-key-plan_panel>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;align-items:center;gap:12px!important;}
+.st-key-plan_panel>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]:not(:last-child){flex:0 0 auto!important;width:auto!important;min-width:0!important;}
+.st-key-plan_panel>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]:last-child{flex:1 1 0!important;min-width:0!important;}
+.st-key-plan_panel .plan-note{justify-content:flex-end;}
+.st-key-plan_panel [data-testid="stButtonGroup"]{gap:0;}
+.st-key-plan_panel [data-testid="stButtonGroup"] button{min-height:28px!important;height:28px;padding:0 10px!important;background:transparent!important;border-color:var(--linestrong)!important;color:var(--text2)!important;transition:background-color 150ms var(--ease),color 150ms var(--ease);}
+.st-key-plan_panel [data-testid="stButtonGroup"] button p{font-size:12px;}
+.st-key-plan_panel [data-testid="stButtonGroup"] button:hover{color:var(--text)!important;}
+.st-key-plan_panel [data-testid="stButtonGroup"] button[aria-checked="true"]{background:var(--field)!important;color:var(--text)!important;}
+.st-key-plan_panel>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]:last-child>[data-testid="stVerticalBlock"]{align-items:flex-end;}
+.st-key-alt_clear{width:auto!important;margin-left:auto;}
+.st-key-alt_clear button{min-height:28px!important;padding:0 4px!important;background:transparent!important;border:0!important;box-shadow:none!important;color:var(--text2)!important;transition:color 150ms var(--ease);}
+.st-key-alt_clear button p{font-size:12px;}
+.st-key-alt_clear button:hover{color:var(--text)!important;}
+.st-key-alt_clear button:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+.st-key-plan_panel>[data-testid="stLayoutWrapper"]:has(>.st-key-alt_scroll){flex:1 1 0!important;min-height:0!important;}
+.st-key-alt_scroll{height:100%;min-height:0;overflow:auto;gap:0!important;scrollbar-width:thin;}
+.st-key-alt_scroll .avail{height:auto;overflow:visible;}
+[class*="st-key-plan_row_alt_"] .avail ol.alts li{padding-inline:8px;transition:background-color 150ms var(--ease);}
+[class*="st-key-plan_row_alt_"]:hover .avail ol.alts li{background:var(--field);}
+.alts-view ol.alts li{grid-template-columns:132px minmax(0,1fr) 88px;}
+.avail h4.first{margin-top:0;}
+.avail ol.alts li{grid-template-columns:minmax(0,auto) minmax(0,1fr) auto;gap:4px 12px;align-items:baseline;}
+.avail ol.alts li b{white-space:nowrap;}
+.avail ol.alts li span{color:var(--muted);min-width:0;overflow-wrap:anywhere;}
+.avail ol.alts li em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--text);white-space:nowrap;text-align:right;}
+.avail ol.alts li em.bad{color:var(--red);}
+.avail ol.alts li.off b,.avail ol.alts li.off em{color:var(--muted);}
+.avail ol.alts li.note{grid-template-columns:1fr;}
+.avail p.foot{margin-top:8px;font-size:11px;}
+@media(max-width:1250px){.tl-axis span.mid{display:none;}}

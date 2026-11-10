@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from voyage import engine
 from voyage.data import index
+from voyage.market import all_cargoes
 from voyage.engine import calculate, calculate_from_tables, VoyageScenario
 from voyage.policy import load_policy, conventions
 
@@ -129,8 +130,12 @@ def ranking_evidence(ranked, objective, objective_winners):
 
 
 def compare_vessels(cargo_id, lift_tonnes=None, period=None, policy=None, *,
-                    objective="contribution", speeds=("economical",), stress=None, vessel_ids=None):
-    """Rank each vessel's best eligible candidate, keeping exclusions visible."""
+                    objective="contribution", speeds=("economical",), stress=None, vessel_ids=None,
+                    include_market=False):
+    """Rank each vessel's best eligible candidate, keeping exclusions visible.
+
+    Managed vessels are always candidates. include_market adds the chartered-in market vessels,
+    at their assumed hire, for a committed cargo (market vessels are not hired for market cargoes)."""
     if objective not in OBJECTIVES:
         raise ValueError("Choose contribution, tce or stress_contribution.")
     if not speeds:
@@ -138,13 +143,17 @@ def compare_vessels(cargo_id, lift_tonnes=None, period=None, policy=None, *,
     stress = stress if stress is not None else DEFAULT_STRESS
     policy = policy or load_policy()
     tables = engine.load_tables()
-    cargo = index(tables["committed_cargoes"], "cargo_id").get(cargo_id)
+    cargo = all_cargoes().get(cargo_id)
     if cargo is None:
-        raise ValueError("Choose committed cargo CC-01 to CC-03.")
+        raise ValueError("Choose a cargo CC-01 to CC-03 or MC-01 to MC-08.")
     grid = [lift_tonnes] if lift_tonnes is not None else quantity_grid(cargo)
-    vessels = [v for v in tables["managed_vessels"] if vessel_ids is None or v["vessel_id"] in vessel_ids]
+    pool = tables["managed_vessels"] + tables["market_vessels"]
+    if vessel_ids is None:
+        hired = include_market and cargo_id in {c["cargo_id"] for c in tables["committed_cargoes"]}
+        pool = tables["managed_vessels"] + (tables["market_vessels"] if hired else [])
+    vessels = [v for v in pool if vessel_ids is None or v["vessel_id"] in vessel_ids]
     if not vessels:
-        raise ValueError("Select at least one managed vessel.")
+        raise ValueError("Select at least one vessel.")
     candidates = []
     for vessel in vessels:
         for speed in speeds:
@@ -191,8 +200,8 @@ def compare_vessels(cargo_id, lift_tonnes=None, period=None, policy=None, *,
         best.setdefault(row["vessel_id"], row)
     rows = list(best.values())
     ranked = [row for row in rows if row["ranking_eligible"]]
-    scope = ("One committed cargo at the requested lift." if lift_tonnes is not None else
-             "One committed cargo with a 1,000 t search grid plus contractual endpoints, nominal lift and freight threshold.")
+    scope = ("One cargo at the requested lift." if lift_tonnes is not None else
+             "One cargo with a 1,000 t search grid plus contractual endpoints, nominal lift and freight threshold.")
     return {
         "rows": rows, "conventions": dict(conventions(policy), speed=", ".join(dict.fromkeys(speeds))), "scope": scope,
         "ranking": ranking_evidence(ranked, objective, objective_winners),

@@ -68,7 +68,7 @@ def _hover(row):
     return (f"<b>{label(row)}</b> · {row['selected_lift_tonnes']:,.0f} t<br>{status}<br>"
             f"Contribution ${row['voyage_contribution_usd']:,.0f}" + (f" ({m:.1f}%)" if m is not None else "") +
             f"<br>TCE ${row['tce_usd_per_day']:,.0f}/day · {row['voyage_days']:.1f} days"
-            f"<br>Laycan slack {row['laycan_slack_days']:+.1f} d · draft headroom {row['limiting_draft_margin_m']:.3f} m")
+            f"<br>Laycan slack {row['laycan_slack_days']:+.1f} days · draft headroom {row['limiting_draft_margin_m']:.3f} m")
 
 
 def _mix(a, b, t):
@@ -138,6 +138,9 @@ def heatmap(rows, vessels, cargoes, focus, dark):
     scale = DIVERGING[dark] if diverging else SEQ[dark]
     span = max(abs(low), abs(high)) if diverging else None
     z, text, hover = [], [], []
+    # Beyond three cargo columns a cell is too narrow for two lines: show the contribution
+    # alone and mark a failed cell with a cross; the hover still names every figure and check.
+    compact = len(cargoes) > 3
     fig = go.Figure()
     for v in vessels:
         z.append([]), text.append([]), hover.append([])
@@ -153,13 +156,14 @@ def heatmap(rows, vessels, cargoes, focus, dark):
                     (r["voyage_contribution_usd"] - low) / (high - low) if high > low else .6)
                 rgb = _ramp_rgb(scale, t)
                 colour = "#0b0b0b" if _luma(rgb) > .32 else "#ffffff"
-                note = f'<b>{short(r["voyage_contribution_usd"])}</b><br>{short(r["tce_usd_per_day"])}/day · {r["selected_lift_tonnes"] / 1e3:,.1f}k t'
+                note = (f'<b>{short(r["voyage_contribution_usd"])}</b>' if compact else
+                        f'<b>{short(r["voyage_contribution_usd"])}</b><br>{short(r["tce_usd_per_day"])}/day · {r["selected_lift_tonnes"] / 1e3:,.1f}k t')
             else:
                 colour = c["muted"]
                 # Two checks per line, so long failure lists stay inside their own cell.
                 names = [CHECKS.get(k, k) for k in r["failed_checks"]]
-                note = "✕ " + "<br>".join(", ".join(names[i:i + 2]) for i in range(0, len(names), 2))
-            fig.add_annotation(x=cg, y=v, text=note, showarrow=False, font=dict(size=11, color=colour))
+                note = "✕" if compact else "✕ " + "<br>".join(", ".join(names[i:i + 2]) for i in range(0, len(names), 2))
+            fig.add_annotation(x=cg, y=v, text=note, showarrow=False, font=dict(size=10 if compact else 11, color=colour))
     fig.add_trace(go.Heatmap(z=z, x=cargoes, y=vessels, customdata=hover, hovertemplate="%{customdata}<extra></extra>",
                              colorscale=[[i / (len(scale) - 1), h] for i, h in enumerate(scale)],
                              zmid=0 if diverging else None, zmin=None if diverging else low, zmax=None if diverging else high,
@@ -272,8 +276,8 @@ def stages(rows, dark):
     for (name, key) in STAGES.items():
         fig.add_trace(go.Bar(y=y, x=[r[key] for r in rows], name=name, orientation="h",
                              marker=dict(color=STAGE_COLOURS[name], line=dict(color=c["surface"], width=2)),
-                             hovertemplate=name + " %{x:.1f} d<extra>%{y}</extra>"))
-    fig.add_trace(go.Scatter(y=y, x=[r["voyage_days"] for r in rows], mode="text", text=[f'{r["voyage_days"]:.1f} d' for r in rows],
+                             hovertemplate=name + " %{x:.1f} days<extra>%{y}</extra>"))
+    fig.add_trace(go.Scatter(y=y, x=[r["voyage_days"] for r in rows], mode="text", text=[f'{r["voyage_days"]:.1f} days' for r in rows],
                              textposition="middle right", textfont=dict(size=11, color=c["text2"]), hoverinfo="skip", showlegend=False, name=""))
     style(fig, dark, max(220, 40 * len(rows) + 90))
     fig.update_layout(barmode="stack", showlegend=True, bargap=.35, margin=dict(l=8, r=12, t=30, b=8),

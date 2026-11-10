@@ -51,14 +51,14 @@ def selection_from_prompt(text, state):
 
     tables = load_tables()
     lowered = text.lower()
-    cargoes = {c["cargo_id"]: c for c in tables["committed_cargoes"]}
-    vessels = {v["vessel_id"] for v in tables["managed_vessels"]}
+    cargoes = {c["cargo_id"]: c for c in tables["committed_cargoes"] + tables["market_cargoes"]}
+    vessels = {v["vessel_id"] for v in tables["managed_vessels"] + tables["market_vessels"]}
     periods = {r["period"] for r in tables["bunker_forward_curve"]}
     found = {}
-    if match := re.search(r"\bcc[\s-]?0*(\d{1,2})\b", lowered):
-        found["selected_cargo"] = f"CC-{int(match[1]):02d}"
-    if match := re.search(r"\bmf[\s-]?0*(\d{1,2})\b", lowered):
-        found["selected_vessel"] = f"MF-{int(match[1]):02d}"
+    if match := re.search(r"\b(cc|mc)[\s-]?0*(\d{1,2})\b", lowered):
+        found["selected_cargo"] = f"{match[1].upper()}-{int(match[2]):02d}"
+    if match := re.search(r"\b(mf|mv)[\s-]?0*(\d{1,2})\b", lowered):
+        found["selected_vessel"] = f"{match[1].upper()}-{int(match[2]):02d}"
     for match in re.finditer(r"(\d[\d,]*(?:\.\d+)?)\s*(k\b|kt\b|thousand\b)?\s*(t\b|mt\b|tonnes?\b|tons?\b)?", lowered):
         if not (match[2] or match[3] or "," in match[1]):
             continue

@@ -6,6 +6,7 @@ Only what the user types is used; a missing lift becomes the cargo's contract (n
 import re
 
 from voyage.analysis import analyst_facts
+from voyage.market import all_cargoes
 from voyage.data import index, load_tables
 from voyage.decision import compare_vessels, evaluate_voyage
 
@@ -25,16 +26,16 @@ def mentions(text):
     """Every vessel and cargo named in the text, plus the first lift and month. Explicit mentions only."""
     tables = load_tables()
     lowered = text.lower()
-    cargo_ids = {c["cargo_id"] for c in tables["committed_cargoes"]}
-    vessel_ids = {v["vessel_id"] for v in tables["managed_vessels"]}
+    cargo_ids = {c["cargo_id"] for c in tables["committed_cargoes"] + tables["market_cargoes"]}
+    vessel_ids = {v["vessel_id"] for v in tables["managed_vessels"] + tables["market_vessels"]}
     periods = {r["period"] for r in tables["bunker_forward_curve"]}
     found = {"vessels": [], "cargoes": [], "lift": None, "period": None}
-    for match in re.finditer(r"\bcc[\s-]?0*(\d{1,2})\b", lowered):
-        cargo = f"CC-{int(match[1]):02d}"
+    for match in re.finditer(r"\b(cc|mc)[\s-]?0*(\d{1,2})\b", lowered):
+        cargo = f"{match[1].upper()}-{int(match[2]):02d}"
         if cargo in cargo_ids and cargo not in found["cargoes"]:
             found["cargoes"].append(cargo)
-    for match in re.finditer(r"\bmf[\s-]?0*(\d{1,2})\b", lowered):
-        vessel = f"MF-{int(match[1]):02d}"
+    for match in re.finditer(r"\b(mf|mv)[\s-]?0*(\d{1,2})\b", lowered):
+        vessel = f"{match[1].upper()}-{int(match[2]):02d}"
         if vessel in vessel_ids and vessel not in found["vessels"]:
             found["vessels"].append(vessel)
     for match in re.finditer(r"(\d[\d,]*(?:\.\d+)?)\s*(k\b|kt\b|thousand\b)?\s*(t\b|mt\b|tonnes?\b|tons?\b)?", lowered):
@@ -57,7 +58,7 @@ def mentions(text):
 
 
 def _nominal(cargo_id):
-    return float(index(load_tables()["committed_cargoes"], "cargo_id")[cargo_id]["nominal_quantity_tonnes"])
+    return float(all_cargoes()[cargo_id]["nominal_quantity_tonnes"])
 
 
 def _money(value):

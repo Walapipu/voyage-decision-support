@@ -4,7 +4,7 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from voyage import analytics_data as data
-from voyage.plan import build_plan
+from voyage.plan import best_voyage, build_plan
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 
@@ -19,12 +19,12 @@ class AnalyticsDataTests(unittest.TestCase):
         self.assertEqual(len(rows), len(data.vessel_ids()) * len(data.cargo_ids()))
 
     def test_best_lift_matches_the_overview_plan(self):
-        plan = build_plan("2026-03")
-        rows = {(r["vessel_id"], r["cargo_id"]): r for r in data.grid("2026-03", "best")}
-        for v in plan["voyages"]:
-            row = rows[(v["vessel_id"], v["cargo_id"])]
-            self.assertTrue(row["feasible"])
-            self.assertEqual(row["selected_lift_tonnes"], v["lift"])
+        build_plan("2026-03")
+        for row in data.grid("2026-03", "best"):
+            planned = best_voyage(row["vessel_id"], row["cargo_id"], "2026-03")
+            if planned is not None:
+                self.assertTrue(row["feasible"])
+                self.assertEqual(row["selected_lift_tonnes"], planned["selected_lift_tonnes"])
 
     def test_contract_basis_uses_the_contract_quantity(self):
         for r in data.grid("2026-03", "nominal", cargoes=["CC-02"]):
@@ -59,7 +59,7 @@ class AnalyticsPageTests(unittest.TestCase):
         app.pills(key="an_show").set_value("Feasible only").run()
         app.segmented_control(key="an_basis").set_value("nominal").run()
         self.assertFalse(app.exception)
-        self.assertIn("2 of 2", html(app))
+        self.assertRegex(html(app), r">(\d+) of \1<")  # every pairing shown passes every check
 
     def test_strip_selection_sets_the_focus(self):
         app = self.open()

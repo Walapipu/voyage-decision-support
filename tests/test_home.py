@@ -47,11 +47,15 @@ class PromptSelectionTests(unittest.TestCase):
 class PlanTests(unittest.TestCase):
     def test_plan_covers_committed_cargoes_with_feasible_engine_voyages(self):
         plan = build_plan("2026-03")
-        cargoes = index(load_tables()["committed_cargoes"], "cargo_id")
+        tables = load_tables()
+        cargoes = index(tables["committed_cargoes"] + tables["market_cargoes"], "cargo_id")
         self.assertEqual(plan["uncovered"], [])
-        self.assertEqual(sorted(v["cargo_id"] for v in plan["voyages"]), ["CC-01", "CC-02", "CC-03"])
+        self.assertTrue({"CC-01", "CC-02", "CC-03"} <= {v["cargo_id"] for v in plan["voyages"]})
         self.assertEqual(len({v["vessel_id"] for v in plan["voyages"]}), len(plan["voyages"]))
+        self.assertEqual(len({v["cargo_id"] for v in plan["voyages"]}), len(plan["voyages"]))
         for v in plan["voyages"]:
+            if not v["owned"]:
+                self.assertTrue(v["cargo_id"].startswith("CC"), "market vessels only cover committed cargoes")
             self.assertTrue(v["row"]["feasible"], v["vessel_id"])
             cargo = cargoes[v["cargo_id"]]
             self.assertLessEqual(float(cargo["minimum_quantity_tonnes"]), v["lift"])
@@ -73,7 +77,8 @@ class OverviewTests(unittest.TestCase):
         plan = build_plan("2026-03")
         body = html(app)
         for text in ("Portfolio contribution", "Avg TCE", "Committed cargoes covered", "Bunker cost", "Tightest laycan slack",
-                     "Fleet timeline", "Next availability", "Chartered redelivery", "Ask Shippy", "Whole plan"):
+                     "Fleet timeline", "Next availability", "Chartered redelivery", "Alternatives",
+                     "Ask Shippy", "Whole plan"):
             self.assertIn(text, body)
         self.assertIn(f'${plan["voyages"][0]["contribution"]:,.0f}', body)
         self.assertIn("data-shippy-open", body)
@@ -84,16 +89,40 @@ class OverviewTests(unittest.TestCase):
         key = f'plan_pick_{voyage["vessel_id"]}'
         app.button(key=key).click().run()
         self.assertFalse(app.exception)
-        self.assertEqual((app.session_state.selected_vessel, app.session_state.selected_cargo, app.session_state.selected_lift),
-                         (voyage["vessel_id"], voyage["cargo_id"], voyage["lift"]))
+        self.assertEqual(app.session_state.plan_focus, (voyage["vessel_id"], voyage["cargo_id"]))
         self.assertEqual(app.session_state.map_view, "Selected")
         body = html(app)
         self.assertIn("plan-row picked", body)
         self.assertIn("tl-row picked", body)
-        self.assertIn(f'{voyage["vessel_id"]} → {voyage["cargo_id"]}</span>', body)
         app.button(key=key).click().run()
-        self.assertIsNone(app.session_state.selected_vessel)
+        self.assertIsNone(app.session_state.plan_focus)
         self.assertIn("Whole plan", html(app))
+
+    def test_every_plan_row_sets_the_top_bar(self):
+        from voyage.overview import focus_row
+        state = {}
+        with patch("voyage.overview.st") as st:
+            st.session_state = type("S", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})(state)
+            focus_row("MF-02", "CC-02", 171200.0)
+            self.assertEqual((st.session_state.selected_vessel, st.session_state.selected_lift), ("MF-02", 171200.0))
+            focus_row("MV-04", "MC-01", 171700.0)
+            self.assertEqual(st.session_state.plan_focus, ("MV-04", "MC-01"))
+            self.assertEqual((st.session_state.selected_vessel, st.session_state.selected_cargo), ("MV-04", "MC-01"))
+
+    def test_alternatives_toggle_and_chartered_redelivery(self):
+        app = AppTest.from_file(APP).run()
+        app.session_state.plan_view = "Alternatives"
+        app.run()
+        self.assertFalse(app.exception)
+        self.assertIn("Cost of dropping each pairing", html(app))
+        app.button(key="alt_pick_MF-03").click().run()
+        self.assertIn("Other uses of MF-03", html(app))
+        app.button(key="alt_clear").click().run()
+        self.assertIsNone(app.session_state.plan_focus)
+        self.assertFalse(app.exception)
+        body = html(app)
+        self.assertIn("Next availability", body)
+        self.assertIn("Chartered redelivery", body)
 
     def test_selection_survives_pages_without_selectors(self):
         app = AppTest.from_file(APP).run()
@@ -110,7 +139,6 @@ class OverviewTests(unittest.TestCase):
             app.chat_input[0].set_value("Compare CC-02 at 164,000 t in Mar 2026").run()
         self.assertFalse(app.exception)
         self.assertEqual((app.session_state.selected_vessel, app.session_state.selected_cargo), ("MF-02", "CC-02"))
-        self.assertIn("plan-row picked", html(app))
 
     def test_suggestion_asks_and_compact_answer_opens_voyages(self):
         from voyage.tools import execute_tool
