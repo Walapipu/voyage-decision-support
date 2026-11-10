@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal as D, InvalidOperation, getcontext
 from voyage.data import load_tables, index
 from voyage.fuel import audit_fuel, plan_fuel
+from voyage.market import priced_cargo, priced_vessel
 from voyage.policy import load_policy
 
 getcontext().prec = 32
@@ -40,10 +41,11 @@ def calculate_from_tables(tables, vessel_id, cargo_id, lift, period, policy, spe
     if speed not in ("economical", "warranted"):
         raise ValueError("Choose economical or warranted speed.")
     assumptions = tables["commercial_assumptions"][0]
-    vessels = index(tables["managed_vessels"], "vessel_id")
-    cargoes = index(tables["committed_cargoes"], "cargo_id")
+    # Market vessels and cargoes carry our stated hire offers and freight quotes (voyage.market).
+    vessels = index(tables["managed_vessels"] + [priced_vessel(v) for v in tables["market_vessels"]], "vessel_id")
+    cargoes = index(tables["committed_cargoes"] + [priced_cargo(c) for c in tables["market_cargoes"]], "cargo_id")
     if vessel_id not in vessels or cargo_id not in cargoes:
-        raise ValueError("Choose MF-01 to MF-04 and CC-01 to CC-03. Market economics need user-supplied quotes and are not enabled yet.")
+        raise ValueError("Choose a vessel MF-01 to MF-04 or MV-01 to MV-11 and a cargo CC-01 to CC-03 or MC-01 to MC-08.")
     try:
         lift = D(str(lift))
     except (InvalidOperation, ValueError):

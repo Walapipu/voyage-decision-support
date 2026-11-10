@@ -41,7 +41,7 @@ class EngineTests(unittest.TestCase):
         self.assertFalse(calculate("MF-01", "CC-01", 178000)["draft_pass"])
 
     def test_missing_quotes_and_invalid_inputs_not_zeroed(self):
-        for args in [("MV-01", "CC-02", 164000), ("MF-01", "MC-01", 164000), ("MF-01", "CC-02", "NaN"), ("MF-01", "CC-02", -1)]:
+        for args in [("MV-99", "CC-02", 164000), ("MF-01", "MC-99", 164000), ("MF-01", "CC-02", "NaN"), ("MF-01", "CC-02", -1)]:
             with self.subTest(args=args), self.assertRaises(ValueError):
                 calculate(*args)
 

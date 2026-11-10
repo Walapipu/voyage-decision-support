@@ -35,6 +35,24 @@ class ChatTests(unittest.TestCase):
         self.assertIn("Fuel replenishment assumed covered", answer["content"])
         self.assertIn("8.557 t short", answer["content"])
 
+    @patch("voyage.chat.load_settings", return_value=("test-secret", "openrouter/free"))
+    def test_cut_off_commentary_does_not_flag_engine_briefing(self, settings):
+        first = response({"role": "assistant", "tool_calls": [{"id": "one", "type": "function", "function": {
+            "name": "compare_vessels", "arguments": '{"cargo_id":"CC-02","lift_tonnes":164000}'}}]})
+        cut = {"model": "test/free", "choices": [{"message": {"role": "assistant", "content": '{"assessment": "MF'}, "finish_reason": "length"}]}
+        with patch("voyage.chat.is_in_scope", return_value=True), patch("voyage.chat.api_request", side_effect=[first, cut]):
+            answer = chat_reply([{"role": "user", "content": "Compare all vessels for CC-02 at 164,000 t by contribution"}])
+        self.assertFalse(answer["truncated"])
+        self.assertIn("could not be verified", answer["notice"])
+        self.assertIn("**Decision.**", answer["content"])
+
+    @patch("voyage.chat.load_settings", return_value=("test-secret", "openrouter/free"))
+    def test_cut_off_plain_answer_is_flagged(self, settings):
+        cut = {"model": "test/free", "choices": [{"message": {"role": "assistant", "content": "TCE is daily"}, "finish_reason": "length"}]}
+        with patch("voyage.chat.is_in_scope", return_value=True), patch("voyage.chat.api_request", side_effect=[cut]):
+            answer = chat_reply([{"role": "user", "content": "What is TCE?"}])
+        self.assertTrue(answer["truncated"])
+
     @patch("voyage.chat.load_settings", return_value=("test-secret", "paid-model"))
     def test_paid_model_blocked_before_network(self, settings):
         with patch("voyage.chat.api_request") as api, self.assertRaises(ValueError):

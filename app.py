@@ -6,6 +6,7 @@ import streamlit as st
 
 from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
+from voyage.market import offer_table, quote_table
 from voyage.dashboard_data import dashboard_case, candidates_case
 from voyage.decision import OBJECTIVES
 from voyage.voyages_view import voyages_page
@@ -288,13 +289,18 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
     elif page in ("Fleet", "Freight", "Ports"):
         heading(page + " data", "Vessels, cargoes and ports")
         table_names = {"Fleet":["managed_vessels","market_vessels"], "Freight":["committed_cargoes","market_cargoes"], "Ports":["ports"]}[page]
-        if page == "Freight":
-            st.info("Market freight rates of zero are unquoted inputs, not free freight. No booking or completion statuses are supplied.")
+        if page in ("Fleet", "Freight"):
+            st.info("Market hire offers and freight quotes are not in the data pack. The assumed values shown are ours, derived from the pack's FFA references; see Documents › Market rate assumptions."
+                    + (" No booking or completion statuses are supplied." if page == "Freight" else ""))
         for name in table_names:
             st.subheader(name.replace("_", " ").title())
             frame = pd.DataFrame(tables[name])
             if name == "market_cargoes":
-                frame["contract_freight_rate_usd_per_tonne"] = "Quote needed"
+                quotes = {q["Cargo"]: q["Assumed freight (USD/t)"] for q in quote_table()}
+                frame["contract_freight_rate_usd_per_tonne"] = frame["cargo_id"].map(lambda c: f"{quotes[c]} (assumed)")
+            if name == "market_vessels":
+                offers = {o["Vessel"]: o["Assumed hire (USD/day)"] for o in offer_table()}
+                frame.insert(1, "assumed_hire_usd_per_day", frame["vessel_id"].map(offers))
             st.html('<div class="table-wrap" style="max-height:550px;overflow:auto">'+frame.to_html(index=False, escape=True, classes="ocean-table", border=0)+'</div>')
 
     elif page == "Reports":
@@ -305,9 +311,15 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
 
     elif page == "Documents":
         heading("Documentation", "Methodology and references")
-        doc = st.selectbox("Document", ["Modelling assumptions", "Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
-        paths = {"Modelling assumptions":"docs/assumptions.md", "Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
+        doc = st.selectbox("Document", ["Modelling assumptions", "Market rate assumptions", "Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
+        paths = {"Modelling assumptions":"docs/assumptions.md", "Market rate assumptions":"docs/market_rates.md", "Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
         st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))
+        if doc == "Market rate assumptions":
+            st.subheader("Market vessel hire offers")
+            st.html('<div class="table-wrap">' + pd.DataFrame(offer_table()).to_html(index=False, escape=True, classes="ocean-table", border=0) + '</div>')
+            st.subheader("Market cargo freight quotes")
+            st.html('<div class="table-wrap">' + pd.DataFrame(quote_table()).to_html(index=False, escape=True, classes="ocean-table", border=0) + '</div>')
+            st.caption("Calculated from the data pack at startup with the parameters in config/market_rates.toml.")
         if doc == 'Modelling assumptions':
             st.write('Active engine policy')
             st.json(conventions(load_policy()))

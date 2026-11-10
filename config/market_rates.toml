@@ -1,0 +1,27 @@
+# Market hire offers and freight quotations. The data pack does not supply these;
+# they are our stated assumptions, derived from the pack's FFA references.
+# Restart the app after editing. See docs/assumptions.md for the reasoning.
+
+# Market vessels: hire offer = 5TC for the delivery month, adjusted for fuel use.
+# A vessel burning less than the pack-average Capesize earns its saving as a
+# premium; one burning more takes a discount. Valued at the SGSIN delivery-month price.
+hire_index = "5TC_USD_PER_DAY"
+hire_fuel_adjustment = true
+hire_rounding_usd = 50
+
+# Market cargoes: quote = the freight that gives a pack-average Capesize a target daily
+# earning (TCE) on a round voyage, in the laycan month. A cargo that runs on an FFA
+# index route targets the TCE that route pays; every other cargo targets 5TC, the
+# market-average Capesize earning. The pack's own FFA values anchor everything.
+quote_rounding_usd = 0.05
+default_tce_index = "5TC_USD_PER_DAY"
+
+[index_routes.C5]
+ffa_route = "C5_USD_PER_TONNE"   # West Australia to Qingdao
+anchor_cargo = "MC-01"           # Dampier to Qingdao: the C5 voyage itself
+cargoes = ["MC-01", "MC-07"]     # Port Hedland to Gwangyang is the same trade
+
+[index_routes.C3]
+ffa_route = "C3_USD_PER_TONNE"   # Tubarao to Qingdao
+anchor_cargo = "MC-02"           # Ponta da Madeira to Caofeidian: Brazil to North China
+cargoes = ["MC-02"]

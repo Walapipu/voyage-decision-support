@@ -65,6 +65,5 @@ def catalog():
         "market_vessels": [r["vessel_id"] for r in tables["market_vessels"]],
         "committed_cargoes": tables["committed_cargoes"],
         "market_cargoes": tables["market_cargoes"],
-        "scope": "Calculations currently support managed vessels and committed cargoes only.",
-        "missing_inputs": "11 market hire offers and 8 market freight quotes must be supplied; zero market freight is a placeholder.",
+        "scope": "The engine prices every vessel and cargo. Market vessel hire and market cargo freight are stated assumptions derived from the pack's FFA references (Documents > Market rate assumptions).",
     }
