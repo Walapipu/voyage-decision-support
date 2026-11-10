@@ -56,7 +56,7 @@ class AnalyticsPageTests(unittest.TestCase):
 
     def test_feasible_only_and_basis_filters(self):
         app = self.open()
-        app.toggle(key="an_feasible").set_value(True).run()
+        app.pills(key="an_show").set_value("Feasible only").run()
         app.segmented_control(key="an_basis").set_value("nominal").run()
         self.assertFalse(app.exception)
         self.assertIn("2 of 2", html(app))

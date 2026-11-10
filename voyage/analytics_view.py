@@ -46,12 +46,20 @@ def _on_pick():
         st.session_state.analytics_focus = tuple(points[0]["customdata"].split("|"))
 
 
-def filters():
+FEASIBLE_ONLY = "Feasible only"
+# Button labels only; charts and notes keep the full wording from data.BASES.
+SHORT_BASES = {"best": "Best feasible", "nominal": "Contract qty", "min": "Contract min", "max": "Contract max"}
+
+
+def filters(report_button):
     with st.container(key="an_filters", horizontal=True, vertical_alignment="bottom", gap="small"):
-        st.segmented_control("Lift basis", list(data.BASES), format_func=data.BASES.get, key="an_basis", default="best", required=True)
+        st.segmented_control("Lift basis", list(data.BASES), format_func=SHORT_BASES.get, key="an_basis", default="best", required=True)
         st.pills("Vessels", data.vessel_ids(), selection_mode="multi", key="an_vessels", default=data.vessel_ids())
         st.pills("Cargoes", data.cargo_ids(), selection_mode="multi", key="an_cargoes", default=data.cargo_ids())
-        st.toggle("Feasible only", key="an_feasible")
+        # A one-option pill rather than a toggle, so it matches the other buttons in size and theme.
+        st.pills("Show", [FEASIBLE_ONLY], selection_mode="single", key="an_show")
+        with st.container(key="an_report"):
+            report_button()
 
 
 def kpis(rows, period):
@@ -128,19 +136,15 @@ def table(rows, period):
 def analytics_page(report_button, ranking_panel):
     state = st.session_state
     period, dark = state.price_period, state.get("dark_mode", True)
-    title, action = st.columns([1, .3], vertical_alignment="center")
-    with title:
-        heading("Fleet analytics", f"Every managed vessel against every committed cargo · {_month(period)} bunker curve · voyage engine")
-    with action:
-        report_button()
-    filters()
+    heading("Fleet analytics", f"Bunkers priced at {_month(period)}" if period else "Bunkers priced at each cargo's laycan month")
+    filters(report_button)
     ranking_panel()
     basis = state.get("an_basis") or "best"
     vessels = state.get("an_vessels") or data.vessel_ids()
     cargoes = state.get("an_cargoes") or data.cargo_ids()
     vessels = [v for v in data.vessel_ids() if v in vessels]
     cargoes = [c for c in data.cargo_ids() if c in cargoes]
-    rows = data.grid(period, basis, vessels, cargoes, state.get("an_feasible", False))
+    rows = data.grid(period, basis, vessels, cargoes, state.get("an_show") == FEASIBLE_ONLY)
     kpis(rows, period)
     if not rows:
         st.info("No pairing matches these filters. Turn off Feasible only, add vessels or cargoes, or switch the lift basis.")

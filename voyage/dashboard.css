@@ -648,13 +648,24 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 .an-facts dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:13px;}
 .an-facts dt{color:var(--muted);}
 .an-facts dd{margin:0;color:var(--text);font-variant-numeric:tabular-nums;}
-.st-key-an_filters [data-testid="stButtonGroup"] button{min-height:30px!important;height:30px;padding:0 12px!important;background:var(--panel)!important;border-color:var(--linestrong)!important;color:var(--text2)!important;}
-.st-key-an_filters [data-testid="stButtonGroup"] button p{font-size:12px;}
-.st-key-an_filters [data-testid="stButtonGroup"] button:hover{color:var(--text)!important;background:var(--field)!important;}
-.st-key-an_filters [data-testid="stButtonGroup"] button[aria-checked="true"]{background:var(--blue)!important;border-color:var(--blue)!important;color:var(--onblue)!important;}
-.st-key-an_filters button[data-variant="pills"]{min-height:30px!important;padding:0 12px!important;background:var(--panel)!important;border:1px solid var(--linestrong)!important;color:var(--muted)!important;}
-.st-key-an_filters button[data-variant="pills"] p{font-family:var(--mono);font-size:12px;}
-.st-key-an_filters button[data-variant="pills"][data-selected="true"]{background:var(--bluewash)!important;border-color:var(--blue)!important;color:var(--text)!important;}
-.st-key-an_feasible label{align-items:center;min-height:30px;}
-.st-key-an_feasible label>div:not([data-testid]){background:var(--raised)!important;border:1px solid var(--linestrong);}
-.st-key-an_feasible label:has(input:checked)>div:not([data-testid]){background:var(--blue)!important;border-color:var(--blue);}
+/* Filter row: one 32px height and 6px radius. The sea-blue accent marks only the lift
+   basis, which changes every figure; vessel, cargo and Show pills select with a neutral
+   surface step so the row does not read as eight highlights. */
+.st-key-an_filters button[data-variant],.st-key-an_report button{min-height:32px!important;height:32px!important;padding:0 12px!important;
+  transition:background-color .15s var(--ease),border-color .15s var(--ease),color .15s var(--ease)!important;}
+.st-key-an_filters button[data-variant] p,.st-key-an_report button p{font-family:inherit!important;font-size:12px!important;font-weight:500;line-height:1;}
+/* Segmented control: one joined group, corners only on its outer ends. */
+.st-key-an_filters button[data-variant="segmented_control"]{border-radius:0!important;background:var(--panel)!important;border-color:var(--linestrong)!important;color:var(--text2)!important;}
+.st-key-an_filters button[data-variant="segmented_control"]:first-of-type{border-radius:6px 0 0 6px!important;}
+.st-key-an_filters button[data-variant="segmented_control"]:last-of-type{border-radius:0 6px 6px 0!important;}
+.st-key-an_filters button[data-variant="segmented_control"]:hover{color:var(--text)!important;background:var(--field)!important;}
+.st-key-an_filters button[data-variant="segmented_control"][aria-checked="true"]{background:var(--blue)!important;border-color:var(--blue)!important;color:var(--onblue)!important;}
+.st-key-an_filters button[data-variant="pills"]{min-width:64px;justify-content:center;border-radius:6px!important;background:transparent!important;border:1px solid var(--linestrong)!important;color:var(--muted)!important;}
+.st-key-an_filters button[data-variant="pills"]:hover{color:var(--text)!important;background:var(--field)!important;}
+.st-key-an_filters button[data-variant="pills"][data-selected="true"]{background:var(--raised)!important;border-color:var(--linestrong)!important;color:var(--text)!important;}
+/* Vessel and cargo codes stay in mono, as in the charts and table. */
+.st-key-an_filters .st-key-an_vessels button[data-variant] p,.st-key-an_filters .st-key-an_cargoes button[data-variant] p{font-family:var(--mono)!important;}
+.st-key-an_report button{border-radius:6px!important;}
+.st-key-an_filters>div:has(>.st-key-an_report){margin-left:auto;}
+.st-key-an_report button:disabled,.st-key-an_report button:disabled:hover{background:var(--panel)!important;border-color:var(--line)!important;color:var(--muted)!important;cursor:not-allowed;opacity:.7;}
+.st-key-an_report button:disabled p,.st-key-an_report button:disabled svg{color:var(--muted)!important;}

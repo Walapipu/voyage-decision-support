@@ -185,7 +185,7 @@ def selection_controls():
             st.number_input("Selected lift (tonnes)", min_value=0.0, max_value=1000000.0, value=None, step=500.0, format="%.12g", key="selected_lift", label_visibility="collapsed", placeholder="Lift, tonnes")
         with period_col:
             st.selectbox("Bunker price month", [None] + sorted({r["period"] for r in tables["bunker_forward_curve"]}),
-                         format_func=lambda month: month or "Laycan month", key="price_period", label_visibility="collapsed")
+                         format_func=lambda month: month or "Laycan month", key="price_period", label_visibility="collapsed", placeholder="Date")
 
 
 if page not in ("Overview", "AI Assistant"):
