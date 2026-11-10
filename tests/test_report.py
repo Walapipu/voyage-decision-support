@@ -37,10 +37,11 @@ class ReportTests(unittest.TestCase):
     def test_all_excluded_options_are_not_recommended(self):
         case = copy.deepcopy(self.case)
         for row in case['comparison']['rows']:
-            row['feasible'] = False
+            row['feasible'] = row['ranking_eligible'] = False
             row['failed_checks'] = ['laycan']
+        case['comparison']['ranking']['winner'] = None
         report = analytics_report(case)
-        self.assertIn('No feasible options; cost figures below are hypothetical', report)
+        self.assertIn('No eligible options for this objective. Cost figures below are hypothetical.', report)
         self.assertIn('Excluded: laycan', report)
         self.assertNotIn('<h2>Earnings comparison</h2>', report)
 

@@ -79,7 +79,10 @@ def voyage_summary(case, compact=False):
     for warning in r['warnings']:
         st.info(warning)
     with st.expander("Fuel diagnostic and port draft checks"):
-        st.caption("Opening ROB without replenishment: a diagnostic, not the assumed fuel-delivery plan. Negative balances show where replenishment is needed. Reserve timing remains unconfirmed.")
+        plan = r["bunker_plan"]
+        st.caption(f'Planned fuel at {plan["current_port"]} before ballast and {plan["load_port"]} on arrival at loading (tonnes).')
+        st.dataframe(pd.DataFrame(plan["by_grade"]).T)
+        st.caption("The opening-fuel diagnostic below shows balances before any planned replenishment.")
         st.dataframe(pd.DataFrame(r["fuel_ledger"]), hide_index=True, width="stretch")
         st.caption('Port comparisons use the same laden-departure draft. Current-port and stage-specific drafts are not modelled.')
         st.dataframe(pd.DataFrame(r['port_draft_checks']), hide_index=True, width='stretch')
@@ -95,7 +98,7 @@ def voyage_summary(case, compact=False):
               ("Ballast / laden",f'{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm'),
               ("Economical speed",f'{v["economical_ballast_speed_knots"]} / {v["economical_laden_speed_knots"]} kn'),
               ("Sailing draft",f'{r["estimated_sailing_draft_m"]:.2f} m'),
-              ("Summer-draft headroom",f'{r["draft_margin_m"]:.2f} m (≥ {r["required_summer_draft_margin_m"]:.2f} required)'),
+              ("Tightest draft headroom",f'{r["limiting_draft_margin_m"]:.3f} m'),
               ("Selected / permitted lift",f'{r["selected_lift_tonnes"]/1000:g}k / {float(c["minimum_quantity_tonnes"])/1000:g}–{float(c["maximum_quantity_tonnes"])/1000:g}k t'),
               ("Pricing month",r["bunker_price_period"]+" · "+r["bunker_pricing_location"])]
     details_html = '<div class="details">'+''.join(f'<div class="detail"><span>{e(a)}</span><b>{e(b)}</b></div>' for a,b in detail)+'</div>'
@@ -154,7 +157,7 @@ def laycan_track(case):
 
 
 def requirements_notice():
-    st.html('<div class="gap-note"><b>Analysis coverage</b> · managed vessels and committed cargoes. Market comparisons and bunker-price / port-delay scenarios are not yet available.</div>')
+    st.html('<div class="gap-note"><b>Analysis coverage</b> · managed vessels and committed cargoes. Stress rankings use the stated scenario. Market quotes and fleet allocation are outside this comparison.</div>')
 
 
 def result_frame(case):

@@ -2,11 +2,11 @@
 
 Streamlit chat and calculator for the frozen Capesize case. OpenRouter interprets a question, Python tools calculate the voyage, and a second model call explains it. The model writes an analyst briefing; an interactive Plotly dashboard in the same reply reads Python results directly.
 
-KingFish Home starts with voyage KPIs and the interactive TCE map, followed by vessel search and the assistant. Select a vessel, committed cargo, lift and pricing month to model a voyage. The moon button switches themes, and the sidebar collapses to an icon rail. See [asset credits](docs/asset_credits.md) for map and icon sources.
+KingFish Home starts with voyage KPIs and the interactive TCE map, followed by vessel search and the assistant. Select a vessel, committed cargo and lift to model a voyage. Pricing defaults to the cargo's laycan opening month. The moon button switches themes, and the sidebar collapses to an icon rail. See [asset credits](docs/asset_credits.md) for map and icon sources.
 
 Ask the assistant to compare a cargo and lift for earnings, cost drivers and voyage-duration charts. The assistant starts with a centred greeting and empty voyage selections; New chat clears them. Profit margins use a red-to-green scale around break-even.
 
-See [metric coverage](docs/metric_coverage.md) for the reference-to-project audit. Unsupported live operational KPIs are marked unavailable. TCE, contribution, cost drivers and commercial constraints are added explicitly. Required scenario analysis and switching thresholds remain pending and are flagged in the app.
+See [metric coverage](docs/metric_coverage.md) for the reference-to-project audit. Unsupported live operational KPIs are marked unavailable. TCE, contribution, cost drivers and commercial constraints are added explicitly. Analytics ranks vessels by contribution, TCE or stressed contribution, with an optional search over permitted lifts.
 
 See [the architecture and Mermaid diagram](docs/architecture.md) for the four layers, assumptions and current boundaries.
 
@@ -39,9 +39,9 @@ Tests mock model replies and do not use API quota. The connection check authenti
 
 ## Scope
 
-The catalog contains 15 vessels and 11 cargoes. Calculations currently cover four managed vessels and three committed cargoes at a specified lift. Python checks quantity, laycan, draft and deadweight, and returns TCE before hire and contribution after hire. Source files are preserved in `data/raw/`. The single supplied validation row is regression tested; MF-02's comparison is derived, not a second official reference.
+The catalog contains 15 vessels and 11 cargoes. Calculations currently cover four managed vessels and three committed cargoes. Python checks quantity, laycan, draft and deadweight, and returns TCE before hire and contribution after hire. Source files are preserved in `data/raw/`. The single supplied validation row is regression tested; MF-02's comparison is derived, not a second official reference.
 
-Market quote inputs, market calculations, sensitivities and fleet allocation optimisation are not yet implemented. See the architecture notes for provisional draft, pricing-month and canal conventions. No live prices replace frozen data.
+Market quotes, recommendation-switch thresholds and fleet allocation are outside the current ranking scope. See the assumptions for the 2 November methodology. No live prices replace frozen data.
 
 ## Secrets and deployment
 

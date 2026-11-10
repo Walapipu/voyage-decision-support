@@ -68,7 +68,7 @@ def _hover(row):
     return (f"<b>{label(row)}</b> · {row['selected_lift_tonnes']:,.0f} t<br>{status}<br>"
             f"Contribution ${row['voyage_contribution_usd']:,.0f}" + (f" ({m:.1f}%)" if m is not None else "") +
             f"<br>TCE ${row['tce_usd_per_day']:,.0f}/day · {row['voyage_days']:.1f} days"
-            f"<br>Laycan slack {row['laycan_slack_days']:+.1f} d · draft headroom {row['draft_margin_m']:.2f} m")
+            f"<br>Laycan slack {row['laycan_slack_days']:+.1f} d · draft headroom {row['limiting_draft_margin_m']:.3f} m")
 
 
 def _mix(a, b, t):

@@ -51,8 +51,9 @@ def _load_tables(root):
             raise ValueError("Unknown cargo port.")
         if cargo["cargo_id"] not in routes:
             raise ValueError("Missing laden route.")
+        period = cargo["laycan_start_utc"][:7]
         for fuel in ("VLSFO", "MGO"):
-            if ("2026-03", ports[cargo["load_port"]]["bunker_pricing_location"], fuel) not in prices:
+            if (period, ports[cargo["load_port"]]["bunker_pricing_location"], fuel) not in prices:
                 raise ValueError("Missing baseline bunker price.")
     return tables
 

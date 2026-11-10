@@ -4,14 +4,14 @@ import json
 from jsonschema import Draft202012Validator
 
 from voyage.data import catalog
-from voyage.decision import evaluate_voyage, compare_vessels
+from voyage.decision import evaluate_voyage, compare_vessels, OBJECTIVES
 from voyage.analysis import analyst_facts
 
 CARGO = {"type": "string", "enum": ["CC-01", "CC-02", "CC-03"]}
 LIFT = {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000,
-        "description": "Explicitly requested cargo lift in tonnes. Ask the user if unspecified."}
+        "description": "Explicitly requested cargo lift in tonnes."}
 PERIOD = {"type": "string", "pattern": "^2026-(0[1-9]|1[0-2])$",
-          "description": "Bunker pricing month. Default March 2026; always disclose it."}
+          "description": "Optional alternate pricing month. The default is the cargo laycan opening month."}
 
 
 def definition(name, description, properties, required):
@@ -26,8 +26,9 @@ TOOLS = [
                {"vessel_id": {"type": "string", "enum": ["MF-01", "MF-02", "MF-03", "MF-04"]},
                 "cargo_id": CARGO, "lift_tonnes": LIFT, "period": PERIOD},
                ["vessel_id", "cargo_id", "lift_tonnes"]),
-    definition("compare_vessels", "Compare all four managed vessels for one committed cargo at the requested lift. Not fleet optimisation.",
-               {"cargo_id": CARGO, "lift_tonnes": LIFT, "period": PERIOD}, ["cargo_id", "lift_tonnes"]),
+    definition("compare_vessels", "Rank managed vessels for one committed cargo. Omit lift only when the user wants to optimise within cargo tolerance.",
+               {"cargo_id": CARGO, "lift_tonnes": LIFT, "period": PERIOD,
+                "objective": {"type": "string", "enum": list(OBJECTIVES)}}, ["cargo_id"]),
 ]
 HANDLERS = {"get_dataset_catalog": catalog, "calculate_voyage": evaluate_voyage, "compare_vessels": compare_vessels}
 
@@ -45,7 +46,7 @@ def execute_tool(name, arguments):
     try:
         result = HANDLERS[name](**args)
         if result.get("rows"):
-            result["analysis"] = analyst_facts(result["rows"])
+            result["analysis"] = analyst_facts(result["rows"], result.get("ranking"))
         return result
     except ValueError as exc:
         return {"error": str(exc)}

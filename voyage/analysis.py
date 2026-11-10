@@ -19,20 +19,25 @@ def result_frame(rows):
     return frame
 
 
-def analyst_facts(rows):
+def analyst_facts(rows, ranking=None):
     """Describe only executed results. Never turn an infeasible result into a pick."""
     frame = result_frame(rows)
-    feasible = frame[frame["feasible"]].sort_values("voyage_contribution_usd", ascending=False, kind="stable")
+    if ranking:
+        feasible = frame[frame["ranking_eligible"]]
+    else:
+        feasible = frame[frame["feasible"]].sort_values("voyage_contribution_usd", ascending=False, kind="stable")
     focus = (feasible.iloc[0] if len(feasible) else frame.iloc[0]).to_dict()
     focus_margin = focus["profit_margin_pct"]
     facts = {
         "feasible_count": int(frame["feasible"].sum()), "evaluated_count": len(frame),
-        "highest_contribution_feasible_vessel": str(focus["vessel_id"]) if len(feasible) else None,
+        "highest_contribution_feasible_vessel": (
+            str(focus["vessel_id"]) if len(feasible) and (not ranking or ranking["objective"] == "contribution") else None
+        ),
         "focus_vessel": str(focus["vessel_id"]), "focus_is_feasible": bool(focus["feasible"]),
         "focus_margin_pct": float(focus_margin) if np.isfinite(focus_margin) else None,
         "cost_breakdown_usd": {name: float(focus[key]) for name, key in COSTS.items()},
         "duration_breakdown_days": {name: float(focus[key]) for name, key in STAGES.items()},
-        "scope": "One cargo and lift. Rank feasible voyages by contribution after hire; voyage durations differ.",
+        "scope": "One committed cargo. Voyage durations differ.",
         "chart_sections": ["Earnings comparison", "Revenue to contribution", "Voyage duration"],
     }
     facts["largest_cost"] = max(facts["cost_breakdown_usd"], key=facts["cost_breakdown_usd"].get)

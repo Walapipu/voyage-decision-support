@@ -36,7 +36,12 @@ def best_voyage(vessel_id, cargo_id, period):
     threshold are tried as well and the best feasible row wins."""
     cargo = index(load_tables()["committed_cargoes"], "cargo_id")[cargo_id]
     low, high = float(cargo["minimum_quantity_tonnes"]), float(cargo["maximum_quantity_tonnes"])
-    fits = lambda lift: (r := _row(vessel_id, cargo_id, lift, period))["deadweight_pass"] and r["draft_pass"]
+    def fits(lift):
+        row = _row(vessel_id, cargo_id, lift, period)
+        return row["deadweight_pass"] and row["draft_pass"] and (
+            row["port_draft_policy"] != "exclude" or row["port_draft_pass"]
+        )
+
     lifts = {low, float(cargo["nominal_quantity_tonnes"]), high}
     threshold = float(cargo["special_freight_threshold_tonnes"] or 0)
     if low < threshold < high:
@@ -53,7 +58,10 @@ def best_voyage(vessel_id, cargo_id, period):
 
 
 def _flags(row):
-    draft_limited = row["draft_margin_m"] - row["required_summer_draft_margin_m"] < DRAFT_AT_LIMIT_M
+    excess = row["draft_margin_m"] - row["required_summer_draft_margin_m"]
+    if row["port_draft_policy"] == "exclude":
+        excess = min(excess, *(port["headroom_m"] - port["required_margin_m"] for port in row["port_draft_checks"]))
+    draft_limited = excess < DRAFT_AT_LIMIT_M
     tight = row["laycan_slack_days"] < TIGHT_SLACK_DAYS
     return draft_limited, tight
 
@@ -77,7 +85,7 @@ def _voyage(row, vessel, cargo, ports):
 
 
 @lru_cache(maxsize=16)
-def build_plan(period="2026-03"):
+def build_plan(period=None):
     tables = load_tables()
     vessels = tables["managed_vessels"]
     cargoes = tables["committed_cargoes"]

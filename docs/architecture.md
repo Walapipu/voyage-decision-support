@@ -40,18 +40,18 @@ Every chat request first passes a separate relevance check, with recent conversa
 ## Implemented scope
 
 - Catalog of all 15 vessels and 11 cargoes.
-- Calculations for four managed vessels and three committed cargoes at an explicit lift and month.
+- Calculations for four managed vessels and three committed cargoes at a selected lift or across the permitted lift grid.
 - Quantity, laycan, deadweight and draft checks; infeasible results omitted from comparison charts.
-- TCE, contribution, duration and detailed results. Comparisons order feasible voyages by contribution; no fleet-level optimum claim.
-- Regression against the single supplied validation row, including 25 numeric fields at published precision.
+- TCE, contribution, duration and detailed results. Comparisons rank by contribution, TCE or stressed contribution.
+- Regression against all 25 CHECK-01 numeric fields using the four corrections from 2 November.
 - Server-side key and free-only routing with zero maximum prompt/completion prices.
 
-## Conventions requiring team agreement
+## Calculation conventions
 
 - Economical speeds; ballast, waiting, loading, laden and discharge time all included.
-- Default bunker month explicitly March 2026, at the load-port pricing location. The reference does not distinguish arrival-month from availability-month pricing.
-- Draft margin 0.3 m below summer draft; load/discharge port comparisons use that departure draft as a separate report-only check by default.
-- Working policy lives in `config/modelling.toml`: planning purchases cover fuel shortfalls without added days/cost; late arrivals are excluded. See `assumptions.md` for the clarification log and pending Cargill questions.
+- The base bunker month is the cargo laycan opening month, using the load-port regional price proxy.
+- Default draft margin of 0.30 m below summer draft and both port limits, using laden-departure draft.
+- Working policy lives in `config/modelling.toml`: replenish at the current port before ballast and at the loading port on arrival, with no added days or cost. See the assumptions for the 2 November methodology.
 - Canal cost provisionally zero because route canal costs are absent.
 - Fuel expense uses consumption times price; opening ROB affects purchase planning.
 - TCE excludes hire; contribution deducts voyage hire. Different durations mean this is not a common-horizon fleet optimum.
@@ -59,7 +59,7 @@ Every chat request first passes a separate relevance check, with recent conversa
 
 ## Next additions
 
-Market quote inputs and calculations; explicit delay and bunker scenarios; allocation objectives and common-horizon comparisons; Streamlit Community Cloud deployment. Optimisation and slider controls can follow the basic scenarios. These are not implemented yet.
+Market quote inputs, recommendation-switch thresholds, and fleet allocation on a common horizon.
 
 The free router may select different models/providers per call. Evaluate and pin a free tool-capable model before demonstration. Native tool support is requested; unavailable providers produce a visible error. A model can still omit tools or answer inaccurately, so numeric evidence is displayed separately and AI prose requires review. This is not a guarantee against hallucinations.
 

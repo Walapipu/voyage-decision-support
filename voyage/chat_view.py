@@ -30,11 +30,11 @@ def selection_from_evidence(evidence):
         rows = item["result"].get("rows")
         if not rows:
             continue
-        # Comparisons already rank feasible voyages first, then contribution.
+        # Comparisons are ordered by the requested objective.
         row = rows[0]
         return {"selected_vessel": row["vessel_id"], "selected_cargo": row["cargo_id"],
                 "selected_lift": float(row["selected_lift_tonnes"]),
-                "price_period": row["bunker_price_period"]}
+                "price_period": row.get("bunker_price_override", row["bunker_price_period"])}
     return None
 
 
@@ -83,7 +83,7 @@ def selection_from_prompt(text, state):
     if cargo != state.get("selected_cargo") and "selected_lift" not in found:
         lift = float(cargoes[cargo]["nominal_quantity_tonnes"])  # the contract quantity, not a guess
     if lift and "selected_vessel" not in found:
-        rows = compare_vessels(cargo, lift, found.get("price_period") or state.get("price_period") or "2026-03")["rows"]
+        rows = compare_vessels(cargo, lift, found.get("price_period") or state.get("price_period"))["rows"]
         found["selected_vessel"] = rows[0]["vessel_id"]
     return {**found, "selected_cargo": cargo, "selected_lift": lift}
 
@@ -179,7 +179,7 @@ def render_chat(controls=None, suggestions=(), compact=False):
         # Explicit UI selection, not fabricated tool evidence. The model still runs tools.
         selection = {key: st.session_state.get(key) for key in
                      ('selected_vessel', 'selected_cargo', 'selected_lift', 'price_period')}
-        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer conceptual voyage and freight questions normally; redirect unrelated questions to KingFish support. Ask for any missing inputs needed for a calculation unless the user supplies them in their message. Run tools for numeric answers; UI selections are not calculation results.' + (f' Recommended plan from the voyage engine: {st.session_state.plan_context}' if st.session_state.get('plan_context') else '')}
+        context = {"role": "system", "content": f'Current UI selections: {selection}. None means unselected; no complete voyage is selected unless vessel, cargo and lift are all present. Do not invent missing selections. Answer conceptual voyage and freight questions normally; redirect unrelated questions to KingFish support. Ask for missing inputs unless the user wants to optimise lift within the cargo tolerance. An unset price month uses the laycan opening month. Run tools for numeric answers; UI selections are not calculation results.' + (f' Recommended plan from the voyage engine: {st.session_state.plan_context}' if st.session_state.get('plan_context') else '')}
         try:
             with progress, st.spinner("Shipping…"):
                 answer = chat_reply(history + [context, question], force_comparison=st.session_state.get("force_comparison", False))

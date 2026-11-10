@@ -5,10 +5,11 @@ from voyage.data import index, load_tables
 from voyage.decision import compare_vessels
 
 
-def dashboard_case(cargo_id, lift, period, vessel_id):
+def dashboard_case(cargo_id, lift, period, vessel_id, *, objective="contribution"):
     tables = load_tables()
-    comparison = compare_vessels(cargo_id, lift, period)
-    row = next(r for r in comparison["rows"] if r["vessel_id"] == vessel_id)
+    comparison = compare_vessels(cargo_id, lift, period, objective=objective)
+    row = next((r for r in comparison["rows"] if r["vessel_id"] == vessel_id), comparison["rows"][0])
+    vessel_id = row["vessel_id"]
     vessel = index(tables["managed_vessels"], "vessel_id")[vessel_id]
     cargo = index(tables["committed_cargoes"], "cargo_id")[cargo_id]
     ports = index(tables["ports"], "port_code")
@@ -67,6 +68,7 @@ def candidates_case(cargo_id, lift, period):
     tables = load_tables()
     comparison = compare_vessels(cargo_id, lift, period)
     rows = comparison["rows"]
+    period = rows[0]["bunker_price_period"]
     cargo = index(tables["committed_cargoes"], "cargo_id")[cargo_id]
     ports = index(tables["ports"], "port_code")
     location = ports[cargo["load_port"]]["bunker_pricing_location"]

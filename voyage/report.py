@@ -11,21 +11,29 @@ from voyage.fuel import shortage_message
 def analytics_report(case):
     comparison = case["comparison"]
     rows = comparison["rows"]
-    facts = analyst_facts(rows)
+    ranking = comparison.get("ranking")
+    facts = analyst_facts(rows, ranking)
     focus = next(row for row in rows if row["vessel_id"] == facts["focus_vessel"])
     cargo = case["cargo"]
     e = lambda value: escape(str(value))
     frame = result_frame(rows)
-    frame["Status"] = ["Feasible" if row["feasible"] else "Excluded: " + ", ".join(row["failed_checks"]) for row in rows]
+    frame["Status"] = ["Feasible" if row.get("ranking_eligible", row["feasible"]) else
+                       "Excluded: " + ", ".join(row["failed_checks"] or row.get("stress_failed_checks", []))
+                       for row in rows]
     frame = frame.rename(columns={"vessel_id": "Vessel", "voyage_days": "Days", "tce_usd_per_day": "TCE (USD/day)",
         "voyage_contribution_usd": "Contribution (USD)", "profit_margin_pct": "Margin (%)"})
-    table = frame[["Vessel", "Status", "Days", "TCE (USD/day)", "Contribution (USD)", "Margin (%)"]].to_html(
+    columns = ["Vessel", "Status", "Days", "TCE (USD/day)", "Contribution (USD)", "Margin (%)"]
+    if ranking:
+        frame = frame.rename(columns={"selected_lift_tonnes": "Lift (t)", "stress_contribution_usd": "Stress (USD)"})
+        columns = ["Vessel", "Lift (t)", *columns[1:], "Stress (USD)"]
+    table = frame[columns].to_html(
         index=False, escape=True, border=0, float_format=lambda value: f"{value:,.2f}")
     warnings = []
     for row in rows:
         notes = list(row["warnings"])
-        if not row["feasible"]:
-            notes.insert(0, "Excluded: " + ", ".join(row["failed_checks"]) + ". Financial figures are hypothetical.")
+        if not row.get("ranking_eligible", row["feasible"]):
+            checks = row["failed_checks"] or row.get("stress_failed_checks", [])
+            notes.insert(0, "Excluded from ranking. Failed checks: " + ", ".join(checks) + ".")
         if not row["fuel_pass"]:
             notes.append(shortage_message(row))
         warnings.extend(f"<li><b>{e(row['vessel_id'])}</b>: {e(note)}</li>" for note in notes)
@@ -39,7 +47,20 @@ def analytics_report(case):
         for idx, (title, figure) in enumerate(figures))
     conventions = "".join(f"<tr><th>{e(key.replace('_', ' ').title())}</th><td>{e(value)}</td></tr>"
         for key, value in comparison["conventions"].items())
-    focus_label = "Highest contribution among feasible options" if facts["feasible_count"] else "No feasible options; cost figures below are hypothetical"
+    focus_label = "Highest contribution among feasible options"
+    if not facts["feasible_count"]:
+        focus_label = "No eligible options for this objective. Cost figures below are hypothetical."
+    elif ranking and ranking["objective"] != "contribution":
+        focus_label = ranking["label"]
+    stress_note = ""
+    if ranking and ranking["winner"]:
+        stress_note = (f'<p>{e(ranking["status"])} · Stressed contribution '
+                       f'USD {focus["stress_contribution_usd"]:,.2f}.</p>')
+    if ranking:
+        scenario = comparison["stress_scenario"]
+        stress_note += (f'<p>Stress case uses {scenario["bunker_increase"]:.0%} higher bunker prices, '
+                       f'{scenario["port_cost_increase"]:.0%} higher port charges and '
+                       f'{scenario["idle_delay_days"]:g} extra idle days at loading.</p>')
     generated = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -63,6 +84,7 @@ li{{margin:8px 0}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12p
 {charts}
 <h2>Methodology and assumptions</h2><div class="table-wrap"><table>{conventions}</table></div>
 <p>Fuel is valued at the loading port's regional price proxy for the selected month. A price proxy does not establish a bunkering location. Canal cost is provisionally zero.</p>
-<p>Scenario analysis and recommendation-switch thresholds are not available. Market quotes and fleet-wide allocation are outside this comparison.</p>
+{stress_note}
+<p>Market quotes and fleet-wide allocation are outside this comparison.</p>
 <details><summary>Full calculation evidence</summary><pre>{e(json.dumps(comparison, indent=2))}</pre></details>
 </main></body></html>'''

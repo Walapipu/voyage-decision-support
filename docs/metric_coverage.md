@@ -32,13 +32,13 @@ The five reference KPI slots are retained. Unsupported operational metrics are s
 | Selected lift versus permitted range, DWT and draft restrictions | Lift range, estimated draft and draft headroom shown; full deadweight/quantity checks in engine output. All four constraints feed feasibility. |
 | Transparent pricing month, speed and TCE conventions | Visible selection controls, source results, Settings, methodology export. |
 | Market vessel/cargo comparison and missing commercial inputs | Data visible; 11 hire offers and 8 freight quotes still required. Economics for market alternatives not implemented. |
-| Bunker-price and port-delay sensitivity | Required, not yet implemented. Flagged in Analytics and these coverage notes. Monthly price selection is not scenario analysis. |
-| Threshold where a recommendation switches | Required, not yet implemented. Flagged alongside sensitivity. |
-| Fleet allocation/employment recommendation | Not yet implemented. Current ranking is for one committed cargo at one lift; it is not a fleet optimum. |
+| Bunker-price and port-delay sensitivity | Analytics and chat can rank by stressed contribution using a defined bunker-price, port-charge and load-port delay case. |
+| Threshold where a recommendation switches | Pending. |
+| Fleet allocation/employment recommendation | Not yet implemented. Current ranking covers one committed cargo with either a selected lift or a search over contractual tolerance. |
 | Export results | Comparison CSV and methodology downloads available in Reports. |
 
 Break-even or target-TCE freight estimates, interactive sliders and portfolio optimisation algorithms are optional extensions in the brief. They should not displace the required scenario/threshold work.
 
 ## Interpretation limits
 
-The case uses economical speeds, the load-port regional price proxy and an explicitly selected month. The 0.30 m margin applies to summer draft; port comparisons are separate report-only diagnostics by default. Planning purchases are assumed to cover shortages without extra bunkering days/cost; the opening-ROB ledger still reports deficits. Late arrivals are excluded with reasons. See the assumption log and `config/modelling.toml` for active policy and pending Cargill questions. Canal cost remains provisionally zero. Contribution comparisons span different durations; no common-horizon fleet optimum is claimed.
+The default uses economical speeds, the loading-port regional price proxy and the cargo laycan opening month. The 0.30 m draft margin applies to summer draft and both port limits. Two-stop replenishment maintains reserves through discharge. Late arrivals are excluded with reasons. See the assumption log and `config/modelling.toml` for active policy. Canal cost remains provisionally zero. Contribution comparisons span different durations; no common-horizon fleet optimum is claimed.

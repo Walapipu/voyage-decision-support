@@ -46,13 +46,13 @@ def header(plan, periods):
     with st.container(key="overview_head"):
         title, label, pricing, ask = st.columns([1, .08, .16, .14], vertical_alignment="center", gap="small")
         stamp = plan["computed"].astimezone(timezone.utc).strftime("%d %b, %H:%M UTC")
-        month = datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y")
+        month = datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y") if plan["period"] else "Laycan month"
         title.html(f'<div class="overview-title"><h1>Overview</h1><span class="computed">'
                    f'<i></i>Computed {e(stamp)} · {e(month)} curve</span></div>')
         label.html('<label class="pricing-label" for="price_period">Pricing</label>')
         with pricing:
-            st.selectbox("Pricing", periods, key="price_period",
-                         format_func=lambda p: datetime.strptime(p, "%Y-%m").strftime("%b %Y"),
+            st.selectbox("Pricing", [None, *periods], key="price_period",
+                         format_func=lambda p: datetime.strptime(p, "%Y-%m").strftime("%b %Y") if p else "Laycan month",
                          label_visibility="collapsed")
         ask.html('<button type="button" class="ask-shippy" data-shippy-open aria-haspopup="dialog">'
                  '<span class="lucide icon-message-circle" aria-hidden="true"></span>Ask Shippy</button>')
@@ -71,9 +71,9 @@ def kpis(plan):
     tightest = plan["tightest"]
     avg, fivetc = plan["avg_tce"], plan["fivetc"]
     premium = 100 * (avg - fivetc) / fivetc if avg is not None and fivetc else None
-    vs = f'vs 5TC {money(fivetc)} · {premium:+.0f}%' if premium is not None else "5TC not supplied"
+    vs = f'vs 5TC {money(fivetc)} · {premium:+.0f}%' if premium is not None else "Select a curve month for 5TC" if plan["period"] is None else "5TC not supplied"
     covered = plan["committed"] - len(plan["uncovered"])
-    month = datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y")
+    month = datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y") if plan["period"] else "Laycan month"
     tiles = [
         ("Portfolio contribution", money(plan["contribution"]), f'after hire · {len(plan["voyages"])} voyages', ""),
         ("Avg TCE", money(avg) if avg is not None else "—", vs, "" if premium is None else "good-note" if premium > 0 else "bad-note"),

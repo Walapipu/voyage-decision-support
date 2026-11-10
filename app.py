@@ -7,6 +7,7 @@ import streamlit as st
 from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
 from voyage.dashboard_data import dashboard_case, candidates_case
+from voyage.decision import OBJECTIVES
 from voyage.voyages_view import voyages_page
 from voyage.dashboard import (apply_theme, heading, voyage_summary, comparison_table, economics, timeline, result_frame)
 from voyage.plan import build_plan, plan_summary
@@ -16,6 +17,7 @@ from voyage.commands import COMMANDS
 from voyage.policy import load_policy, conventions
 from voyage.openrouter import load_settings
 from voyage.report import analytics_report
+from voyage.ui import render_evidence
 from voyage.analytics_view import analytics_page
 from voyage.profile import toggle_theme, profile_menu
 
@@ -27,7 +29,7 @@ if st.session_state.get("logged_out"):
         st.session_state.logged_out = False
         st.rerun()
     st.stop()
-for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":"2026-03", "map_view":"All voyages"}.items():
+for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":None, "map_view":"All voyages"}.items():
     if key not in st.session_state:
         st.session_state[key] = value
 # The Overview has no vessel, cargo or lift widgets; re-assigning keeps these values when
@@ -182,7 +184,8 @@ def selection_controls():
         with lift_col:
             st.number_input("Selected lift (tonnes)", min_value=0.0, max_value=1000000.0, value=None, step=500.0, format="%.12g", key="selected_lift", label_visibility="collapsed", placeholder="Lift, tonnes")
         with period_col:
-            st.selectbox("Bunker price month", sorted({r["period"] for r in tables["bunker_forward_curve"]}), key="price_period", label_visibility="collapsed")
+            st.selectbox("Bunker price month", [None] + sorted({r["period"] for r in tables["bunker_forward_curve"]}),
+                         format_func=lambda month: month or "Laycan month", key="price_period", label_visibility="collapsed")
 
 
 if page not in ("Overview", "AI Assistant"):
@@ -242,16 +245,41 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
                 st.caption("Select a vessel to see its economics, fuel and draft checks and voyage timeline here.")
 
     elif page == "Analytics":
+        cargo_id = st.session_state.selected_cargo
+        objective = st.session_state.get("ranking_objective", "contribution")
+        optimise = not lift_selected or st.session_state.get("optimise_rank_lift", False)
+        analytics = case
+        if cargo_id and (analytics is None or optimise or objective != "contribution"):
+            lift = None if optimise else st.session_state.selected_lift
+            analytics = dashboard_case(cargo_id, lift, st.session_state.price_period,
+                                       st.session_state.selected_vessel, objective=objective)
+
         def report_button():
-            # The HTML report covers one selected voyage, so it needs a vessel, cargo and lift.
-            if case:
-                st.download_button("Download report", analytics_report(case),
-                    file_name=f'kingfish_{st.session_state.selected_cargo}_{st.session_state.price_period}_report.html',
+            if analytics:
+                month = analytics["row"]["bunker_price_period"]
+                st.download_button("Download report", analytics_report(analytics),
+                    file_name=f"kingfish_{cargo_id}_{month}_report.html",
                     mime="text/html", icon=":material/download:", key="analytics_report", on_click="ignore")
             else:
                 st.download_button("Download report", data="", disabled=True, icon=":material/download:",
                     file_name="kingfish_analytics.html", mime="text/html", key="analytics_report")
-        analytics_page(report_button)
+
+        def ranking_panel():
+            with st.expander("Rank the selected cargo", expanded=bool(analytics)):
+                if analytics is None:
+                    st.caption("Select a committed cargo to rank vessels.")
+                    return
+                objective_col, lift_col = st.columns(2)
+                objective_col.selectbox("Ranking objective", list(OBJECTIVES),
+                                        format_func=lambda key: OBJECTIVES[key][1], key="ranking_objective")
+                if lift_selected:
+                    lift_col.checkbox("Optimise lift within cargo tolerance", key="optimise_rank_lift")
+                else:
+                    lift_col.caption("No lift selected. The ranking searches the cargo tolerance.")
+                render_evidence([{"tool": "compare_vessels", "result": analytics["comparison"]}],
+                                key_prefix="cargo_ranking", compact=True)
+
+        analytics_page(report_button, ranking_panel)
 
     elif page == "Reports" and not case:
         heading(page)
@@ -272,7 +300,7 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
     elif page == "Reports":
         heading("Export calculated results", "Includes feasibility flags and pricing period")
         comparison_table(case)
-        st.download_button("Download voyage comparison CSV", result_frame(case).to_csv(index=False).encode("utf-8"), file_name=f'{st.session_state.selected_cargo}_{st.session_state.price_period}_comparison.csv', mime="text/csv")
+        st.download_button("Download voyage comparison CSV", result_frame(case).to_csv(index=False).encode("utf-8"), file_name=f'{st.session_state.selected_cargo}_{case["row"]["bunker_price_period"]}_comparison.csv', mime="text/csv")
         st.download_button("Download methodology", "\n".join(f'{k}: {v}' for k,v in case['comparison']['conventions'].items()), file_name="voyage_methodology.txt")
 
     elif page == "Documents":
@@ -294,7 +322,7 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
         except ValueError as exc:
             st.error(str(exc))
         st.json(conventions(load_policy()))
-        st.caption("The API key is excluded from Git and is not exposed by this screen. Market economics, sensitivity analysis and fleet allocation are not enabled yet.")
+        st.caption("The API key is excluded from Git and is not exposed by this screen. Market quotes and fleet allocation are outside the current ranking scope.")
 
 if page == "Overview":
     overview.shippy_drawer(plan, focus, render_chat, start_new_chat)

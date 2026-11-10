@@ -2,7 +2,7 @@ import unittest
 from decimal import Decimal
 
 from voyage.data import load_tables
-from voyage.engine import calculate
+from voyage.engine import calculate, VoyageScenario
 from voyage.decision import compare_vessels
 from voyage.tools import execute_tool
 
@@ -13,6 +13,9 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(len(tables), 13)
         numeric_checks = 0
         for ref in tables["validation_example"]:
+            # The 2 November brief supersedes these four fields in the frozen CSV.
+            ref = dict(ref, departure_deadweight_tonnes="167868.949", deadweight_margin_tonnes="13371.051",
+                       estimated_sailing_draft_m="17.384", draft_margin_m="0.716")
             result = calculate(ref["vessel_id"], ref["cargo_id"], ref["selected_lift_tonnes"], ref["bunker_price_period"])
             for key, value in ref.items():
                 if key in ("example_id", "result_scope"):
@@ -41,6 +44,33 @@ class EngineTests(unittest.TestCase):
         for args in [("MV-01", "CC-02", 164000), ("MF-01", "MC-01", 164000), ("MF-01", "CC-02", "NaN"), ("MF-01", "CC-02", -1)]:
             with self.subTest(args=args), self.assertRaises(ValueError):
                 calculate(*args)
+
+    def test_ranking_objectives_use_base_prices_and_check_stress_feasibility(self):
+        contribution = execute_tool("compare_vessels", '{"cargo_id":"CC-01"}')
+        tce = execute_tool("compare_vessels", '{"cargo_id":"CC-01","objective":"tce"}')
+        self.assertEqual((contribution["ranking"]["winner"], contribution["ranking"]["lift_tonnes"]),
+                         ("MF-01", 170200))
+        self.assertEqual((tce["ranking"]["winner"], tce["ranking"]["lift_tonnes"]),
+                         ("MF-04", 168200))
+        self.assertEqual(tce["analysis"]["focus_vessel"], "MF-04")
+        self.assertEqual(tce["rows"][0]["bunker_price_period"], "2026-04")
+        self.assertEqual(calculate("MF-01", "CC-01", 170200, "2026-03")["bunker_price_period"], "2026-03")
+
+        late_stress = compare_vessels("CC-02", 164000, objective="stress_contribution",
+                                      stress=VoyageScenario(additional_ballast_nm=5000))
+        self.assertIsNone(late_stress["ranking"]["winner"])
+        self.assertTrue(any(row["feasible"] for row in late_stress["rows"]))
+        self.assertTrue(all(not row["ranking_eligible"] for row in late_stress["rows"]))
+
+    def test_extra_work_at_loading_does_not_leave_consumed_fuel_on_board(self):
+        base = calculate("MF-04", "CC-01", 169111)
+        stressed = calculate("MF-04", "CC-01", 169111, scenario=VoyageScenario(working_delay_days=3))
+        self.assertGreaterEqual(base["limiting_draft_margin_m"], Decimal("0.30"))
+        self.assertEqual(stressed["departure_deadweight_tonnes"], base["departure_deadweight_tonnes"])
+        self.assertEqual(stressed["limiting_draft_margin_m"], base["limiting_draft_margin_m"])
+        self.assertAlmostEqual(stressed["vlsfo_purchase_tonnes"] - base["vlsfo_purchase_tonnes"],
+                               Decimal("9.3"), places=12)
+        self.assertEqual(stressed["voyage_days"] - base["voyage_days"], Decimal("3"))
 
     def test_tool_boundary(self):
         self.assertIn("error", execute_tool("exec", '{}'))

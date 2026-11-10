@@ -146,7 +146,7 @@ class UITests(unittest.TestCase):
 
     def test_dashboard_selection_theme_and_navigation(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()
-        self.assertEqual(app.selectbox(key="price_period").value, "2026-03")
+        self.assertIsNone(app.selectbox(key="price_period").value)
         self.assertFalse(app.exception)
         self.assertTrue(app.session_state.dark_mode)
         app.button(key="theme_button").click().run()
@@ -162,6 +162,12 @@ class UITests(unittest.TestCase):
         next(r for r in app.radio if r.label == "Navigation").set_value("Analytics").run()
         self.assertFalse(app.exception)
         self.assertIn("Fleet analytics", "".join(h.proto.body for h in app.get("html")))
+        objective = next(s for s in app.selectbox if s.label == "Ranking objective")
+        self.assertEqual(objective.value, "contribution")
+        app.checkbox(key="optimise_rank_lift").check().run()
+        next(s for s in app.selectbox if s.label == "Ranking objective").set_value("tce").run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any("168,200 t" in item.value and "MF-04" in item.value for item in app.get("html")))
 
     def test_plan_row_selection_and_all_workspace_pages(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()

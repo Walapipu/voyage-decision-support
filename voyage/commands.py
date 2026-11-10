@@ -66,6 +66,8 @@ def _money(value):
 
 
 def _month(period):
+    if period is None:
+        return "Laycan month"
     year, month = period.split("-")
     return f'{list(MONTHS)[int(month) - 1].title()} {year}'
 
@@ -90,7 +92,7 @@ def _selection(found, state):
         lift = state.get("selected_lift") if cargo == state.get("selected_cargo") and state.get("selected_lift") else _nominal(cargo)
     return {"selected_vessel": found["vessels"][0] if found["vessels"] else None,
             "selected_cargo": cargo, "selected_lift": lift,
-            "price_period": found["period"] or state.get("price_period") or "2026-03"}
+            "price_period": found["period"] or state.get("price_period")}
 
 
 def _open_page(page, found, state):
@@ -105,15 +107,15 @@ def _open_page(page, found, state):
 def _compare_vessels(found, state):
     cargo = found["cargoes"][0]
     lift = found["lift"] or _nominal(cargo)
-    period = found["period"] or state.get("price_period") or "2026-03"
-    result = compare_vessels(cargo, lift, period)
-    if len(found["vessels"]) > 1:  # only the vessels named
-        result["rows"] = [r for r in result["rows"] if r["vessel_id"] in found["vessels"]]
+    period = found["period"] or state.get("price_period")
+    subset = found["vessels"] if len(found["vessels"]) > 1 else None
+    result = compare_vessels(cargo, lift, period, vessel_ids=subset)
+    if subset:
         result["scope"] = f'{", ".join(found["vessels"])} for one cargo at one lift. Feasible voyages first, then contribution.'
     rows = result["rows"]
     result["analysis"] = analyst_facts(rows)
     best = next((r for r in rows if r["feasible"]), None)
-    head = f'**{cargo} at {lift:,.0f} t · {_month(period)} bunkers.** '
+    head = f'**{cargo} at {lift:,.0f} t · {_month(rows[0]["bunker_price_period"])} bunkers.** '
     if best:
         head += (f'{best["vessel_id"]} has the highest contribution, {_money(best["voyage_contribution_usd"])} '
                  f'at {_money(best["tce_usd_per_day"])}/day TCE. ')
@@ -137,7 +139,7 @@ def _compare_vessels(found, state):
 def _compare_cargoes(found, state):
     vessels = found["vessels"]
     cargoes = found["cargoes"] or [c["cargo_id"] for c in load_tables()["committed_cargoes"]]
-    period = found["period"] or state.get("price_period") or "2026-03"
+    period = found["period"] or state.get("price_period")
     # One typed lift only makes sense for one cargo; otherwise each cargo runs at its contract quantity.
     rows = [evaluate_voyage(v, c, found["lift"] if found["lift"] and len(cargoes) == 1 else _nominal(c), period)["rows"][0]
             for v in vessels for c in cargoes]

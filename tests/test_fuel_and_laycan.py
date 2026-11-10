@@ -25,6 +25,13 @@ class FuelAndLaycanTests(unittest.TestCase):
         self.assertTrue(row["planning_purchase_assumed"])
         self.assertAlmostEqual(float(row['vlsfo_planned_end_balance_tonnes']), 300)
         self.assertAlmostEqual(float(row['mgo_planned_end_balance_tonnes']), 25)
+        plan = row["bunker_plan"]
+        self.assertEqual((plan["current_port"], plan["load_port"]), ("CNRIZ", "AUPHE"))
+        for grade, origin, loading in [("VLSFO", "320.829", "528.422"), ("MGO", "0.000", "19.817")]:
+            entry = plan["by_grade"][grade]
+            self.assertEqual(entry["purchase_before_ballast_tonnes"].quantize(D(".001")), D(origin))
+            self.assertEqual(entry["purchase_at_load_tonnes"].quantize(D(".001")), D(loading))
+            self.assertGreaterEqual(entry["load_arrival_tonnes"], entry["reserve_tonnes"])
         for grade, metric in [("VLSFO", "vlsfo_consumption_tonnes"), ("MGO", "mgo_consumption_tonnes")]:
             self.assertAlmostEqual(float(sum(x["consumed_tonnes"] for x in row["fuel_ledger"] if x["fuel_grade"] == grade)), float(row[metric]), places=9)
         output = evaluate_voyage("MF-01", "CC-02", 164000)
@@ -33,6 +40,18 @@ class FuelAndLaycanTests(unittest.TestCase):
         report = calculated_briefing([{'result': output}])
         self.assertIn('20.829 t short', report)
         self.assertIn('Fuel replenishment assumed covered', report)
+
+    def test_surplus_opening_fuel_counts_toward_laden_departure_deadweight(self):
+        tables = deepcopy(load_tables())
+        tables["managed_vessels"][0]["mgo_rob_tonnes"] = "100"
+        with patch("voyage.engine.load_tables", return_value=tables):
+            row = calculate("MF-01", "CC-02", 164000)
+        mgo = row["bunker_plan"]["by_grade"]["MGO"]
+        self.assertEqual(row["mgo_purchase_tonnes"], 0)
+        self.assertGreater(mgo["discharge_complete_tonnes"], D(25))
+        reference = calculate("MF-01", "CC-02", 164000)
+        self.assertAlmostEqual(row["departure_deadweight_tonnes"] - reference["departure_deadweight_tonnes"],
+                               mgo["discharge_complete_tonnes"] - D(25), places=12)
 
     def test_each_stage_and_grade_can_independently_exhaust(self):
         stages = ["Ballast passage", "Waiting at load port", "Loading", "Laden passage", "Discharge"]
@@ -80,23 +99,24 @@ class FuelAndLaycanTests(unittest.TestCase):
         port = next(p for p in tables['ports'] if p['port_code'] == cargo['load_port'])
         port['coursework_max_draft_m'] = '16.5'
         with patch('voyage.engine.load_tables', return_value=tables):
-            row = evaluate_voyage('MF-01', 'CC-02', 164000)['rows'][0]
+            diagnostic = ModellingPolicy(port_draft_policy='report_only')
+            row = evaluate_voyage('MF-01', 'CC-02', 164000, policy=diagnostic)['rows'][0]
             self.assertTrue(row['feasible'])
             self.assertTrue(row['draft_pass'])
             self.assertFalse(row['port_draft_pass'])
-            self.assertAlmostEqual(row['draft_margin_m'], 0.7166312193)
+            self.assertAlmostEqual(row['draft_margin_m'], 0.71562124145)
             self.assertTrue(any('port' in w and 'fails' in w for w in row['warnings']))
-            self.assertEqual(row['port_draft_checks'][0]['required_margin_m'], 0)
-            strict = evaluate_voyage('MF-01', 'CC-02', 164000, policy=ModellingPolicy(port_draft_policy='exclude'))['rows'][0]
+            self.assertEqual(row['port_draft_checks'][0]['required_margin_m'], 0.30)
+            strict = evaluate_voyage('MF-01', 'CC-02', 164000)['rows'][0]
             self.assertFalse(strict['feasible'])
             self.assertEqual(strict['failed_checks'], ['port_draft'])
-        # Positive headroom below 0.30 m is a port pass under the default policy.
+        # Positive headroom below 0.30 m fails the default port screen.
         port['coursework_max_draft_m'] = '17.5'
         with patch('voyage.engine.load_tables', return_value=tables):
             row = calculate('MF-01', 'CC-02', 164000)
-            self.assertTrue(row['port_draft_pass'])
-            row = calculate('MF-01', 'CC-02', 164000, policy=ModellingPolicy(port_draft_margin_m='0.30'))
             self.assertFalse(row['port_draft_pass'])
+            row = calculate('MF-01', 'CC-02', 164000, policy=ModellingPolicy(port_draft_margin_m='0.00'))
+            self.assertTrue(row['port_draft_pass'])
 
     def test_config_and_excluded_reasons_are_exported(self):
         self.assertEqual(load_policy(), ModellingPolicy())

@@ -25,7 +25,7 @@ def money(value):
 
 
 def _month(period):
-    return datetime.strptime(period, "%Y-%m").strftime("%b %Y")
+    return datetime.strptime(period, "%Y-%m").strftime("%b %Y") if period else "Laycan month"
 
 
 def _focus(rows):
@@ -85,7 +85,7 @@ def detail(focus, dark):
     facts = [("Lift", f'{row["selected_lift_tonnes"]:,.0f} t'), ("Freight revenue", money(row["freight_revenue_usd"])),
              ("Contribution", money(row["voyage_contribution_usd"]) + (f" · {m:.1f}%" if m is not None else "")),
              ("TCE before hire", f'{money(row["tce_usd_per_day"])}/day'), ("Voyage", f'{row["voyage_days"]:.1f} days'),
-             ("Laycan slack", f'{row["laycan_slack_days"]:+.1f} d'), ("Draft headroom", f'{row["draft_margin_m"]:.2f} m'),
+             ("Laycan slack", f'{row["laycan_slack_days"]:+.1f} d'), ("Draft headroom", f'{row["limiting_draft_margin_m"]:.3f} m'),
              ("Deadweight margin", f'{row["deadweight_margin_tonnes"]:,.0f} t'),
              ("Bunkers bought", f'{row["vlsfo_purchase_tonnes"]:,.0f} t VLSFO · {row["mgo_purchase_tonnes"]:,.0f} t MGO')]
     status = ('<span class="tag good">Feasible</span>' if row["feasible"] else
@@ -106,7 +106,7 @@ def table(rows, period):
         "TCE $/day": r["tce_usd_per_day"], "Contribution $": r["voyage_contribution_usd"], "Margin %": data.margin(r),
         "Revenue $": r["freight_revenue_usd"], "Hire $": r["hire_cost_usd"], "Bunkers $": r["bunker_cost_usd"],
         "Ports $": r["port_cost_usd"], "Commission $": r["commission_usd"], "Days": r["voyage_days"],
-        "Ballast d": r["ballast_days"], "Slack d": r["laycan_slack_days"], "Draft headroom m": r["draft_margin_m"],
+        "Ballast d": r["ballast_days"], "Slack d": r["laycan_slack_days"], "Draft headroom m": r["limiting_draft_margin_m"],
         "DWT margin t": r["deadweight_margin_tonnes"]} for r in rows])
     whole = ["Lift t", "TCE $/day", "Contribution $", "Revenue $", "Hire $", "Bunkers $", "Ports $", "Commission $", "DWT margin t"]
     frame[whole] = frame[whole].round(0).astype("int64")
@@ -121,11 +121,11 @@ def table(rows, period):
                                 "Slack d": st.column_config.NumberColumn(format="%+.1f"),
                                 "Draft headroom m": st.column_config.NumberColumn(format="%.2f"),
                                 "DWT margin t": st.column_config.NumberColumn(format="localized")})
-    st.download_button("Export CSV", frame.to_csv(index=False).encode("utf-8"), file_name=f"kingfish_pairings_{period}.csv",
+    st.download_button("Export CSV", frame.to_csv(index=False).encode("utf-8"), file_name=f"kingfish_pairings_{period or 'laycan'}.csv",
                        mime="text/csv", icon=":material/download:", key="an_csv", on_click="ignore")
 
 
-def analytics_page(report_button):
+def analytics_page(report_button, ranking_panel):
     state = st.session_state
     period, dark = state.price_period, state.get("dark_mode", True)
     title, action = st.columns([1, .3], vertical_alignment="center")
@@ -134,6 +134,7 @@ def analytics_page(report_button):
     with action:
         report_button()
     filters()
+    ranking_panel()
     basis = state.get("an_basis") or "best"
     vessels = state.get("an_vessels") or data.vessel_ids()
     cargoes = state.get("an_cargoes") or data.cargo_ids()

@@ -45,28 +45,38 @@ def calculated_briefing(evidence, commentary=None):
     sections = []
     for idx, output in enumerate(outputs):
         rows = output["rows"]
-        facts = output.get("analysis") or analyst_facts(rows)
+        ranking = output.get("ranking")
+        facts = output.get("analysis") or analyst_facts(rows, ranking)
         row = next(r for r in rows if r["vessel_id"] == facts["focus_vessel"])
         extra = commentary if idx == 0 and commentary else {}
         scope = f'{row["cargo_id"]} · {row["selected_lift_tonnes"]:,.0f} t · bunker month {row["bunker_price_period"]}'
         if facts["feasible_count"]:
             margin = f'{facts["focus_margin_pct"]:.1f}%' if facts["focus_margin_pct"] is not None else "unavailable"
             pick = "leads on contribution among options feasible under the working assumptions" if len(rows) > 1 else "passes the checks under the working assumptions"
-            view = (f'**Decision.** {row["vessel_id"]} {pick}: contribution **USD {row["voyage_contribution_usd"]:,.0f}**, '
+            if ranking and len(rows) > 1:
+                pick = f'leads on {ranking["label"].lower()}'
+            view = (f'**Decision.** {row["vessel_id"]} {pick}. Contribution **USD {row["voyage_contribution_usd"]:,.0f}**, '
                     f'profit margin **{margin}**, TCE before hire **USD {row["tce_usd_per_day"]:,.0f}/day**. '
                     + extra.get("assessment", ""))
+            if ranking and ranking["objective"] == "stress_contribution":
+                view += f' Stressed contribution is **USD {row["stress_contribution_usd"]:,.0f}**.'
         else:
             view = '**Decision.** None of the evaluated voyages is feasible. Rework the allocation or commercial constraints before proceeding.'
+            if ranking and ranking["objective"] == "stress_contribution":
+                view = "**Decision.** No voyage passes both the base and stress feasibility checks."
             # Never append a generated recommendation when all options fail.
             extra = {}
         driver = ''
-        if "runner_up" in facts:
+        if ranking and ranking["runner_up"] and ranking["objective"] != "contribution":
+            driver = (f'The lead over {ranking["runner_up"]} is '
+                      f'**{ranking["unit"]} {ranking["difference"]:,.0f}** on the selected objective. ')
+        elif "runner_up" in facts:
             driver = (f'Contribution is **USD {facts["contribution_advantage_usd"]:,.0f}** above {facts["runner_up"]}; '
                       f'ballast time is {abs(facts["ballast_days_saved_vs_runner_up"]):.2f} days {"shorter" if facts["ballast_days_saved_vs_runner_up"] >= 0 else "longer"}. ')
         largest = facts["largest_cost"]
         driver += f'{largest} accounts for the largest expense at **USD {facts["cost_breakdown_usd"][largest]:,.0f}**. '
         risks = (f'Load-arrival slack is **{row["laycan_slack_days"]:.2f} days**; '
-                 f'summer-draft headroom is **{row["draft_margin_m"]:.2f} m**, against the required {row["required_summer_draft_margin_m"]:.2f} m. ')
+                 f'headroom to the tightest draft limit is **{row.get("limiting_draft_margin_m", row["draft_margin_m"]):.3f} m**. ')
         if not row["feasible"]:
             risks += 'Failed checks: ' + ', '.join(row["failed_checks"]) + '. '
         if not row["fuel_pass"]:
@@ -74,7 +84,9 @@ def calculated_briefing(evidence, commentary=None):
         elif not row['opening_rob_pass']:
             risks += shortage_message(row) + ' '
         risks += ' '.join(row['warnings']) + ' '
-        excluded = [f'{r["vessel_id"]}/{r["cargo_id"]}: {", ".join(r["failed_checks"])}' for r in rows if not r['feasible']]
+        excluded = [f'{r["vessel_id"]}/{r["cargo_id"]}: {", ".join(r.get("reasons", r.get("failed_checks", [])))}'
+                    for r in output.get("excluded_combinations", rows)
+                    if "reasons" in r or not r["feasible"]]
         if excluded:
             risks += 'Excluded combinations: ' + '; '.join(excluded) + '. '
         next_action = extra.get("next_action", "Confirm vessel readiness, port limits and commercial inputs before selecting a voyage.")
@@ -82,5 +94,5 @@ def calculated_briefing(evidence, commentary=None):
             next_action = "Resolve the fuel delivery location, quantity and timing, then revalidate the voyage before proceeding."
         sections.append(f'**{scope}**\n\n{view}\n\n**Drivers.** {driver}{extra.get("drivers", "")}\n\n'
                         f'**Constraints.** {risks}{extra.get("risk", "")}\n\n**Next action.** {next_action}\n\n'
-                        'Comparison covers this cargo and lift; voyage durations differ. Canal cost is assumed zero.')
+                        'Comparison covers one committed cargo. Voyage durations differ. Canal cost is assumed zero.')
     return '\n\n---\n\n'.join(sections)

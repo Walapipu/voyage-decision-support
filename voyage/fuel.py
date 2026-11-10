@@ -1,4 +1,4 @@
-"""Fuel inventory audit. Purchase requirements are not scheduled deliveries."""
+"""Fuel inventory diagnostics and two-stop replenishment planning."""
 from decimal import Decimal as D
 
 
@@ -39,3 +39,25 @@ def audit_fuel(opening, stages):
     return dict(fuel_pass=not first_shortfalls,
                 fuel_status="opening fuel sufficient" if not first_shortfalls else "replenishment plan required",
                 fuel_ledger=ledger, fuel_first_shortfalls=first_shortfalls)
+
+
+
+def plan_fuel(opening, reserves, stages):
+    """Buy the minimum by grade at the current port and on arrival at loading."""
+    plan = {}
+    ballast, waiting, loading, laden, discharge = (stage[2] for stage in stages)
+    for grade, reserve in reserves.items():
+        at_origin = max(D(0), reserve + ballast[grade] - opening[grade])
+        arrival = opening[grade] + at_origin - ballast[grade]
+        at_load = max(D(0), reserve + waiting[grade] + loading[grade] + laden[grade] + discharge[grade] - arrival)
+        departure = arrival + at_load - waiting[grade] - loading[grade]
+        plan[grade] = {
+            "opening_tonnes": opening[grade],
+            "reserve_tonnes": reserve,
+            "purchase_before_ballast_tonnes": at_origin,
+            "load_arrival_tonnes": arrival,
+            "purchase_at_load_tonnes": at_load,
+            "laden_departure_tonnes": departure,
+            "discharge_complete_tonnes": departure - laden[grade] - discharge[grade],
+        }
+    return plan
