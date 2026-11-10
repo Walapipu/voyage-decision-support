@@ -56,6 +56,31 @@ def evaluate_voyage(vessel_id, cargo_id, lift_tonnes, period=None, policy=None):
     return {"rows": [present(calculate(vessel_id, cargo_id, lift_tonnes, period, policy))], "conventions": conventions(policy)}
 
 
+LIFT_RESOLUTION_T = 100  # convention: optimised lifts are rounded down to the nearest 100 t
+
+
+def within_load_limits(row):
+    """Deadweight and draft checks: the only checks that tighten as the lift grows."""
+    return row["deadweight_pass"] and row["draft_pass"] and (
+        row["port_draft_policy"] != "exclude" or row["port_draft_pass"])
+
+
+def max_loadable_lift(fits, low, high, resolution=LIFT_RESOLUTION_T):
+    """Largest lift in [low, high] that passes `fits`, rounded down to `resolution`, or None.
+
+    Bisection is valid because deadweight and draft only tighten as the lift grows.
+    Shared by the Overview plan and the ranking so both reach the same cargo size."""
+    if not fits(low):
+        return None
+    if fits(high):
+        return high
+    good, bad = low, high
+    while bad - good > resolution:
+        mid = (good + bad) / 2
+        good, bad = (mid, bad) if fits(mid) else (good, mid)
+    return max(low, (good // resolution) * resolution)
+
+
 def quantity_grid(cargo):
     low, nominal, high = (Decimal(cargo[f"{bound}_quantity_tonnes"])
                           for bound in ("minimum", "nominal", "maximum"))
@@ -116,13 +141,21 @@ def compare_vessels(cargo_id, lift_tonnes=None, period=None, policy=None, *,
     cargo = index(tables["committed_cargoes"], "cargo_id").get(cargo_id)
     if cargo is None:
         raise ValueError("Choose committed cargo CC-01 to CC-03.")
-    lifts = [lift_tonnes] if lift_tonnes is not None else quantity_grid(cargo)
+    grid = [lift_tonnes] if lift_tonnes is not None else quantity_grid(cargo)
     vessels = [v for v in tables["managed_vessels"] if vessel_ids is None or v["vessel_id"] in vessel_ids]
     if not vessels:
         raise ValueError("Select at least one managed vessel.")
     candidates = []
     for vessel in vessels:
         for speed in speeds:
+            lifts = grid
+            if lift_tonnes is None:
+                # Add this vessel's largest loadable lift, found to the same 100 t as the plan.
+                # Without it the 1,000 t grid can stop up to ~1,000 t short of the limit.
+                fits = lambda lift: within_load_limits(
+                    calculate_from_tables(tables, vessel["vessel_id"], cargo_id, lift, period, policy, speed, BASE))
+                top = max_loadable_lift(fits, grid[0], grid[-1])
+                lifts = sorted(set(grid) | ({top} if top is not None else set()))
             for lift in lifts:
                 args = (tables, vessel["vessel_id"], cargo_id, lift, period, policy, speed)
                 base = present(calculate_from_tables(*args, BASE))

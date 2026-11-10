@@ -167,7 +167,7 @@ class UITests(unittest.TestCase):
         app.checkbox(key="optimise_rank_lift").check().run()
         next(s for s in app.selectbox if s.label == "Ranking objective").set_value("tce").run()
         self.assertFalse(app.exception)
-        self.assertTrue(any("168,200 t" in item.value and "MF-04" in item.value for item in app.get("html")))
+        self.assertTrue(any("169,100 t" in item.value and "MF-04" in item.value for item in app.get("html")))
 
     def test_plan_row_selection_and_all_workspace_pages(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py")).run()

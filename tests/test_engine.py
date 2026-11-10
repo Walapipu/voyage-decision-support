@@ -49,9 +49,9 @@ class EngineTests(unittest.TestCase):
         contribution = execute_tool("compare_vessels", '{"cargo_id":"CC-01"}')
         tce = execute_tool("compare_vessels", '{"cargo_id":"CC-01","objective":"tce"}')
         self.assertEqual((contribution["ranking"]["winner"], contribution["ranking"]["lift_tonnes"]),
-                         ("MF-01", 170200))
+                         ("MF-04", 169100))
         self.assertEqual((tce["ranking"]["winner"], tce["ranking"]["lift_tonnes"]),
-                         ("MF-04", 168200))
+                         ("MF-04", 169100))
         self.assertEqual(tce["analysis"]["focus_vessel"], "MF-04")
         self.assertEqual(tce["rows"][0]["bunker_price_period"], "2026-04")
         self.assertEqual(calculate("MF-01", "CC-01", 170200, "2026-03")["bunker_price_period"], "2026-03")

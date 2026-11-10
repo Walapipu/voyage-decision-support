@@ -5,7 +5,8 @@ from decimal import Decimal as D
 from unittest.mock import patch
 
 from voyage.data import load_tables
-from voyage.decision import compare_vessels, ranking_evidence
+from voyage.decision import compare_vessels, max_loadable_lift, ranking_evidence
+from voyage.plan import best_voyage
 from voyage.engine import calculate, VoyageScenario
 
 
@@ -52,10 +53,25 @@ class RankingPolicyTests(unittest.TestCase):
         self.assertEqual(stressed["status"], "Scenario-sensitive")
 
     def test_real_cargo_reports_objective_dependence(self):
-        ranking = compare_vessels("CC-01")["ranking"]
+        # CC-03: MF-01 has the higher contribution, MF-02 the higher TCE.
+        ranking = compare_vessels("CC-03")["ranking"]
         self.assertEqual(ranking["winner"], "MF-01")
         self.assertEqual(ranking["status"], "Objective-dependent")
         self.assertTrue(ranking["draft_limited"])
+
+    def test_ranking_and_overview_plan_reach_the_same_lift(self):
+        for cargo in ("CC-01", "CC-02", "CC-03"):
+            with self.subTest(cargo=cargo):
+                plan = [best_voyage(v, cargo, None) for v in ("MF-01", "MF-02", "MF-03", "MF-04")]
+                plan = max(filter(None, plan), key=lambda r: r["voyage_contribution_usd"])
+                ranking = compare_vessels(cargo)["ranking"]
+                self.assertEqual((ranking["winner"], ranking["lift_tonnes"]),
+                                 (plan["vessel_id"], plan["selected_lift_tonnes"]))
+
+    def test_max_loadable_lift_rounds_down_to_100_t(self):
+        self.assertEqual(max_loadable_lift(lambda x: x <= 170_655, 160_000, 180_000), 170_600)
+        self.assertEqual(max_loadable_lift(lambda x: True, 160_000, 180_000), 180_000)
+        self.assertIsNone(max_loadable_lift(lambda x: False, 160_000, 180_000))
 
     def test_every_cargo_and_objective_has_a_recommendation(self):
         for cargo in ("CC-01", "CC-02", "CC-03"):

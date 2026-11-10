@@ -9,7 +9,7 @@ from functools import lru_cache
 from itertools import permutations
 
 from voyage.data import index, load_tables
-from voyage.decision import present
+from voyage.decision import max_loadable_lift, present, within_load_limits
 from voyage.engine import calculate
 from voyage.policy import load_policy
 
@@ -36,22 +36,13 @@ def best_voyage(vessel_id, cargo_id, period):
     threshold are tried as well and the best feasible row wins."""
     cargo = index(load_tables()["committed_cargoes"], "cargo_id")[cargo_id]
     low, high = float(cargo["minimum_quantity_tonnes"]), float(cargo["maximum_quantity_tonnes"])
-    def fits(lift):
-        row = _row(vessel_id, cargo_id, lift, period)
-        return row["deadweight_pass"] and row["draft_pass"] and (
-            row["port_draft_policy"] != "exclude" or row["port_draft_pass"]
-        )
-
     lifts = {low, float(cargo["nominal_quantity_tonnes"]), high}
     threshold = float(cargo["special_freight_threshold_tonnes"] or 0)
     if low < threshold < high:
         lifts.add(threshold)
-    if fits(low) and not fits(high):
-        good, bad = low, high
-        while bad - good > 100:
-            mid = (good + bad) / 2
-            good, bad = (mid, bad) if fits(mid) else (good, mid)
-        lifts.add(float(int(good // 100) * 100))
+    top = max_loadable_lift(lambda lift: within_load_limits(_row(vessel_id, cargo_id, lift, period)), low, high)
+    if top is not None:
+        lifts.add(float(top))
     rows = [_row(vessel_id, cargo_id, lift, period) for lift in sorted(lifts) if low <= lift <= high]
     feasible = [r for r in rows if r["feasible"]]
     return max(feasible, key=lambda r: r["voyage_contribution_usd"]) if feasible else None
