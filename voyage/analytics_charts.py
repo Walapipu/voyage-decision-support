@@ -156,7 +156,9 @@ def heatmap(rows, vessels, cargoes, focus, dark):
                 note = f'<b>{short(r["voyage_contribution_usd"])}</b><br>{short(r["tce_usd_per_day"])}/day · {r["selected_lift_tonnes"] / 1e3:,.1f}k t'
             else:
                 colour = c["muted"]
-                note = f'✕ {failed(r)}'
+                # Two checks per line, so long failure lists stay inside their own cell.
+                names = [CHECKS.get(k, k) for k in r["failed_checks"]]
+                note = "✕ " + "<br>".join(", ".join(names[i:i + 2]) for i in range(0, len(names), 2))
             fig.add_annotation(x=cg, y=v, text=note, showarrow=False, font=dict(size=11, color=colour))
     fig.add_trace(go.Heatmap(z=z, x=cargoes, y=vessels, customdata=hover, hovertemplate="%{customdata}<extra></extra>",
                              colorscale=[[i / (len(scale) - 1), h] for i, h in enumerate(scale)],
@@ -171,11 +173,24 @@ def heatmap(rows, vessels, cargoes, focus, dark):
             if r is not None and not r["feasible"]:
                 fig.add_shape(type="rect", xref="x", yref="y", x0=cargoes.index(cg) - .49, x1=cargoes.index(cg) + .49,
                               y0=vessels.index(v) - .49, y1=vessels.index(v) + .49, fillcolor=c["field"], line_width=0, layer="below")
-    if focus and focus in cell:
-        fig.add_shape(type="rect", xref="x", yref="y", x0=cargoes.index(focus[1]) - .5, x1=cargoes.index(focus[1]) + .5,
-                      y0=vessels.index(focus[0]) - .5, y1=vessels.index(focus[0]) + .5, line=dict(color=c["text"], width=2))
-    fig.update_yaxes(autorange="reversed", showgrid=False, tickfont=dict(family="Source Code Pro, monospace", size=11, color=c["text"]))
-    fig.update_xaxes(side="top", showgrid=False, tickfont=dict(family="Source Code Pro, monospace", size=11, color=c["text"]))
+    focused = bool(focus) and focus in cell
+    if focused:
+        # Same accent as the focused bubble in the TCE chart, so the two read as one selection.
+        # A thin surface-coloured ring inside separates the accent from the cell's own colour.
+        x, y = cargoes.index(focus[1]), vessels.index(focus[0])
+        fig.add_shape(type="rect", xref="x", yref="y", x0=x - .5, x1=x + .5, y0=y - .5, y1=y + .5,
+                      line=dict(color=c["accent"], width=3))
+        fig.add_shape(type="rect", xref="x", yref="y", x0=x - .45, x1=x + .45, y0=y - .45, y1=y + .45,
+                      line=dict(color=c["surface"], width=1.5))
+
+    def ticks(ids, hot):
+        return dict(tickmode="array", tickvals=ids,
+                    ticktext=[f'<span style="color:{c["accent"]}"><b>{i}</b></span>' if focused and i == hot else i for i in ids])
+
+    fig.update_yaxes(autorange="reversed", showgrid=False, tickfont=dict(family="Source Code Pro, monospace", size=11, color=c["text"]),
+                     **ticks(vessels, focus[0] if focused else None))
+    fig.update_xaxes(side="top", showgrid=False, tickfont=dict(family="Source Code Pro, monospace", size=11, color=c["text"]),
+                     **ticks(cargoes, focus[1] if focused else None))
     return style(fig, dark, 300)
 
 

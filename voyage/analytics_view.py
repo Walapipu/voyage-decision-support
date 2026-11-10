@@ -70,7 +70,7 @@ def kpis(rows, period):
         ("Best contribution", money(best["voyage_contribution_usd"]) if best else "—",
          f'{best["vessel_id"]} → {best["cargo_id"]} · {best["selected_lift_tonnes"]:,.0f} t' if best else "no feasible pairing", ""),
         ("Avg TCE, feasible", f'{money(s["avg_tce"])}/day' if s["avg_tce"] is not None else "—", "before hire", ""),
-        ("Avg bunker cost", money(s["bunker_cost"]) if s["bunker_cost"] is not None else "—", f"per feasible voyage · {_month(period)} curve", ""),
+        ("Avg bunker cost", money(s["bunker_cost"]) if s["bunker_cost"] is not None else "—", "per feasible voyage · " + (f"{_month(period)} prices" if period else "laycan-month prices"), ""),
         ("Tightest laycan slack", f'{tight["laycan_slack_days"]:.1f} d' if tight else "—",
          f'{tight["vessel_id"]} → {tight["cargo_id"]}' if tight else "no feasible pairing",
          "warn" if tight and tight["laycan_slack_days"] < 3 else ""),
@@ -159,7 +159,7 @@ def analytics_page(report_button, ranking_panel):
         left, right = st.columns([1, 1.15], gap="small")
         with left, panel("an_heat", "Contribution by vessel and cargo", f"after hire · {basis_note}"):
             st.plotly_chart(charts.heatmap(rows, shown_vessels, shown_cargoes, focus, dark), width="stretch", theme=None, key="an_heatmap", config=CONFIG)
-            st.caption("Empty cells fail a check; the check is named. Outlined cell is the focus.")
+            st.caption("Empty cells fail a check, which is named. The blue outline marks the focus")
         with right, panel("an_tce", "TCE against laycan slack", "bubble area is contribution · click a bubble to focus it"):
             st.plotly_chart(charts.scatter(rows, focus, dark), width="stretch", theme=None, key="an_scatter", config=CONFIG,
                             on_select=_on_pick, selection_mode="points")
