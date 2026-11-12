@@ -9,7 +9,7 @@ from voyage.data import load_tables, index
 from voyage.market import offer_table, quote_table
 from voyage.dashboard_data import dashboard_case, candidates_case
 from voyage.decision import OBJECTIVES
-from voyage.voyages_view import voyages_page
+from voyage.voyages_view import voyages_page, apply_suggested_lift, lift_edited, ranking_basis_changed
 from voyage.dashboard import (apply_theme, heading, voyage_summary, comparison_table, economics, timeline, result_frame)
 from voyage.plan import build_plan, plan_summary
 from voyage import overview
@@ -30,12 +30,13 @@ if st.session_state.get("logged_out"):
         st.session_state.logged_out = False
         st.rerun()
     st.stop()
-for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":None, "map_view":"All voyages"}.items():
+for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":None, "map_view":"All voyages",
+                   "ranking_objective":"contribution"}.items():
     if key not in st.session_state:
         st.session_state[key] = value
 # The Overview has no vessel, cargo or lift widgets; re-assigning keeps these values when
 # their widgets are not drawn on a run instead of letting Streamlit discard them.
-for key in ("selected_vessel", "selected_cargo", "selected_lift", "price_period", "map_view"):
+for key in ("selected_vessel", "selected_cargo", "selected_lift", "price_period", "map_view", "ranking_objective"):
     st.session_state[key] = st.session_state[key]
 
 # Apply chat results before Streamlit instantiates the bound selector widgets.
@@ -48,10 +49,14 @@ if goto_page := st.session_state.pop("goto_page", None):
     st.session_state.page = goto_page
 if st.session_state.pop("close_voyage_selectors", False):
     st.session_state.voyage_selectors = False
+# A cargo reached Voyages with no lift (e.g. from chat, or the box was cleared): fill the suggestion before the lift box exists.
+if st.session_state.pop("suggest_lift", False):
+    apply_suggested_lift()
 
 
 def reset_lift():
-    st.session_state.selected_lift = None
+    # A new cargo starts at the ranking's suggested lift; the lift box stays editable.
+    apply_suggested_lift()
     # A cargo picked in the top bar ends any Voyages search in progress.
     st.session_state.voyage_port = st.session_state.voyage_query = None
 
@@ -183,10 +188,10 @@ def selection_controls():
         with cargo_col:
             st.selectbox("Cargo", [None] + [c["cargo_id"] for c in tables["committed_cargoes"] + tables["market_cargoes"]], format_func=lambda c: c or "Cargo", key="selected_cargo", on_change=reset_lift, label_visibility="collapsed", placeholder="Cargo")
         with lift_col:
-            st.number_input("Selected lift (tonnes)", min_value=0.0, max_value=1000000.0, value=None, step=500.0, format="%.12g", key="selected_lift", label_visibility="collapsed", placeholder="Lift, tonnes")
+            st.number_input("Selected lift (tonnes)", min_value=0.0, max_value=1000000.0, value=None, step=500.0, format="%.12g", key="selected_lift", on_change=lift_edited, label_visibility="collapsed", placeholder="Lift, tonnes")
         with period_col:
             st.selectbox("Bunker price month", [None] + sorted({r["period"] for r in tables["bunker_forward_curve"]}),
-                         format_func=lambda month: month or "Laycan month", key="price_period", label_visibility="collapsed", placeholder="Date")
+                         format_func=lambda month: month or "Laycan month", key="price_period", on_change=ranking_basis_changed, label_visibility="collapsed", placeholder="Date")
 
 
 if page not in ("Overview", "AI Assistant"):
@@ -230,7 +235,10 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
 
     elif page == "Voyages":
         cargo_id, lift = st.session_state.selected_cargo, st.session_state.selected_lift
-        cc = candidates_case(cargo_id, lift, st.session_state.price_period) if cargo_id is not None and lift_selected else None
+        if cargo_id is not None and not lift_selected and not (st.session_state.get("voyage_port") or st.session_state.get("voyage_query")):
+            st.session_state.suggest_lift = True
+            st.rerun()
+        cc = candidates_case(cargo_id, lift, st.session_state.price_period, st.session_state.ranking_objective) if cargo_id is not None and lift_selected else None
         voyages_page(cc)
         if cc and not (st.session_state.get("voyage_port") or st.session_state.get("voyage_query")):
             if case:
@@ -271,8 +279,8 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
                     st.caption("Select a committed cargo to rank vessels.")
                     return
                 objective_col, lift_col = st.columns(2)
-                objective_col.selectbox("Ranking objective", list(OBJECTIVES),
-                                        format_func=lambda key: OBJECTIVES[key][1], key="ranking_objective")
+                objective_col.selectbox("Ranking objective", list(OBJECTIVES), format_func=lambda key: OBJECTIVES[key][1],
+                                        key="ranking_objective", on_change=ranking_basis_changed)
                 if lift_selected:
                     lift_col.checkbox("Optimise lift within cargo tolerance", key="optimise_rank_lift")
                 else:

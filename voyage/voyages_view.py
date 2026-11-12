@@ -15,6 +15,8 @@ from voyage.market import all_cargoes
 
 from voyage.analysis import STAGES, STAGE_COLOURS
 from voyage.dashboard import e, usd, profit_style, select_vessel, heading
+from voyage.dashboard_data import suggested_lift
+from voyage.decision import OBJECTIVES
 from voyage.data import index, load_tables
 from voyage.map_view import locations, render_candidate_map
 from voyage.search import open_cargoes, search
@@ -53,7 +55,48 @@ def _laycan(cargo):
 
 
 def _ranks(rows):
-    return {r["vessel_id"]: i for i, r in enumerate((r for r in rows if r["feasible"]), 1)}
+    return {r["vessel_id"]: i for i, r in enumerate((r for r in rows if r["ranking_eligible"]), 1)}
+
+
+def _value(cc, value):
+    """An objective value in its unit: USD, or USD/day for TCE."""
+    return f'{usd(value)}/day' if cc["objective"]["unit"] == "USD/day" else usd(value)
+
+
+def _phrase(label):
+    """'Contribution after hire' -> 'contribution after hire'; TCE keeps its capitals."""
+    return label if label.startswith("TCE") else label[0].lower() + label[1:]
+
+
+def _highest(cc):
+    return "Highest " + _phrase(cc["objective"]["label"])
+
+
+# ---------- Lift suggestion and rank method ----------
+
+def apply_suggested_lift():
+    """Fill the lift box with the top-ranked vessel's best lift for the cargo, month and rank method.
+
+    Called from widget callbacks (and before the widgets on a rerun), so the lift box can still be edited."""
+    cargo_id = st.session_state.get("selected_cargo")
+    objective = st.session_state.get("ranking_objective") or "contribution"
+    st.session_state.selected_lift = suggested_lift(cargo_id, st.session_state.get("price_period"), objective) if cargo_id else None
+    st.session_state.lift_is_suggested = cargo_id is not None
+
+
+def lift_edited():
+    st.session_state.lift_is_suggested = False
+
+
+def ranking_basis_changed():
+    """A new rank method or price month re-suggests the lift, unless the user typed their own."""
+    if st.session_state.get("lift_is_suggested") or not st.session_state.get("selected_lift"):
+        apply_suggested_lift()
+
+
+def rank_method_picker():
+    st.selectbox("Rank by", list(OBJECTIVES), format_func=lambda key: "Rank by " + _phrase(OBJECTIVES[key][1]),
+                 key="ranking_objective", on_change=ranking_basis_changed, label_visibility="collapsed")
 
 
 def stem_card(cc):
@@ -62,7 +105,7 @@ def stem_card(cc):
     place = " · ".join(dict.fromkeys([load["country"], load["region"]]))
     rows = [("Cargo", f'{cargo["cargo_id"]} · {cargo["commodity"].replace("_", " ")}'),
             ("Discharge", f'{discharge["port_name"]} {cargo["discharge_port"]}'),
-            ("Lift", f'{cc["lift"]:,.0f} t'),
+            ("Lift", f'{cc["lift"]:,.0f} t' + (" · suggested" if cc["lift"] == cc["suggested_lift"] else "")),
             ("Permitted", f'{float(cargo["minimum_quantity_tonnes"]):,.0f}–{float(cargo["maximum_quantity_tonnes"]):,.0f} t'),
             ("Laycan", _laycan(cargo)),
             (_freight_label(cargo), f'${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}/t')]
@@ -91,7 +134,7 @@ def candidate_card(row, cc, rank, focus_id):
     tags = f'<span class="tag">Rank {rank}</span>' if rank else ""
     hired = row["vessel_id"].startswith("MV")
     if rank == 1:
-        tags += '<span class="tag info">Highest contribution</span>'
+        tags += f'<span class="tag info">{e(_highest(cc))}</span>'
     status = ('<span class="tag good">Feasible</span>' if feasible else
               f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in row["failed_checks"]))}</span>')
     head = (f'<div class="cand-head"><span class="cand-id"><i class="dot {"good" if feasible else "bad"}"></i>'
@@ -116,8 +159,12 @@ def candidate_card(row, cc, rank, focus_id):
             f'<span>Load ETA <b class="num">{e(_when(row["arrival_at_load_utc"]))}</b></span></div>' + stage_bar(row))
     best = cc["best"]
     note = ""
-    if feasible and best and rank != 1:
-        note = f'<p class="cand-note">Contribution {e(usd(best["voyage_contribution_usd"] - row["voyage_contribution_usd"]))} below {e(best["vessel_id"])}.</p>'
+    metric = cc["objective"]["metric"]
+    if feasible and not rank:
+        note = '<p class="cand-note">Not ranked: fails the stress scenario.</p>'
+    elif feasible and best and rank != 1:
+        note = (f'<p class="cand-note">{e(cc["objective"]["label"])} {e(_value(cc, best[metric] - row[metric]))} '
+                f'below {e(best["vessel_id"])}.</p>')
     elif not feasible:
         note = f'<p class="cand-note">Economics hypothetical: {e(usd(row["voyage_contribution_usd"]))} contribution if the checks were waived.</p>'
     focus = row["vessel_id"] == focus_id
@@ -200,14 +247,17 @@ def market_strip(cc):
     if cc["bunker_prices"]:
         items.append(f'VLSFO <b>${cc["bunker_prices"].get("VLSFO", 0):,.0f}/t</b> · MGO <b>${cc["bunker_prices"].get("MGO", 0):,.0f}/t</b> '
                      f'({e(cc["pricing_location"])}, {e(cc["period"])})')
-    if cc["best"]:
-        items.append(f'Highest contribution <b>{e(cc["best"]["vessel_id"])} ({e(usd(cc["best"]["voyage_contribution_usd"]))})</b>')
+    best = cc["best"]
+    if best:
+        items.append(f'{e(_highest(cc))} <b>{e(best["vessel_id"])} ({e(_value(cc, best[cc["objective"]["metric"]]))})</b>')
+    elif cc["feasible_count"]:
+        items.append('<b>No feasible vessel passes the stress scenario at this lift</b>')
     else:
         items.append('<b>No vessel is feasible at this lift</b>')
     if cc["lead"]:
         lead = cc["lead"]
         pct = f' ({lead["pct"]:.1f}% above)' if lead["pct"] is not None else ""
-        items.append(f'Lead over {e(lead["vessel_id"])} <b>+{e(usd(lead["usd"]))}</b>{pct}')
+        items.append(f'Lead over {e(lead["vessel_id"])} <b>+{e(_value(cc, lead["usd"]))}</b>{pct}')
     elif cc["best"]:
         items.append("No feasible runner-up")
     st.html('<div class="market-strip">' + "".join(f'<span>{item}</span>' for item in items) + '</div>')
@@ -216,10 +266,9 @@ def market_strip(cc):
 # ---------- Search: load port or cargo ----------
 
 def _choose_cargo(cargo_id):
-    cargo = all_cargoes()[cargo_id]
     st.session_state.selected_cargo = cargo_id
-    # A new cargo starts at its nominal lift; the lift box in the top strip stays editable.
-    st.session_state.selected_lift = int(float(cargo["nominal_quantity_tonnes"]))
+    # A new cargo starts at the ranking's suggested lift; the lift box in the top strip stays editable.
+    apply_suggested_lift()
     st.session_state.voyage_port = None
     st.session_state.voyage_query = None
 
@@ -291,8 +340,8 @@ def browse_panel():
         result_list(f'Results for "{query}"', search(query, tables=tables))
     else:
         heading("Find a voyage")
-        st.caption("Search a load port or cargo above, or pick a cargo and lift in the top bar. "
-                   "Every vessel that may carry it is then evaluated; choosing a vessel is optional.")
+        st.caption("Search a load port or cargo above, or pick a cargo in the top bar. The ranking suggests a lift, "
+                   "which you can change. Every vessel that may carry the cargo is then evaluated; choosing a vessel is optional.")
 
 
 def voyages_page(cc):
@@ -300,6 +349,7 @@ def voyages_page(cc):
     if cc is None or browsing:
         with st.container(border=True, key="voyage_start"):
             search_bar()
+            rank_method_picker()
             browse_panel()
             if cc is None and st.session_state.get("selected_cargo") and not browsing:
                 st.info("Enter a lift in the top bar to evaluate this cargo.")
@@ -313,12 +363,16 @@ def voyages_page(cc):
         left, right = st.columns([1, 1.9], gap="small")
         with left, st.container(border=True, key="candidates_panel"):
             search_bar()
+            rank_method_picker()
             stem_card(cc)
+            if cc["lift"] != cc["suggested_lift"]:
+                st.button(f'Use suggested lift ({cc["suggested_lift"]:,.0f} t)', key="use_suggested_lift",
+                          on_click=apply_suggested_lift, type="tertiary", icon=":material/restart_alt:")
             labels = {"all": f"All candidates ({len(rows)})", "feasible": f"Feasible ({cc['feasible_count']})"}
             choice = st.radio("Vessel filter", list(labels), format_func=labels.get, horizontal=True,
                               key="voyage_filter", label_visibility="collapsed")
             shown = [r for r in rows if r["feasible"]] if choice == "feasible" else rows
-            heading(f"Evaluated vessels ({len(rows)})", f"{cc['feasible_count']} feasible")
+            heading(f"Evaluated vessels ({len(rows)})", f"{cc['feasible_count']} feasible · ranked by {_phrase(cc['objective']['label'])}")
             st.html(stage_legend())
             with st.container(key="candidates_scroll"):
                 for row in shown:

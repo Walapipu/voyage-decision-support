@@ -1,7 +1,8 @@
 import unittest
 from pathlib import Path
 from streamlit.testing.v1 import AppTest
-from voyage.dashboard_data import candidates_case, _reference_period
+from voyage.dashboard_data import candidates_case, suggested_lift, _reference_period
+from voyage.decision import compare_vessels
 
 
 def open_voyages():
@@ -30,6 +31,53 @@ class VoyagesTests(unittest.TestCase):
         none = candidates_case("CC-01", 178000, "2026-03")
         self.assertIsNone(none["best"])
         self.assertIsNone(none["lead"])
+
+    def test_suggested_lift_is_the_winners_best_lift_for_each_rank_method(self):
+        for objective in ("contribution", "tce", "stress_contribution"):
+            optimised = compare_vessels("CC-01", None, None, objective=objective, include_market=True)
+            winner = next(r for r in optimised["rows"] if r["ranking_eligible"])
+            lift = suggested_lift("CC-01", None, objective)
+            self.assertEqual(lift, winner["selected_lift_tonnes"], objective)
+            cc = candidates_case("CC-01", lift, None, objective)
+            self.assertEqual(cc["best"]["vessel_id"], winner["vessel_id"], objective)  # still top at its own lift
+            self.assertEqual(cc["suggested_lift"], lift)
+        self.assertEqual((suggested_lift("CC-01", None, "contribution"), suggested_lift("CC-01", None, "tce")), (169100, 171600))
+
+    def test_rank_method_orders_candidates_by_its_metric(self):
+        cc = candidates_case("CC-01", 171600, None, "tce")
+        self.assertEqual(cc["objective"]["label"], "TCE before hire")
+        ranked = [r["tce_usd_per_day"] for r in cc["rows"] if r["ranking_eligible"]]
+        self.assertEqual(ranked, sorted(ranked, reverse=True))
+        self.assertAlmostEqual(cc["lead"]["usd"], ranked[0] - ranked[1])
+
+    def test_cargo_alone_shows_ranked_candidates_at_suggested_lift(self):
+        app = open_voyages()
+        app.selectbox(key="selected_cargo").set_value("CC-01").run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state.selected_lift, 169100)
+        body = html(app)
+        self.assertIn("169,100 t · suggested", body)
+        self.assertIn("Highest contribution after hire", body)
+        # A new rank method re-suggests the lift while it is still the suggestion.
+        app.selectbox(key="ranking_objective").set_value("tce").run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state.selected_lift, 171600)
+        self.assertIn("Highest TCE before hire", html(app))
+        # A typed lift is kept when the rank method changes, and can be reset to the suggestion.
+        app.number_input(key="selected_lift").set_value(165000).run()
+        app.selectbox(key="ranking_objective").set_value("contribution").run()
+        self.assertEqual(app.session_state.selected_lift, 165000)
+        self.assertNotIn("· suggested", html(app))
+        app.button(key="use_suggested_lift").click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state.selected_lift, 169100)
+
+    def test_cleared_lift_is_suggested_again(self):
+        app = open_voyages()
+        app.selectbox(key="selected_cargo").set_value("CC-02").run()
+        app.number_input(key="selected_lift").set_value(None).run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state.selected_lift, 171200)
 
     def test_reference_period_falls_back_to_quarter(self):
         available = {"2026-03": 1, "2026-Q2": 1}
@@ -85,12 +133,12 @@ class SearchTests(unittest.TestCase):
         self.assertEqual(labels("zzz"), [])
         self.assertEqual(len(search("")), 20)  # 9 load ports, 3 committed and 8 market cargoes
 
-    def test_pick_port_with_one_cargo_selects_it_at_nominal_lift(self):
+    def test_pick_port_with_one_cargo_selects_it_at_suggested_lift(self):
         app = open_voyages()
         app.selectbox(key="voyage_search").set_value("port:BRIGI").run()
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state.selected_cargo, "CC-03")
-        self.assertEqual(app.session_state.selected_lift, 177000)
+        self.assertEqual(app.session_state.selected_lift, 167800)
         self.assertEqual(app.selectbox(key="voyage_search").value, "port:BRIGI")
 
     def test_free_text_search_lists_results_and_opens_one(self):
@@ -103,7 +151,7 @@ class SearchTests(unittest.TestCase):
         self.assertEqual(sorted(b.key for b in app.button if b.key and b.key.startswith("open_")),
                          sorted(f'open_{r["kind"]}_{r["id"]}' for r in search("iron")))
         app.button(key="open_cargo_CC-03").click().run()
-        self.assertEqual((app.session_state.selected_cargo, app.session_state.selected_lift), ("CC-03", 177000))
+        self.assertEqual((app.session_state.selected_cargo, app.session_state.selected_lift), ("CC-03", 167800))
         self.assertIsNone(app.session_state.voyage_query)
 
     def test_enter_on_free_text_runs_server_search(self):

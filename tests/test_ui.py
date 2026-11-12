@@ -46,12 +46,12 @@ class UITests(unittest.TestCase):
         next(r for r in app.radio if r.label == "Navigation").set_value("Voyages").run()
         self.assertEqual(app.number_input(key="selected_lift").value, 164000.5)
 
-    def test_selection_can_be_cleared_and_cargo_change_clears_lift(self):
+    def test_selection_can_be_cleared_and_cargo_change_suggests_lift(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run()
         next(r for r in app.radio if r.label == 'Navigation').set_value('Reports').run()
         app.selectbox(key='selected_vessel').set_value('MF-02').run()
         app.selectbox(key='selected_cargo').set_value('CC-02').run()
-        self.assertIsNone(app.number_input(key='selected_lift').value)
+        self.assertEqual(app.number_input(key='selected_lift').value, 171200)  # the ranking's suggested lift
         app.number_input(key='selected_lift').set_value(164000).run()
         self.assertFalse(app.exception)
         self.assertFalse(app.info)
@@ -153,7 +153,7 @@ class UITests(unittest.TestCase):
         self.assertFalse(app.session_state.dark_mode)
         next(r for r in app.radio if r.label == "Navigation").set_value("Reports").run()
         app.selectbox(key="selected_cargo").set_value("CC-01").run()
-        self.assertIsNone(app.number_input(key="selected_lift").value)
+        self.assertEqual(app.number_input(key="selected_lift").value, 169100)  # the ranking's suggested lift
         app.selectbox(key="selected_vessel").set_value("MF-02").run()
         app.number_input(key="selected_lift").set_value(178000).run()
         next(r for r in app.radio if r.label == "Navigation").set_value("Voyages").run()

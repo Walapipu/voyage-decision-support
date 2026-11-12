@@ -1,8 +1,9 @@
 """Presentation metrics derived from the existing engine, never from mock-up values."""
 from datetime import datetime, timedelta
+from functools import lru_cache
 
 from voyage.data import index, load_tables
-from voyage.decision import compare_vessels
+from voyage.decision import OBJECTIVES, compare_vessels
 from voyage.market import all_cargoes, all_vessels
 
 
@@ -64,13 +65,25 @@ def _reference_period(period, available):
     return quarter if quarter in available else None
 
 
-def candidates_case(cargo_id, lift, period):
-    """Every vessel that may carry one cargo at one lift, plus display context.
+@lru_cache(maxsize=128)
+def suggested_lift(cargo_id, period, objective="contribution"):
+    """The lift the ranking recommends: the top-ranked vessel's best lift within the cargo tolerance.
+
+    Falls back to the best feasible lift, then the nominal lift, when nothing ranks."""
+    rows = compare_vessels(cargo_id, None, period, objective=objective, include_market=True)["rows"]
+    winner = next((r for r in rows if r["ranking_eligible"]), None) or next((r for r in rows if r["feasible"]), None)
+    return float(winner["selected_lift_tonnes"]) if winner else float(all_cargoes()[cargo_id]["nominal_quantity_tonnes"])
+
+
+def candidates_case(cargo_id, lift, period, objective="contribution"):
+    """Every vessel that may carry one cargo at one lift, ranked by the chosen objective, plus display context.
 
     Managed vessels always; chartered-in market vessels too when the cargo is committed."""
     tables = load_tables()
-    comparison = compare_vessels(cargo_id, lift, period, include_market=True)
+    suggestion = suggested_lift(cargo_id, period, objective)
+    comparison = compare_vessels(cargo_id, lift, period, objective=objective, include_market=True)
     rows = comparison["rows"]
+    metric, label, unit = OBJECTIVES[objective]
     period = rows[0]["bunker_price_period"]
     cargo = all_cargoes()[cargo_id]
     ports = index(tables["ports"], "port_code")
@@ -78,11 +91,12 @@ def candidates_case(cargo_id, lift, period):
     prices = {r["fuel_grade"]: float(r["price_usd_per_tonne"]) for r in tables["bunker_forward_curve"]
               if r["period"] == period and r["pricing_location"] == location}
     feasible = [r for r in rows if r["feasible"]]
+    ranked = [r for r in rows if r["ranking_eligible"]]
     lead = None
-    if len(feasible) > 1:
-        gap = feasible[0]["voyage_contribution_usd"] - feasible[1]["voyage_contribution_usd"]
-        lead = {"vessel_id": feasible[1]["vessel_id"], "usd": gap,
-                "pct": 100 * gap / feasible[1]["voyage_contribution_usd"] if feasible[1]["voyage_contribution_usd"] > 0 else None}
+    if len(ranked) > 1:
+        gap = ranked[0][metric] - ranked[1][metric]
+        lead = {"vessel_id": ranked[1]["vessel_id"], "usd": gap,
+                "pct": 100 * gap / ranked[1][metric] if ranked[1][metric] > 0 else None}
     baltic = None
     if cargo_id in BALTIC_ROUTES:
         route, name = BALTIC_ROUTES[cargo_id]
@@ -92,6 +106,7 @@ def candidates_case(cargo_id, lift, period):
             baltic = {"route": route, "name": name, "period": ref, "usd_per_tonne": float(ffa[ref]["reference_value"])}
     return {"rows": rows, "cargo": cargo, "ports": ports, "conventions": comparison["conventions"],
             "vessels": all_vessels(),
-            "best": feasible[0] if feasible else None, "feasible_count": len(feasible),
+            "best": ranked[0] if ranked else None, "feasible_count": len(feasible), "ranked_count": len(ranked),
+            "objective": {"key": objective, "metric": metric, "label": label, "unit": unit},
             "lead": lead, "baltic": baltic, "bunker_prices": prices, "pricing_location": location,
-            "period": period, "lift": float(lift)}
+            "period": period, "lift": float(lift), "suggested_lift": suggestion}
