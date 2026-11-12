@@ -43,6 +43,13 @@ class VoyagesTests(unittest.TestCase):
             self.assertEqual(cc["suggested_lift"], lift)
         self.assertEqual((suggested_lift("CC-01", None, "contribution"), suggested_lift("CC-01", None, "tce")), (169100, 171600))
 
+    def test_per_vessel_case_uses_each_vessels_best_lift(self):
+        cc = candidates_case("CC-01", 169100, None, "contribution", per_vessel=True)
+        lifts = {r["vessel_id"]: r["selected_lift_tonnes"] for r in cc["rows"]}
+        self.assertEqual((lifts["MF-04"], lifts["MF-01"]), (169100, 170600))
+        self.assertEqual(cc["best"]["vessel_id"], "MF-04")
+        self.assertEqual(cc["feasible_count"], 15)  # at its own best lift every vessel passes; at 169,100 t only 14 do
+
     def test_rank_method_orders_candidates_by_its_metric(self):
         cc = candidates_case("CC-01", 171600, None, "tce")
         self.assertEqual(cc["objective"]["label"], "TCE before hire")
@@ -56,8 +63,12 @@ class VoyagesTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state.selected_lift, 169100)
         body = html(app)
-        self.assertIn("169,100 t · suggested", body)
+        self.assertIn("Best per vessel", body)  # suggested lift: each vessel at its own best lift
+        self.assertIn("Best lift <span class=\"num\">170,600</span> t", body)  # MF-01's own best, not the winner's
         self.assertIn("Highest contribution after hire", body)
+        app.button(key="pick_MF-01").click().run()
+        self.assertFalse(app.exception)
+        self.assertIn("170,600 tonnes", html(app))  # the selected voyage uses that vessel's best lift
         # A new rank method re-suggests the lift while it is still the suggestion.
         app.selectbox(key="ranking_objective").set_value("tce").run()
         self.assertFalse(app.exception)
@@ -67,7 +78,9 @@ class VoyagesTests(unittest.TestCase):
         app.number_input(key="selected_lift").set_value(165000).run()
         app.selectbox(key="ranking_objective").set_value("contribution").run()
         self.assertEqual(app.session_state.selected_lift, 165000)
-        self.assertNotIn("· suggested", html(app))
+        body = html(app)
+        self.assertNotIn("Best per vessel", body)
+        self.assertIn("CC-01 · 165,000 t", body)  # a typed lift applies to every vessel
         app.button(key="use_suggested_lift").click().run()
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state.selected_lift, 169100)

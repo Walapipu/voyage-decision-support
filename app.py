@@ -7,7 +7,7 @@ import streamlit as st
 from voyage.assets import brand_logo_uri
 from voyage.data import load_tables, index
 from voyage.market import offer_table, quote_table
-from voyage.dashboard_data import dashboard_case, candidates_case
+from voyage.dashboard_data import dashboard_case, candidates_case, suggested_lift
 from voyage.decision import OBJECTIVES
 from voyage.voyages_view import voyages_page, apply_suggested_lift, lift_edited, ranking_basis_changed
 from voyage.dashboard import (apply_theme, heading, voyage_summary, comparison_table, economics, timeline, result_frame)
@@ -43,6 +43,8 @@ for key in ("selected_vessel", "selected_cargo", "selected_lift", "price_period"
 selection_from_chat = st.session_state.pop("selection_from_chat", None)
 if selection_from_chat:
     st.session_state.update(selection_from_chat)
+    if selection_from_chat.get("selected_lift"):
+        st.session_state.lift_is_suggested = False
     st.session_state.voyage_port = st.session_state.voyage_query = None
 # A chat shortcut such as /voyages switches page; this must happen before the navigation radio exists.
 if goto_page := st.session_state.pop("goto_page", None):
@@ -238,7 +240,15 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
         if cargo_id is not None and not lift_selected and not (st.session_state.get("voyage_port") or st.session_state.get("voyage_query")):
             st.session_state.suggest_lift = True
             st.rerun()
-        cc = candidates_case(cargo_id, lift, st.session_state.price_period, st.session_state.ranking_objective) if cargo_id is not None and lift_selected else None
+        objective, period = st.session_state.ranking_objective, st.session_state.price_period
+        # While the lift box holds the suggestion, each vessel is shown at its own best lift; a typed lift applies to all.
+        per_vessel = bool(cargo_id and lift_selected and st.session_state.get("lift_is_suggested")
+                          and lift == suggested_lift(cargo_id, period, objective))
+        cc = candidates_case(cargo_id, lift, period, objective, per_vessel) if cargo_id is not None and lift_selected else None
+        if per_vessel and case:
+            row = next((r for r in cc["rows"] if r["vessel_id"] == case["vessel"]["vessel_id"]), None)
+            if row and row["selected_lift_tonnes"] != lift:
+                case = dashboard_case(cargo_id, row["selected_lift_tonnes"], period, row["vessel_id"])
         voyages_page(cc)
         if cc and not (st.session_state.get("voyage_port") or st.session_state.get("voyage_query")):
             if case:

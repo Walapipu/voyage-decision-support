@@ -105,7 +105,7 @@ def stem_card(cc):
     place = " · ".join(dict.fromkeys([load["country"], load["region"]]))
     rows = [("Cargo", f'{cargo["cargo_id"]} · {cargo["commodity"].replace("_", " ")}'),
             ("Discharge", f'{discharge["port_name"]} {cargo["discharge_port"]}'),
-            ("Lift", f'{cc["lift"]:,.0f} t' + (" · suggested" if cc["lift"] == cc["suggested_lift"] else "")),
+            ("Lift", "Best per vessel" if cc["per_vessel"] else f'{cc["lift"]:,.0f} t' + (" · suggested" if cc["lift"] == cc["suggested_lift"] else "")),
             ("Permitted", f'{float(cargo["minimum_quantity_tonnes"]):,.0f}–{float(cargo["maximum_quantity_tonnes"]):,.0f} t'),
             ("Laycan", _laycan(cargo)),
             (_freight_label(cargo), f'${float(cargo["contract_freight_rate_usd_per_tonne"]):.2f}/t')]
@@ -140,6 +140,7 @@ def candidate_card(row, cc, rank, focus_id):
     head = (f'<div class="cand-head"><span class="cand-id"><i class="dot {"good" if feasible else "bad"}"></i>'
             f'<b class="code">{e(row["vessel_id"])}</b>{tags}</span>{status}</div>'
             f'<p class="cand-spec">{"Chartered in" if hired else "Capesize"} · <span class="num">{float(vessel["dwt_tonnes"]):,.0f}</span> DWT · '
+            + (f'Best lift <span class="num">{row["selected_lift_tonnes"]:,.0f}</span> t · ' if cc["per_vessel"] else "") +
             f'Open {e(port)} · {e(_utc(vessel["available_from_utc"]).strftime("%d %b"))}'
             + (f' · hire <span class="num">{e(usd(float(vessel["hire_rate_usd_per_day"])))}</span>/day assumed' if hired else "") + '</p>')
     margin = 100 * row["voyage_contribution_usd"] / row["freight_revenue_usd"] if row["freight_revenue_usd"] else None
@@ -208,7 +209,7 @@ def matrix(rows, cc, ranks, focus_id):
                   f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in r["failed_checks"]))}</span>')
         slack_style = _sign_style(r["laycan_slack_days"])
         body += (f'<tr class="{"selected" if r["vessel_id"] == focus_id else ""}">'
-                 f'<td><b class="code">{e(r["vessel_id"])}</b><small>{e(rank)} · {float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}</small></td>'
+                 f'<td><b class="code">{e(r["vessel_id"])}</b><small>{e(rank)} · {float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}{f" · lift {r['selected_lift_tonnes']:,.0f} t" if cc["per_vessel"] else ""}</small></td>'
                  f'<td>{status}</td>'
                  f'<td class="num">{e(_when(r["arrival_at_load_utc"]))}<small class="signed-metric" style="{slack_style}"><strong>{_signed(r["laycan_slack_days"])} days slack</strong></small></td>'
                  f'<td class="num">{r["ballast_days"]:.1f} / {r["laden_days"]:.1f} days<small>{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm</small></td>'
@@ -230,7 +231,7 @@ def matrix(rows, cc, ranks, focus_id):
 def export_frame(rows, cc):
     frame = pd.DataFrame([{k: v for k, v in r.items() if not isinstance(v, (list, dict))} for r in rows])
     frame["failed_checks"] = [", ".join(r["failed_checks"]) for r in rows]
-    frame.insert(0, "lift_tonnes", cc["lift"])
+    frame.insert(0, "lift_tonnes", [r["selected_lift_tonnes"] for r in rows])
     return frame
 
 
@@ -372,7 +373,8 @@ def voyages_page(cc):
             choice = st.radio("Vessel filter", list(labels), format_func=labels.get, horizontal=True,
                               key="voyage_filter", label_visibility="collapsed")
             shown = [r for r in rows if r["feasible"]] if choice == "feasible" else rows
-            heading(f"Evaluated vessels ({len(rows)})", f"{cc['feasible_count']} feasible · ranked by {_phrase(cc['objective']['label'])}")
+            heading(f"Evaluated vessels ({len(rows)})", f"{cc['feasible_count']} feasible · ranked by {_phrase(cc['objective']['label'])}"
+                    + (" · each at its best lift" if cc["per_vessel"] else ""))
             st.html(stage_legend())
             with st.container(key="candidates_scroll"):
                 for row in shown:
@@ -390,7 +392,7 @@ def voyages_page(cc):
             with st.container(border=True, key="matrix_panel"):
                 title, action = st.columns([1, .28], vertical_alignment="center")
                 with title:
-                    heading("Voyage specifications and feasibility", f'{cc["cargo"]["cargo_id"]} · {cc["lift"]:,.0f} t · {cc["period"]} prices · USD')
+                    heading("Voyage specifications and feasibility", f'{cc["cargo"]["cargo_id"]} · {"best lift per vessel" if cc["per_vessel"] else f"{cc['lift']:,.0f} t"} · {cc["period"]} prices · USD')
                 with action:
                     st.download_button("Export CSV", export_frame(shown, cc).to_csv(index=False).encode("utf-8"),
                         file_name=f'{cc["cargo"]["cargo_id"]}_{cc["period"]}_vessels.csv', mime="text/csv",

@@ -75,13 +75,17 @@ def suggested_lift(cargo_id, period, objective="contribution"):
     return float(winner["selected_lift_tonnes"]) if winner else float(all_cargoes()[cargo_id]["nominal_quantity_tonnes"])
 
 
-def candidates_case(cargo_id, lift, period, objective="contribution"):
-    """Every vessel that may carry one cargo at one lift, ranked by the chosen objective, plus display context.
+def candidates_case(cargo_id, lift, period, objective="contribution", per_vessel=False):
+    """Every vessel that may carry one cargo, ranked by the chosen objective, plus display context.
 
+    per_vessel evaluates each vessel at its own best lift within the cargo tolerance (used while the lift
+    box still holds the suggestion); otherwise every vessel is evaluated at the given lift.
     Managed vessels always; chartered-in market vessels too when the cargo is committed."""
     tables = load_tables()
     suggestion = suggested_lift(cargo_id, period, objective)
-    comparison = compare_vessels(cargo_id, lift, period, objective=objective, include_market=True)
+    if per_vessel:
+        lift = suggestion
+    comparison = compare_vessels(cargo_id, None if per_vessel else lift, period, objective=objective, include_market=True)
     rows = comparison["rows"]
     metric, label, unit = OBJECTIVES[objective]
     period = rows[0]["bunker_price_period"]
@@ -109,4 +113,4 @@ def candidates_case(cargo_id, lift, period, objective="contribution"):
             "best": ranked[0] if ranked else None, "feasible_count": len(feasible), "ranked_count": len(ranked),
             "objective": {"key": objective, "metric": metric, "label": label, "unit": unit},
             "lead": lead, "baltic": baltic, "bunker_prices": prices, "pricing_location": location,
-            "period": period, "lift": float(lift), "suggested_lift": suggestion}
+            "period": period, "lift": float(lift), "suggested_lift": suggestion, "per_vessel": per_vessel}
