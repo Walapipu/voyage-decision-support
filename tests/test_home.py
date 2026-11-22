@@ -83,6 +83,23 @@ class OverviewTests(unittest.TestCase):
         self.assertIn(f'${plan["voyages"][0]["contribution"]:,.0f}', body)
         self.assertIn("data-shippy-open", body)
 
+    def test_overview_opens_on_the_first_voyage_without_the_plan_banner(self):
+        app = AppTest.from_file(APP).run()
+        self.assertFalse(app.exception)
+        first = build_plan("2026-03")["voyages"][0]
+        body = html(app)
+        self.assertIn("<h1>Recommended Plan</h1>", body)
+        self.assertNotIn("market rates assumed", body)  # stated on Documents, Fleet and Freight instead
+        self.assertNotIn("plan-banner", body)
+        self.assertIn(f'<small>{len(build_plan("2026-03")["voyages"])} voyages · after hire</small>', body)
+        self.assertEqual(app.session_state.map_view, "Selected")
+        self.assertIn("plan-row picked", body)  # the first row is in focus by default
+        self.assertIn(f'<b>{first["vessel_id"]}</b>', body)
+        # Whole-plan alternatives stay available: the default focus is not a user pick.
+        app.session_state.plan_view = "Alternatives"
+        app.run()
+        self.assertIn("Cost of dropping each pairing", html(app))
+
     def test_plan_row_focuses_voyage_and_second_click_returns_to_whole_plan(self):
         app = AppTest.from_file(APP).run()
         voyage = build_plan("2026-03")["voyages"][0]
@@ -96,6 +113,8 @@ class OverviewTests(unittest.TestCase):
         self.assertIn("tl-row picked", body)
         app.button(key=key).click().run()
         self.assertIsNone(app.session_state.plan_focus)
+        self.assertEqual(app.session_state.map_view, "All voyages")
+        self.assertNotIn("plan-row picked", html(app))  # cleared: no default focus comes back
         self.assertIn("Whole plan", html(app))
 
     def test_every_plan_row_sets_the_top_bar(self):

@@ -42,13 +42,15 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 [role="option"][data-focused],[role="option"]:hover{background:var(--raised)!important;}
 
 /* Buttons. Hover is a surface step, never a colour swap. */
-[data-testid="stButton"] button,[data-testid="stDownloadButton"] button{
+[data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stFormSubmitButton"] button{
  border:1px solid var(--line);background:var(--panel);color:var(--text);min-height:32px;font-size:13px;border-radius:var(--r-md);
  transition:background-color 150ms var(--ease),border-color 150ms var(--ease),transform 120ms var(--ease);}
-[data-testid="stButton"] button:hover,[data-testid="stDownloadButton"] button:hover{background:var(--raised);border-color:var(--linestrong);color:var(--text);}
-[data-testid="stButton"] button:active,[data-testid="stDownloadButton"] button:active{transform:scale(.98);}
-[data-testid="stButton"] button:focus-visible,[data-testid="stDownloadButton"] button:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
-[data-testid="stButton"] button[kind="primary"]{background:var(--blue);color:var(--onblue);border-color:var(--blue);}
+[data-testid="stButton"] button:hover,[data-testid="stDownloadButton"] button:hover,[data-testid="stFormSubmitButton"] button:hover{background:var(--raised);border-color:var(--linestrong);color:var(--text);}
+[data-testid="stButton"] button:active,[data-testid="stDownloadButton"] button:active,[data-testid="stFormSubmitButton"] button:active{transform:scale(.98);}
+[data-testid="stButton"] button:focus-visible,[data-testid="stDownloadButton"] button:focus-visible,[data-testid="stFormSubmitButton"] button:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+[data-testid="stButton"] button[kind="primary"],[data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"]{background:var(--blue);color:var(--onblue);border-color:var(--blue);}
+[data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"]:hover{background:var(--blue);border-color:var(--blue);color:var(--onblue);filter:brightness(1.08);}
+[data-testid="stFormSubmitButton"] button p{color:inherit;}
 [data-testid="stExpander"],[data-testid="stExpander"] summary,[data-testid="stExpander"] details{background:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important;border-radius:var(--r-md);}
 [data-testid="stDialog"] [role="dialog"],[data-testid="stPopoverBody"]{background:var(--panel)!important;color:var(--text)!important;}
 [data-testid="stTabs"] button{color:var(--muted);}
@@ -209,12 +211,10 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .ask-shippy .lucide{width:16px;height:16px;}
 
 /* Plan banner and KPIs */
-.plan-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;padding:8px 16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);}
-.plan-banner small{display:block;font-size:11px;line-height:1.4;color:var(--muted);}
-.plan-banner b{font-size:15px;font-weight:500;line-height:1.4;color:var(--text);font-variant-numeric:tabular-nums;}
-.plan-banner>span{font-size:12px;color:var(--muted);}
 .st-key-home .kpi{padding:10px 16px;}
 .st-key-home .kpi strong{display:block;font-size:clamp(18px,1.6vw,24px);font-weight:500;}
+/* The voyage count under portfolio contribution reads as a figure, not a footnote. */
+.kpi.lead small{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums;}
 .kpi.warn strong,.kpi.warn small{color:var(--amber);}
 .kpi.good-note small{color:var(--green);}
 .kpi.bad-note small{color:var(--red);}
@@ -338,7 +338,6 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 @media(max-height:760px){
  .st-key-home{padding-block:12px!important;gap:8px!important;}
  .st-key-home .kpi{padding-block:6px;}
- .plan-banner{padding-block:6px;}
  .plan-row{min-height:38px;padding-block:4px;}
 }
 
@@ -591,7 +590,20 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 }
 
 /* Voyages search: start panel and result list */
-.st-key-voyage_start{max-width:760px;padding:12px!important;gap:8px!important;background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:var(--r-lg);}
+/* The search card is as wide as the four top-bar selectors (4 × 120 px + 3 × 8 px gaps); the guide fills the rest. */
+.st-key-voyage_start_row>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:504px minmax(0,1fr);gap:12px!important;align-items:start;}
+.st-key-voyage_start_row [data-testid="stColumn"]{width:100%!important;min-width:0!important;}
+.st-key-voyage_guide{padding:12px 16px!important;gap:8px!important;border:1px solid var(--line);border-radius:var(--r-lg);background:transparent;}
+.vguide,[data-testid="stHtml"] dl.vguide{margin:0;padding:0!important;display:grid;gap:0;}
+.vguide>div{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:8px 0;border-top:1px solid var(--line);}
+.vguide>div:first-child{border-top:0;padding-top:0;}
+.vguide dt{font-size:13px;font-weight:500;color:var(--text);}
+.vguide dd{margin:0;font-size:13px;line-height:1.45;color:var(--text2);}
+[data-testid="stPopoverBody"] .vguide{width:min(420px,80vw);}
+.st-key-voyage_help button{min-height:28px!important;padding:0 4px!important;color:var(--text2)!important;}
+.st-key-voyage_help button:hover{color:var(--text)!important;}
+@media(max-width:1000px){.st-key-voyage_start_row>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{grid-template-columns:minmax(0,1fr);}}
+.st-key-voyage_start{padding:12px!important;gap:8px!important;background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:var(--r-lg);}
 .st-key-voyage_start [data-testid="stWidgetLabel"]{display:none!important;}
 .st-key-search_results{gap:0!important;}
 .st-key-search_results [data-testid="stButton"] button{width:100%;justify-content:flex-start;text-align:left;min-height:40px;padding:8px 4px!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;color:var(--text)!important;font-size:13px;}
@@ -702,3 +714,28 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 .avail ol.alts li.note{grid-template-columns:1fr;}
 .avail p.foot{margin-top:8px;font-size:11px;}
 @media(max-width:1250px){.tl-axis span.mid{display:none;}}
+
+/* ---------- First-visit product tour (voyage/tour.py) ----------
+   A raised panel with a sea-blue edge, and a blue ring around the element it describes.
+   The page behind is dimmed through the ring's outer shadow; clicks still reach the page. */
+.kf-tour-ring{position:fixed;z-index:10000;pointer-events:none;border:2px solid var(--blue);border-radius:var(--r-lg);
+ box-shadow:0 0 0 9999px rgba(5,7,10,.5);}
+.kf-tour{position:fixed;z-index:10001;width:min(320px,calc(100vw - 24px));box-sizing:border-box;padding:16px;
+ background:var(--panel);color:var(--text);border:1px solid var(--blue);border-radius:var(--r-lg);
+ box-shadow:0 8px 24px rgba(0,0,0,.28);font-size:13px;line-height:1.5;animation:kf-tour-in 160ms var(--ease);}
+.kf-tour[hidden],.kf-tour-ring[hidden]{display:none;}
+.kf-tour-count{display:block;font-family:var(--mono);font-size:11px;line-height:16px;color:var(--blue);font-variant-numeric:tabular-nums;}
+.kf-tour h4{margin:4px 0 4px;font-size:15px;font-weight:500;line-height:1.35;color:var(--text);}
+.kf-tour p{margin:0;font-size:13px;line-height:1.5;color:var(--text2);}
+.kf-tour-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px;}
+.kf-tour button{min-height:32px;padding:0 12px;border-radius:var(--r-md);font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+ transition:background-color 150ms var(--ease),color 150ms var(--ease),transform 120ms var(--ease);}
+.kf-tour button:active{transform:scale(.98);}
+.kf-tour button:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+.kf-tour-skip{background:transparent;border:0;color:var(--text2);}
+.kf-tour-skip:hover{color:var(--text);background:var(--field);}
+.kf-tour-skip[hidden]{display:none;}
+.kf-tour-next{background:var(--blue);border:1px solid var(--blue);color:var(--onblue);}
+.kf-tour-next:hover{filter:brightness(1.08);}
+@keyframes kf-tour-in{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+@media(prefers-reduced-motion:reduce){.kf-tour{animation:none;}}

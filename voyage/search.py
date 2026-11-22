@@ -80,14 +80,23 @@ def _results(tables):
 
 
 def search(text="", limit=50, tables=None):
-    """Ports and cargoes whose name, code, country, region, commodity or charterer
-    contain every word typed. Exact codes rank first, then name prefixes."""
+    """Ports and cargoes matching every word typed across name, code, country, region, commodity or
+    charterer. Rows containing every word come first; when none do, matching turns fuzzy so typos and
+    skipped letters still find a row ("kamsr", "baxite", "qingdoa"). An exact code returns that row alone.
+    Within a tier, name prefixes rank first, then closer matches."""
     words = text.lower().split()
     found = []
     for result in _results(tables or load_tables()):
         haystack = (result["label"] + " " + result["terms"]).lower()
-        if all(word in haystack for word in words):
-            exact = any(word == result["id"].lower() for word in words)
-            prefix = bool(words) and result["label"].lower().startswith(words[0])
-            found.append((not exact, not prefix, result["kind"] != "port", result["label"], result))
-    return [item[-1] for item in sorted(found, key=lambda item: item[:4])][:limit]
+        literal = all(word in haystack for word in words)
+        score = 1.0 if literal else fuzzy_score(text, haystack)
+        if score <= 0:
+            continue
+        exact = any(word == result["id"].lower() for word in words)
+        prefix = bool(words) and result["label"].lower().startswith(words[0])
+        found.append((not exact, not literal, not prefix, -round(score, 3), result["kind"] != "port", result["label"], result))
+    for tier in (0, 1):  # an exact code, then literal matches, win over anything looser
+        if any(not item[tier] for item in found):
+            found = [item for item in found if not item[tier]]
+            break
+    return [item[-1] for item in sorted(found, key=lambda item: item[:6])][:limit]

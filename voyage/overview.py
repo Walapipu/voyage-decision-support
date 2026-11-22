@@ -34,8 +34,10 @@ def check_names(reasons):
     return ", ".join(CHECKS.get(r, r) for r in reasons)
 
 
-def focus_voyage(plan):
-    """The plan row in focus: one picked on this page, else the top-bar selection if it is planned."""
+def focus_voyage(plan, default=True):
+    """The plan row in focus: one picked on this page, else the top-bar selection if it is planned,
+    else (with default) the first voyage, so the map opens on one route. After the user clears a
+    focus the whole plan is shown instead."""
     state = st.session_state
     picked = state.get("plan_focus")
     if picked:
@@ -43,7 +45,11 @@ def focus_voyage(plan):
         if voyage and voyage["cargo_id"] == picked[1]:
             return voyage
     voyage = plan_voyage(plan, state.get("selected_vessel"))
-    return voyage if voyage and voyage["cargo_id"] == state.get("selected_cargo") else None
+    if voyage and voyage["cargo_id"] == state.get("selected_cargo"):
+        return voyage
+    if default and not state.get("plan_whole") and plan["voyages"]:
+        return plan["voyages"][0]
+    return None
 
 
 def focus_row(vessel_id, cargo_id, lift):
@@ -53,11 +59,13 @@ def focus_row(vessel_id, cargo_id, lift):
     current = state.get("plan_focus") or (state.get("selected_vessel"), state.get("selected_cargo"))
     if tuple(current) == (vessel_id, cargo_id):
         state.plan_focus = None
+        state.plan_whole = True  # the user chose the whole plan: no default focus
         if (state.get("selected_vessel"), state.get("selected_cargo")) == (vessel_id, cargo_id):
             state.selected_vessel = state.selected_cargo = state.selected_lift = None
         state.map_view = "All voyages"
         return
     state.plan_focus = (vessel_id, cargo_id)
+    state.plan_whole = False
     state.selected_vessel, state.selected_cargo, state.selected_lift = vessel_id, cargo_id, lift
     if state.get("an_cargoes") is not None and cargo_id not in state.an_cargoes:
         state.an_cargoes = [*state.an_cargoes, cargo_id]  # Analytics opens with this cargo shown
@@ -70,7 +78,7 @@ def header(plan, periods):
         title, label, pricing, ask = st.columns([1, .08, .16, .14], vertical_alignment="center", gap="small")
         stamp = plan["computed"].astimezone(timezone.utc).strftime("%d %b, %H:%M UTC")
         prices = (datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y") if plan["period"] else "laycan-month") + " prices"
-        title.html(f'<div class="overview-title"><h1>Overview</h1><span class="computed">'
+        title.html(f'<div class="overview-title"><h1>Recommended Plan</h1><span class="computed">'
                    f'Computed {e(stamp)} · {e(prices)}</span></div>')
         label.html('<label class="pricing-label" for="price_period">Pricing</label>')
         with pricing:
@@ -81,15 +89,6 @@ def header(plan, periods):
                  '<span class="lucide icon-message-circle" aria-hidden="true"></span>Ask Shippy</button>')
 
 
-def banner(plan):
-    covered = plan["committed"] - len(plan["uncovered"])
-    cover = (f"all {plan['committed']} committed cargoes covered" if not plan["uncovered"]
-             else f"{covered} of {plan['committed']} committed cargoes covered")
-    st.html(f'<div class="plan-banner"><div><small>Recommended plan</small>'
-            f'<b>{len(plan["voyages"])} voyages · {money(plan["contribution"])} contribution · {e(cover)}</b></div>'
-            f'<span>Market hire and freight are stated assumptions · see Documents</span></div>')
-
-
 def kpis(plan):
     tightest = plan["tightest"]
     avg, fivetc = plan["avg_tce"], plan["fivetc"]
@@ -98,7 +97,7 @@ def kpis(plan):
     covered = plan["committed"] - len(plan["uncovered"])
     month = datetime.strptime(plan["period"], "%Y-%m").strftime("%b %Y") if plan["period"] else "Laycan month"
     tiles = [
-        ("Portfolio contribution", money(plan["contribution"]), f'after hire · {len(plan["voyages"])} voyages', ""),
+        ("Portfolio contribution", money(plan["contribution"]), f'{len(plan["voyages"])} voyages · after hire', "lead"),
         ("Avg TCE", money(avg) if avg is not None else "—", vs, "" if premium is None else "good-note" if premium > 0 else "bad-note"),
         ("Committed cargoes covered", f"{covered} of {plan['committed']}",
          (f'{covered - len(plan["chartered"])} owned · {len(plan["chartered"])} chartered in' if not plan["uncovered"]
@@ -122,7 +121,8 @@ def _status(voyage):
     return "".join(tags)
 
 
-def plan_table(plan, focus):
+def plan_table(plan, focus, chosen=None):
+    """chosen is the focus the user picked; focus may also be the default first voyage."""
     with st.container(key="plan_panel"):
         title, switch, note = st.columns([.3, .5, 1], vertical_alignment="center", gap="small")
         title.html('<div class="panel-head"><h3>The plan</h3></div>')
@@ -130,7 +130,7 @@ def plan_table(plan, focus):
             view = st.segmented_control("Plan view", ["Plan", "Alternatives"], key="plan_view",
                                         default="Plan", label_visibility="collapsed", required=True)
         if view == "Alternatives":
-            alternatives_view(plan, focus, note)
+            alternatives_view(plan, chosen, note)
             return
         note.html('<div class="panel-head plan-note"><small>Select a row to focus the map and timeline</small></div>')
         st.html('<div class="plan-grid plan-head"><span>Vessel</span><span>Cargo</span><span>Route</span>'
@@ -145,7 +145,7 @@ def plan_table(plan, focus):
                             f'<span class="route">{e(v["route"])}<small>{v["lift"]:,.0f} t</small></span>'
                             f'<span class="num">${v["tce"]:,.0f}</span><span class="num">${v["contribution"]:,.0f}</span>'
                             f'<span class="status">{_status(v)}</span></div>')
-                    st.button(f'{"Clear" if picked else "Focus"} {v["vessel_id"]} → {v["cargo_id"]}', key=f"plan_pick_{v['vessel_id']}",
+                    st.button(f'{"Clear" if chosen and chosen is v else "Focus"} {v["vessel_id"]} → {v["cargo_id"]}', key=f"plan_pick_{v['vessel_id']}",
                               on_click=focus_row, args=(v["vessel_id"], v["cargo_id"], v["lift"]))
             if not plan["voyages"]:
                 st.caption("No feasible voyage at this pricing month")

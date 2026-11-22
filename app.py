@@ -21,6 +21,7 @@ from voyage.report import analytics_report
 from voyage.ui import render_evidence
 from voyage.analytics_view import analytics_page
 from voyage.profile import toggle_theme, profile_menu
+from voyage.tour import tour
 
 st.set_page_config(page_title="KingFish · Voyage Decision Support", page_icon=str(Path(__file__).resolve().parent / "assets/oceanflow-crown.png"), layout="wide", initial_sidebar_state="auto")
 if st.session_state.get("logged_out"):
@@ -30,7 +31,7 @@ if st.session_state.get("logged_out"):
         st.session_state.logged_out = False
         st.rerun()
     st.stop()
-for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":None, "map_view":"All voyages",
+for key, value in {"dark_mode":True, "selected_vessel":None, "selected_cargo":None, "selected_lift":None, "price_period":None, "map_view":"Selected",
                    "ranking_objective":"contribution"}.items():
     if key not in st.session_state:
         st.session_state[key] = value
@@ -178,6 +179,8 @@ st.html("""<script>(() => {
   new MutationObserver(syncDrawer).observe(body, {attributes: true, attributeFilter: ['class']});
   untitle(); syncDrawer();
 })();</script>""".replace("__COMMANDS__", json.dumps(COMMANDS)), unsafe_allow_javascript=True)
+# First-visit product tour for this page; "Replay page tour" in the profile menu shows it again.
+tour(page, replay=st.session_state.pop("tour_replay", False))
 
 
 def selection_controls():
@@ -208,15 +211,14 @@ catalog = {"tables": tables, "ports": index(tables["ports"], "port_code")}
 plan = build_plan(st.session_state.price_period) if page == "Overview" else None
 with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get(page, "page_content")):
     if page == "Overview":
-        focus = overview.focus_voyage(plan)
+        focus, chosen = overview.focus_voyage(plan), overview.focus_voyage(plan, default=False)
         st.session_state.plan_context = plan_summary(plan)
         overview.header(plan, sorted({r["period"] for r in tables["bunker_forward_curve"]}))
-        overview.banner(plan)
         overview.kpis(plan)
         with st.container(key="overview_main"):
             left, right = st.columns([1.5, 1], gap="small")
             with left:
-                overview.plan_table(plan, focus)
+                overview.plan_table(plan, focus, chosen)
             with right:
                 overview.route_map(plan, focus, catalog["ports"])
         with st.container(key="overview_lower"):
@@ -284,7 +286,7 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
                     file_name="kingfish_analytics.html", mime="text/html", key="analytics_report")
 
         def ranking_panel():
-            with st.expander("Rank the selected cargo", expanded=bool(analytics)):
+            with st.expander("Rank the selected cargo", expanded=bool(analytics), key="an_ranking"):
                 if analytics is None:
                     st.caption("Select a committed cargo to rank vessels.")
                     return

@@ -146,6 +146,25 @@ class SearchTests(unittest.TestCase):
         self.assertEqual(labels("zzz"), [])
         self.assertEqual(len(search("")), 20)  # 9 load ports, 3 committed and 8 market cargoes
 
+    def test_search_falls_back_to_fuzzy_matching_for_typos(self):
+        from voyage.search import search
+        ids = lambda q: [r["id"] for r in search(q)]
+        self.assertEqual(ids("kamsr"), ["GNKMS", "CC-01", "MC-06"])  # skipped letter
+        self.assertEqual(ids("baxite"), ["GNKMS", "CC-01", "MC-06"])  # typo in the commodity
+        self.assertIn("CC-01", ids("qingdoa"))  # transposed letters
+        self.assertEqual(ids("principal-02"), ["CC-02"])  # a literal hit still wins over looser ones
+
+    def test_empty_voyages_page_explains_each_control(self):
+        app = open_voyages()
+        body = html(app)
+        self.assertIn("What each control does", body)
+        for name in ("Cargo", "Rank by", "Lift", "Vessel", "Date", "Search"):
+            self.assertIn(f"<dt>{name}</dt>", body)
+        app.selectbox(key="selected_cargo").set_value("CC-01").run()
+        self.assertFalse(app.exception)
+        self.assertIn("<dt>Rank by</dt>", html(app))  # the same guide sits behind "How this page works"
+        self.assertNotIn("What each control does", html(app))
+
     def test_pick_port_with_one_cargo_selects_it_at_suggested_lift(self):
         app = open_voyages()
         app.selectbox(key="voyage_search").set_value("port:BRIGI").run()

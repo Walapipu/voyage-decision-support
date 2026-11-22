@@ -94,6 +94,28 @@ def ranking_basis_changed():
         apply_suggested_lift()
 
 
+# What each control on this page does, in the order they appear. Shown beside the empty search
+# card and behind "How this page works" once a cargo is open. Short, value first.
+GUIDE = [
+    ("Cargo", "The only pick you need. Every ship that could carry it is priced and ranked."),
+    ("Rank by", "What counts as best: profit after hire, daily earnings before hire, or profit if costs rise"),
+    ("Lift", "Filled with each ship's most profitable cargo size. Type tonnes to compare every ship at one size."),
+    ("Vessel", "Optional. Adds one ship's economics, fuel and draft checks and schedule below the ranking."),
+    ("Date", "The bunker price month. Left blank, each cargo is priced in its own laycan month."),
+    ("Search", "Find a cargo by load port, country or commodity, even with a typo"),
+]
+
+
+def guide_html():
+    return ('<dl class="vguide">' + "".join(f'<div><dt>{e(name)}</dt><dd>{e(text)}</dd></div>' for name, text in GUIDE)
+            + '</dl>')
+
+
+def guide_popover():
+    with st.popover("How this page works", icon=":material/help:", type="tertiary", key="voyage_help"):
+        st.html(guide_html())
+
+
 def rank_method_picker():
     st.selectbox("Rank by", list(OBJECTIVES), format_func=lambda key: "Rank by " + _phrase(OBJECTIVES[key][1]),
                  key="ranking_objective", on_change=ranking_basis_changed, label_visibility="collapsed")
@@ -315,7 +337,7 @@ def search_bar():
     options = list(labels) + ([current] if current and current not in labels else [])
     st.session_state.voyage_search = current
     st.selectbox("Search load port or cargo", options, format_func=lambda k: labels.get(k, k), index=None,
-                 key="voyage_search", on_change=_on_search, accept_new_options=True, filter_mode="contains",
+                 key="voyage_search", on_change=_on_search, accept_new_options=True, filter_mode="fuzzy",
                  placeholder="Search port, country, cargo or commodity", label_visibility="collapsed")
 
 
@@ -341,19 +363,24 @@ def browse_panel():
         result_list(f'Results for "{query}"', search(query, tables=tables))
     else:
         heading("Find a voyage")
-        st.caption("Search a load port or cargo above, or pick a cargo in the top bar. The ranking suggests a lift, "
-                   "which you can change. Every vessel that may carry the cargo is then evaluated; choosing a vessel is optional.")
+        st.caption("Search by port, country or commodity, or pick a cargo in the top bar")
 
 
 def voyages_page(cc):
     browsing = st.session_state.get("voyage_port") or st.session_state.get("voyage_query")
     if cc is None or browsing:
-        with st.container(border=True, key="voyage_start"):
-            search_bar()
-            rank_method_picker()
-            browse_panel()
-            if cc is None and st.session_state.get("selected_cargo") and not browsing:
-                st.info("Enter a lift in the top bar to evaluate this cargo.")
+        # The search card matches the width of the four top-bar selectors; the guide fills the rest.
+        with st.container(key="voyage_start_row"):
+            card, guide = st.columns(2, gap="small")
+            with card, st.container(border=True, key="voyage_start"):
+                search_bar()
+                rank_method_picker()
+                browse_panel()
+                if cc is None and st.session_state.get("selected_cargo") and not browsing:
+                    st.info("Enter a lift in the top bar to evaluate this cargo.")
+            with guide, st.container(key="voyage_guide"):
+                heading("What each control does")
+                st.html(guide_html())
         return
     rows = cc["rows"]
     ranks = _ranks(rows)
@@ -365,6 +392,7 @@ def voyages_page(cc):
         with left, st.container(border=True, key="candidates_panel"):
             search_bar()
             rank_method_picker()
+            guide_popover()
             stem_card(cc)
             if cc["lift"] != cc["suggested_lift"]:
                 st.button(f'Use suggested lift ({cc["suggested_lift"]:,.0f} t)', key="use_suggested_lift",
