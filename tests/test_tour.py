@@ -34,6 +34,16 @@ class TourTests(unittest.TestCase):
         script = next(h.proto.body for h in app.get("html") if "kfTour.start" in h.proto.body)
         self.assertTrue(script.rstrip().endswith('true);</script>'))
 
+    def test_seen_state_is_tied_to_this_server_run(self):
+        from voyage.tour import _server_boot
+        boot = _server_boot()
+        self.assertEqual(boot, _server_boot())  # stable across reruns and refreshes
+        app = AppTest.from_file(APP).run()
+        script = next(h.proto.body for h in app.get("html") if "kfTour.start" in h.proto.body)
+        self.assertIn(json.dumps(boot) + ", false);", script)
+        _server_boot.clear()  # what a restart does
+        self.assertNotEqual(boot, _server_boot())
+
     def test_form_submit_buttons_follow_the_theme(self):
         css = (Path(__file__).resolve().parents[1] / "voyage" / "dashboard.css").read_text(encoding="utf-8")
         self.assertIn('[data-testid="stFormSubmitButton"] button{', css.replace(",", "{", 0))

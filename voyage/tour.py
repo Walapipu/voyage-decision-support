@@ -2,11 +2,13 @@
 
 Each page has 3 to 5 steps. A step points at an element by CSS selector and is skipped when that
 element is not on screen (for example the Voyages search card once a cargo is open). Whether a
-page's tour has been seen is kept in the browser's localStorage, since the prototype has no user
-accounts; "Replay page tour" in the profile menu shows it again. Copy stays under 140 characters
+page's tour has been seen is kept in the browser's localStorage against an ID made when the server
+starts, so a browser refresh keeps tours dismissed but restarting the app shows them all again.
+"Replay page tour" in the profile menu shows the current page's tour on demand. Copy stays under 140 characters
 and says what the user gains, not which button to press.
 """
 import json
+import uuid
 
 import streamlit as st
 
@@ -62,8 +64,8 @@ _ENGINE = """
 (() => {
   if (window.kfTour) return;
   const KEY = page => 'kingfish.tour.' + page;
-  const seen = page => { try { return localStorage.getItem(KEY(page)) === 'seen'; } catch (e) { return false; } };
-  const remember = page => { try { localStorage.setItem(KEY(page), 'seen'); } catch (e) {} };
+  const seen = (page, boot) => { try { return localStorage.getItem(KEY(page)) === boot; } catch (e) { return false; } };
+  const remember = (page, boot) => { try { localStorage.setItem(KEY(page), boot); } catch (e) {} };
   const visible = el => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const target = step => [...document.querySelectorAll(step.selector)].find(visible);
   let state = null;
@@ -118,10 +120,10 @@ _ENGINE = """
   };
   const next = () => state && show(state.index + 1);
 
-  const start = (page, steps, force) => {
+  const start = (page, steps, boot, force) => {
     if (state && state.page === page) return;
     close();
-    if (!steps.length || (!force && seen(page))) return;
+    if (!steps.length || (!force && seen(page, boot))) return;
     const ring = document.createElement('div'); ring.className = 'kf-tour-ring'; ring.hidden = true;
     const tip = document.createElement('div'); tip.className = 'kf-tour'; tip.hidden = true;
     tip.setAttribute('role', 'dialog'); tip.setAttribute('aria-live', 'polite'); tip.setAttribute('aria-label', page + ' tour');
@@ -148,7 +150,7 @@ _ENGINE = """
       const present = steps.filter(target), now = performance.now();
       if (present.length && !first) first = now;
       if (present.length === steps.length || (first && now - first > 1200)) {
-        present.forEach(s => state.found.add(s)); remember(page); show(0); return;
+        present.forEach(s => state.found.add(s)); remember(page, boot); show(0); return;
       }
       if (now - began < 8000) state.wait = setTimeout(ready, 150); else close();
     };
@@ -159,8 +161,15 @@ _ENGINE = """
 """
 
 
+@st.cache_resource
+def _server_boot():
+    """An ID for this server run: tours seen before the app restarted show again afterwards."""
+    return uuid.uuid4().hex
+
+
 def tour(page, replay=False):
     """Start this page's tour on its first visit, or again when replay is set."""
     steps = [{"selector": s, "title": t, "body": b} for s, t, b in TOURS.get(page, [])]
-    st.html("<script>" + _ENGINE + f"window.kfTour.start({json.dumps(page)}, {json.dumps(steps)}, {json.dumps(bool(replay))});"
+    st.html("<script>" + _ENGINE + f"window.kfTour.start({json.dumps(page)}, {json.dumps(steps)}, "
+            + f"{json.dumps(_server_boot())}, {json.dumps(bool(replay))});"
             + "</script>", unsafe_allow_javascript=True)
