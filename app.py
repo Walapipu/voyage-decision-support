@@ -12,7 +12,7 @@ from voyage.decision import OBJECTIVES
 from voyage.voyages_view import voyages_page, apply_suggested_lift, lift_edited, ranking_basis_changed
 from voyage.dashboard import (apply_theme, heading, voyage_summary, comparison_table, economics, timeline, result_frame)
 from voyage.plan import build_plan, plan_summary
-from voyage import overview
+from voyage import overview, patch_notes
 from voyage.chat_view import render_chat, start_new_chat
 from voyage.commands import COMMANDS
 from voyage.policy import load_policy, conventions
@@ -347,8 +347,13 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
         st.download_button("Download voyage comparison CSV", result_frame(case).to_csv(index=False).encode("utf-8"), file_name=f'{st.session_state.selected_cargo}_{case["row"]["bunker_price_period"]}_comparison.csv', mime="text/csv")
         st.download_button("Download methodology", "\n".join(f'{k}: {v}' for k,v in case['comparison']['conventions'].items()), file_name="voyage_methodology.txt")
 
+    elif page == "Documents" and st.session_state.get("docs_view") == "patch_notes":
+        heading("Patch notes", "Every pushed change, newest first")
+        patch_notes.page()
+
     elif page == "Documents":
         heading("Documentation", "Methodology and references")
+        st.button("Patch notes", icon=":material/history:", key="open_patch_notes", on_click=patch_notes.open_patch_notes)
         doc = st.selectbox("Document", ["Modelling assumptions", "Market rate assumptions", "Metric coverage", "Architecture", "Source dictionary", "Image and map credits"])
         paths = {"Modelling assumptions":"docs/assumptions.md", "Market rate assumptions":"docs/market_rates.md", "Metric coverage":"docs/metric_coverage.md", "Architecture":"docs/architecture.md", "Source dictionary":"data/raw/DATA_DICTIONARY.md", "Image and map credits":"docs/asset_credits.md"}
         st.markdown((Path(__file__).resolve().parent / paths[doc]).read_text(encoding="utf-8"))
