@@ -2,8 +2,8 @@
 
 Laid out like a game studio's patch notes: a date heading for each patch, upper-case product
 sections (GLOBAL, OVERVIEW, VOYAGES …) with subsections such as Bug fixes, and bulleted changes
-where a bold lead can carry indented detail. A version picker above the notes switches patches.
-Versions run 0.x for the OceanFlow prototype and 1.x from the KingFish redesign onwards.
+where a bold lead can carry indented detail. Pushes made on the same date are combined into one
+note for that date, and the notes are paged five dates at a time inside their own scroll panel.
 
 Adding a patch: put a new entry at the top of PATCHES with the next version and the push time.
 An item is a string, or a (lead, [details]) pair. Text in `backticks` is set as code.
@@ -16,6 +16,14 @@ import streamlit as st
 
 # (version, pushed at, title, intro, sections). sections: [(SECTION, [(subsection or None, [items])])]
 PATCHES = [
+    ("1.21", "2026-11-24 05:28", "Paged patch notes", "Patch notes are grouped by date and paged, five dates at a time", [
+        ("DOCUMENTS", [("UI/UX", [
+            ("Patch notes", ["Pushes made on the same date are combined into one note, with a row per push",
+                             "Pages of five dates replace the version dropdown, with Newer and Older under the notes",
+                             "Only the notes scroll; the back link, page range and pager stay in place",
+                             "The back link is plain text instead of a button"]),
+        ])]),
+    ]),
     ("1.20", "2026-11-24 04:14", "Patch notes", "Every pushed change now has its own patch note, inside Documents", [
         ("DOCUMENTS", [(None, [
             ("Patch notes", ["A Patch notes button in Documents opens the full change history",
@@ -371,15 +379,25 @@ PATCHES = [
 ]
 
 
+DATES_PER_PAGE = 5
+
+
 def _when(patch):
     return datetime.strptime(patch[1], "%Y-%m-%d %H:%M")
 
 
-def label(version):
-    """Picker label: version, date and title."""
-    patch = next(p for p in PATCHES if p[0] == version)
-    latest = " · Latest" if patch is PATCHES[0] else ""
-    return f'v{patch[0]} · {_when(patch):%d %b %Y} · {patch[2]}{latest}'
+def days():
+    """[(date, [patches on that date, newest first])], newest date first."""
+    grouped = {}
+    for patch in PATCHES:
+        grouped.setdefault(patch[1][:10], []).append(patch)
+    return list(grouped.items())
+
+
+def pages():
+    """The dated notes split into pages of DATES_PER_PAGE dates."""
+    dated = days()
+    return [dated[i:i + DATES_PER_PAGE] for i in range(0, len(dated), DATES_PER_PAGE)]
 
 
 def _text(value):
@@ -398,23 +416,29 @@ def _items(items):
     return "<ul>" + "".join(rows) + "</ul>"
 
 
-def patch_html(version):
-    """One patch: version and era tags, date heading with a trailing rule, intro, then sections."""
-    patch = next(p for p in PATCHES if p[0] == version)
-    number, _, title, intro, sections = patch
-    era = "KingFish" if not number.startswith("0.") else "OceanFlow"
-    when = _when(patch)
-    parts = [
-        '<article class="pn">',
-        f'<div class="pn-tags"><span class="pn-tag on">v{html.escape(number)}</span>'
-        f'<span class="pn-tag">{era}</span></div>',
-        f'<h2 class="pn-date">{when:%B} {when.day}, {when:%Y}</h2>',
-        f'<div class="pn-head"><b class="pn-title">{_text(title)}</b><span class="pn-time">Pushed {when:%H:%M} SGT</span></div>',
-        f'<p class="pn-intro">{_text(intro)}</p>',
-    ]
-    for name, groups in sections:
+def _merge(patches):
+    """One set of sections for the day: same-named sections and subsections are joined, newest first."""
+    merged = {}
+    for patch in patches:
+        for name, groups in patch[4]:
+            section = merged.setdefault(name, {})
+            for sub, items in groups:
+                section.setdefault(sub, []).extend(items)
+    return merged
+
+
+def day_html(date, patches):
+    """One date's note: date heading, a row per push (version, title, time, intro), then merged sections."""
+    day = datetime.strptime(date, "%Y-%m-%d")
+    parts = [f'<article class="pn"><h2 class="pn-date">{day:%B} {day.day}, {day:%Y}</h2><ul class="pn-pushes">']
+    for patch in patches:
+        number, _, title, intro, _ = patch
+        parts.append(f'<li><span class="pn-v">v{html.escape(number)}</span><b class="pn-title">{_text(title)}</b>'
+                     f'<span class="pn-time">{_when(patch):%H:%M} SGT</span><p class="pn-intro">{_text(intro)}</p></li>')
+    parts.append("</ul>")
+    for name, groups in _merge(patches).items():
         parts.append(f'<section><h3 class="pn-section">{html.escape(name)}</h3>')
-        for sub, items in groups:
+        for sub, items in groups.items():
             if sub:
                 parts.append(f'<h4 class="pn-sub">{html.escape(sub)}</h4>')
             parts.append(_items(items))
@@ -431,12 +455,28 @@ def close_patch_notes():
     st.session_state.docs_view = "documents"
 
 
+def _go(page):
+    st.session_state.patch_page = page
+
+
 def page():
-    """Patch notes view inside Documents: a back button, the version picker, then the chosen patch."""
+    """Patch notes view inside Documents: a text back link, the notes for one page of dates in their own
+    scroll panel, and the pager under it."""
     st.button("All documents", icon=":material/arrow_back:", key="patch_back", on_click=close_patch_notes, type="tertiary")
-    versions = [p[0] for p in PATCHES]
-    with st.container(key="patch_picker"):
-        version = st.selectbox("Version", versions, format_func=label, key="patch_version")
-        st.html(f'<p class="pn-count">{len(PATCHES)} patches since {_when(PATCHES[-1]):%d %b %Y} · '
-                f'0.x OceanFlow prototype, 1.x KingFish</p>')
-    st.html(patch_html(version))
+    book = pages()
+    current = min(st.session_state.get("patch_page", 0), len(book) - 1)
+    shown = book[current]
+    first, last = (datetime.strptime(d, "%Y-%m-%d") for d in (shown[0][0], shown[-1][0]))
+    pushes = sum(len(p) for _, p in shown)
+    st.html(f'<p class="pn-count">{last:%d %b} to {first:%d %b %Y} · {len(shown)} dates, {pushes} pushes · '
+            f'page {current + 1} of {len(book)}</p>')
+    # Keyed by page, so a new page starts at the top of the panel.
+    with st.container(key=f"patch_scroll_{current}"):
+        st.html("".join(day_html(date, patches) for date, patches in shown))
+    with st.container(key="patch_pager", horizontal=True):
+        st.button("Newer", icon=":material/chevron_left:", key="patch_newer", type="tertiary",
+                  disabled=current == 0, on_click=_go, args=(current - 1,))
+        for n in range(len(book)):
+            st.button(str(n + 1), key=f"patch_pg_{n}", type="tertiary", disabled=n == current, on_click=_go, args=(n,))
+        st.button("Older", icon=":material/chevron_right:", icon_position="right", key="patch_older", type="tertiary",
+                  disabled=current == len(book) - 1, on_click=_go, args=(current + 1,))

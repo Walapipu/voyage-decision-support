@@ -754,19 +754,31 @@ body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible
 /* ---------- Patch notes (Documents, voyage/patch_notes.py) ----------
    Laid out like game patch notes: a date heading and upper-case sections, each trailed by a rule
    that fades out, then bold leads with indented detail. Drawn in the app's own tokens. */
-.st-key-patch_picker{max-width:720px;gap:4px!important;}
-.pn-count{margin:0;font-size:12px;color:var(--muted);}
-.pn{max-width:880px;padding:8px 0 32px;color:var(--text);}
-.pn-tags{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 16px;}
-.pn-tag{padding:0 6px;border:1px solid var(--linestrong);border-radius:4px;font-family:var(--mono);font-size:11px;line-height:18px;color:var(--text2);}
-.pn-tag.on{background:var(--field);color:var(--text);}
+/* This view alone scrolls inside its own panel: the page holds still, the notes scroll, the pager stays put. */
+.st-key-page_content:has(>[data-testid="stLayoutWrapper"]>[class*="st-key-patch_scroll_"]){overflow:hidden!important;}
+.st-key-page_content>[data-testid="stLayoutWrapper"]:has(>[class*="st-key-patch_scroll_"]){flex:1 1 0!important;height:auto!important;min-height:0!important;overflow:hidden;}
+[class*="st-key-patch_scroll_"]{height:100%!important;min-height:0!important;overflow:auto!important;scrollbar-width:thin;gap:0!important;}
+.st-key-patch_back,.st-key-patch_pager [data-testid="stButton"]{width:auto!important;}
+.st-key-patch_back button,.st-key-patch_pager button{min-height:28px!important;padding:0 4px!important;background:transparent!important;border:0!important;box-shadow:none!important;color:var(--text2)!important;transition:color 150ms var(--ease);}
+.st-key-patch_back button:hover,.st-key-patch_pager button:hover{background:transparent!important;color:var(--text)!important;}
+.st-key-patch_pager{gap:4px!important;align-items:center;padding-top:8px;border-top:1px solid var(--line);}
+.st-key-patch_pager button{min-width:28px;font-variant-numeric:tabular-nums;}
+[class*="st-key-patch_pg_"] button:disabled{background:var(--field)!important;color:var(--text)!important;opacity:1;cursor:default;}
+.st-key-patch_newer button:disabled,.st-key-patch_older button:disabled{opacity:.4;}
+.pn-count{margin:0;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+.pn{max-width:880px;padding:8px 0 16px;color:var(--text);}
+.pn+.pn{padding-top:32px;}
+.pn-pushes{list-style:none!important;padding:0!important;margin:12px 0 0!important;}
+.pn-pushes>li{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:0 12px;margin:0;padding:8px 0;border-bottom:1px solid var(--line);}
+.pn-pushes>li:last-child{border-bottom:0;}
+.pn-v{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.pn-pushes .pn-intro{grid-column:2/4;}
 .pn-date,.pn-section{display:flex;align-items:center;gap:16px;margin:0;color:var(--text);}
 .pn-date::after,.pn-section::after{content:"";flex:1;height:1px;background:linear-gradient(to right,var(--linestrong),transparent);}
 .pn-date{padding:0;font-size:28px;font-weight:600;line-height:1.25;}
-.pn-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px;margin-top:12px;}
-.pn-title{font-size:16px;font-weight:500;line-height:1.4;color:var(--text);}
+.pn-title{font-size:14px;font-weight:500;line-height:1.4;color:var(--text);}
 .pn-time{font-family:var(--mono);font-size:11px;color:var(--muted);}
-.pn-intro{margin:4px 0 0;font-size:14px;line-height:1.5;color:var(--text2);}
+.pn-intro{margin:2px 0 0;font-size:13px;line-height:1.5;color:var(--text2);}
 .pn section{margin-top:32px;}
 .pn-section{padding:0;font-size:20px;font-weight:600;line-height:1.3;text-transform:uppercase;}
 .pn-sub{margin:16px 0 0;padding:0;font-size:16px;font-weight:500;line-height:1.4;color:var(--text);}
