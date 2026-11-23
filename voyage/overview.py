@@ -337,7 +337,6 @@ def suggestions(plan, focus):
 
 def shippy_drawer(plan, focus, render_chat, start_new_chat):
     """Right-side drawer. It stays mounted while closed, so the conversation and any draft survive."""
-    st.html('<div class="shippy-backdrop" data-shippy-close></div>')
     with st.container(key="shippy"):
         top, new, close = st.columns([1, .34, .1], vertical_alignment="center", gap="small")
         top.html('<h2 class="shippy-title" id="shippy-title"><span class="lucide icon-message-circle" aria-hidden="true"></span>Ask Shippy</h2>')

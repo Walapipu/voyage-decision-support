@@ -73,7 +73,11 @@ _ENGINE = """
   const close = () => {
     if (!state) return;
     cancelAnimationFrame(state.frame); clearTimeout(state.wait);
-    state.ring.remove(); state.tip.remove();
+    const {ring, tip} = state;
+    // close() and hidden start the CSS exit transitions; the nodes go once they have played.
+    if (tip.open) tip.close();
+    ring.hidden = true;
+    setTimeout(() => { ring.remove(); tip.remove(); }, 200);
     document.removeEventListener('keydown', state.keys, true);
     state = null;
   };
@@ -114,7 +118,8 @@ _ENGINE = """
     const last = position === shown.length;
     tip.querySelector('[data-next]').textContent = last ? 'Done' : 'Next';
     tip.querySelector('[data-skip]').hidden = last;
-    tip.hidden = false; state.ring.hidden = false;
+    if (!tip.open) tip.show();  // non-modal, so the page behind stays usable
+    state.ring.hidden = false;
     cancelAnimationFrame(state.frame); place();
     tip.querySelector('[data-next]').focus({preventScroll: true});
   };
@@ -125,8 +130,8 @@ _ENGINE = """
     close();
     if (!steps.length || (!force && seen(page, boot))) return;
     const ring = document.createElement('div'); ring.className = 'kf-tour-ring'; ring.hidden = true;
-    const tip = document.createElement('div'); tip.className = 'kf-tour'; tip.hidden = true;
-    tip.setAttribute('role', 'dialog'); tip.setAttribute('aria-live', 'polite'); tip.setAttribute('aria-label', page + ' tour');
+    const tip = document.createElement('dialog'); tip.className = 'kf-tour';
+    tip.setAttribute('aria-live', 'polite'); tip.setAttribute('aria-label', page + ' tour');
     // Built with DOM calls: markup inside this script's strings would be stripped by the HTML sanitiser.
     const make = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
     const actions = make('div', 'kf-tour-actions'), skip = make('button', 'kf-tour-skip', 'Skip tour'), go = make('button', 'kf-tour-next', 'Next');

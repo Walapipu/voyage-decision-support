@@ -290,15 +290,21 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
 .avail p{margin:0;font-size:12px;line-height:1.5;color:var(--muted);}
 
 /* ---------- Ask Shippy drawer ---------- */
-.shippy-backdrop{position:fixed;inset:0;z-index:1000002;background:rgba(5,7,10,.55);opacity:0;pointer-events:none;transition:opacity 200ms var(--ease);}
-body.shippy-open .shippy-backdrop{opacity:1;pointer-events:auto;}
-/* The rail sits in its own stacking layer, so it carries its own dimming veil. */
-[data-testid="stSidebar"]::after{content:"";position:absolute;inset:0;z-index:1000;background:rgba(5,7,10,.55);opacity:0;pointer-events:none;transition:opacity 200ms var(--ease);}
-body.shippy-open [data-testid="stSidebar"]::after{opacity:1;pointer-events:auto;}
 .st-key-shippy{position:fixed!important;top:0;right:0;z-index:1000003;width:clamp(340px,29vw,420px)!important;height:100dvh!important;box-sizing:border-box;
  padding:12px 16px!important;gap:8px!important;overflow:hidden;background:var(--panel);border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.24);
  transform:translateX(100%);visibility:hidden;transition:transform 240ms var(--ease),visibility 0s linear 240ms;}
-body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:transform 240ms var(--ease);}
+body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible;transition:transform 240ms var(--ease);}
+/* Top-layer drawer (a manual popover, set in app.py). It slides in from @starting-style and out by
+   keeping display and its top-layer place until the slide ends (transition-behavior:allow-discrete). */
+.st-key-shippy[popover]{inset:0 0 0 auto;margin:0;border:0;border-left:1px solid var(--line);color:var(--text);visibility:visible;
+ transition:transform 240ms var(--ease),display 240ms allow-discrete,overlay 240ms allow-discrete;}
+.st-key-shippy[popover]:not(:popover-open){display:none!important;}
+.st-key-shippy:popover-open{transform:none;}
+@starting-style{.st-key-shippy:popover-open{transform:translateX(100%);}}
+.st-key-shippy::backdrop{background:rgb(5 7 10/0);
+ transition:background-color 200ms cubic-bezier(.22,1,.36,1),display 240ms allow-discrete,overlay 240ms allow-discrete;}
+.st-key-shippy:popover-open::backdrop{background:rgb(5 7 10/.55);}
+@starting-style{.st-key-shippy:popover-open::backdrop{background:rgb(5 7 10/0);}}
 .st-key-shippy>[data-testid="stLayoutWrapper"],.st-key-shippy>[data-testid="stElementContainer"]{flex:0 0 auto!important;}
 .st-key-shippy>[data-testid="stLayoutWrapper"]:has(>[class*="st-key-chat_scroll_"]){flex:1 1 0!important;min-height:0!important;height:auto!important;}
 .st-key-shippy [class*="st-key-chat_scroll_"]{height:100%!important;min-height:0!important;overflow:auto!important;scrollbar-width:thin;}
@@ -636,6 +642,7 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 /* Slash-shortcut menu above the chat box (built by the page script, attached to the page body). Never write angle brackets in this file: the sanitiser drops the whole sheet. */
 .slash-menu{position:fixed;z-index:1000200;box-sizing:border-box;padding:4px;border:1px solid var(--linestrong);border-radius:var(--r-md);background:var(--panel);box-shadow:0 8px 24px rgba(0,0,0,.28);}
 .slash-menu[hidden]{display:none;}
+.slash-menu[popover]{margin:0;inset:auto;color:inherit;overflow:visible;}
 .slash-item{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:2px 10px;padding:6px 8px;border-radius:6px;cursor:pointer;}
 .slash-item:hover,.slash-item:first-child{background:var(--field);}
 .slash-item b{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);}
@@ -717,13 +724,18 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 
 /* ---------- First-visit product tour (voyage/tour.py) ----------
    A raised panel with a sea-blue edge, and a blue ring around the element it describes.
-   The page behind is dimmed through the ring's outer shadow; clicks still reach the page. */
+   The page behind is dimmed through the ring's outer shadow; clicks still reach the page, so the
+   panel is a non-modal dialog element. Both fade in from @starting-style and out with allow-discrete. */
 .kf-tour-ring{position:fixed;z-index:10000;pointer-events:none;border:2px solid var(--blue);border-radius:var(--r-lg);
- box-shadow:0 0 0 9999px rgba(5,7,10,.5);}
+ box-shadow:0 0 0 9999px rgba(5,7,10,.5);transition:opacity 160ms var(--ease),display 160ms allow-discrete;}
+.kf-tour-ring[hidden]{display:none;opacity:0;}
+@starting-style{.kf-tour-ring{opacity:0;}}
 .kf-tour{position:fixed;z-index:10001;width:min(320px,calc(100vw - 24px));box-sizing:border-box;padding:16px;
  background:var(--panel);color:var(--text);border:1px solid var(--blue);border-radius:var(--r-lg);
- box-shadow:0 8px 24px rgba(0,0,0,.28);font-size:13px;line-height:1.5;animation:kf-tour-in 160ms var(--ease);}
-.kf-tour[hidden],.kf-tour-ring[hidden]{display:none;}
+ box-shadow:0 8px 24px rgba(0,0,0,.28);font-size:13px;line-height:1.5;margin:0;inset:auto;
+ opacity:0;transform:translateY(4px);transition:opacity 160ms var(--ease),transform 160ms var(--ease),display 160ms allow-discrete;}
+.kf-tour[open]{opacity:1;transform:none;}
+@starting-style{.kf-tour[open]{opacity:0;transform:translateY(4px);}}
 .kf-tour-count{display:block;font-family:var(--mono);font-size:11px;line-height:16px;color:var(--blue);font-variant-numeric:tabular-nums;}
 .kf-tour h4{margin:4px 0 4px;font-size:15px;font-weight:500;line-height:1.35;color:var(--text);}
 .kf-tour p{margin:0;font-size:13px;line-height:1.5;color:var(--text2);}
@@ -737,5 +749,4 @@ body.shippy-open .st-key-shippy{transform:none;visibility:visible;transition:tra
 .kf-tour-skip[hidden]{display:none;}
 .kf-tour-next{background:var(--blue);border:1px solid var(--blue);color:var(--onblue);}
 .kf-tour-next:hover{filter:brightness(1.08);}
-@keyframes kf-tour-in{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
-@media(prefers-reduced-motion:reduce){.kf-tour{animation:none;}}
+@media(prefers-reduced-motion:reduce){.kf-tour,.kf-tour-ring,.st-key-shippy,.st-key-shippy::backdrop{transition:none!important;}}

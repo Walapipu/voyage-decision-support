@@ -91,29 +91,41 @@ st.html("""<script>(() => {
   const untitle = () => document.querySelectorAll('[title]').forEach(el => el.removeAttribute('title'));
   // Ask Shippy drawer. Opening and closing stay in the browser, so the drawer remains mounted
   // and the conversation and any unsent draft survive while it is closed.
+  // Where supported it is a manual popover: the browser puts it in the top layer with its own
+  // ::backdrop, so no z-index stacking or separate veil elements are needed. It cannot be a
+  // dialog element, because Streamlit owns its children and would break if they were moved into one.
   const body = document.body, drawer = () => document.querySelector('.st-key-shippy');
+  const canPop = 'showPopover' in HTMLElement.prototype, isOpen = () => body.classList.contains('shippy-open');
   const openShippy = () => {
     body.classList.add('shippy-open');
     setTimeout(() => drawer()?.querySelector('textarea')?.focus(), 160);
   };
   const closeShippy = () => {
-    if (!body.classList.contains('shippy-open')) return;
+    if (!isOpen()) return;
     body.classList.remove('shippy-open');
     document.querySelector('.ask-shippy')?.focus();
   };
   document.addEventListener('click', event => {
     if (event.target.closest('[data-shippy-open]')) openShippy();
     else if (event.target.closest('[data-shippy-close]')) closeShippy();
-    else if (body.classList.contains('shippy-open') && event.target.closest('[data-testid="stSidebar"]')) {
-      // A click on the dimmed rail closes the drawer instead of navigating.
-      event.preventDefault(); event.stopPropagation(); closeShippy();
+    else if (isOpen() && drawer()) {
+      // A click outside the drawer closes it instead of acting on the page. On the backdrop the
+      // target is the drawer itself, at a point outside its box.
+      const panel = drawer(), t = event.target, r = panel.getBoundingClientRect();
+      const outside = t === panel ? event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom
+                                  : !panel.contains(t);
+      if (outside) { event.preventDefault(); event.stopPropagation(); closeShippy(); }
     }
   }, true);
   // Slash shortcuts: typing "/" in a chat box lists them above it; click or Tab fills one in.
   const COMMANDS = __COMMANDS__;
   let menu = null;
   const menuOpen = () => menu && !menu.hidden;
-  const hideMenu = () => { if (menuOpen()) menu.hidden = true; };
+  const hideMenu = () => {
+    if (!menuOpen()) return;
+    menu.hidden = true;
+    if (canPop && menu.matches(':popover-open')) menu.hidePopover();
+  };
   const fill = (box, text) => {
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(box, text);
     box.dispatchEvent(new Event('input', {bubbles: true}));
@@ -126,6 +138,7 @@ st.html("""<script>(() => {
     if (!matches.length) return hideMenu();
     if (!menu) {
       menu = document.createElement('div'); menu.className = 'slash-menu'; menu.setAttribute('role', 'listbox');
+      if (canPop) menu.popover = 'manual';  // top layer too, so it shows above the open drawer
       menu.addEventListener('mousedown', event => {
         const item = event.target.closest('[data-cmd]');
         if (item) { event.preventDefault(); fill(menu.box, item.dataset.cmd + ' '); }
@@ -141,6 +154,7 @@ st.html("""<script>(() => {
     const r = box.closest('[data-testid="stChatInput"]').getBoundingClientRect();
     Object.assign(menu.style, {left: r.left + 'px', width: r.width + 'px', bottom: (innerHeight - r.top + 6) + 'px'});
     menu.hidden = false;
+    if (canPop && !menu.matches(':popover-open')) menu.showPopover();
   };
   const chatBox = el => el instanceof HTMLTextAreaElement && el.closest('[data-testid="stChatInput"]') ? el : null;
   document.addEventListener('input', event => { const box = chatBox(event.target); if (box) showMenu(box); });
@@ -158,7 +172,11 @@ st.html("""<script>(() => {
     if (!panel) { if (body.classList.contains('shippy-open')) body.classList.remove('shippy-open'); return; }
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-labelledby', 'shippy-title');
-    panel.toggleAttribute('inert', !body.classList.contains('shippy-open'));
+    if (!canPop) { panel.toggleAttribute('inert', !isOpen()); return; }
+    if (panel.getAttribute('popover') !== 'manual') panel.setAttribute('popover', 'manual');
+    const shown = panel.matches(':popover-open');
+    if (isOpen() && !shown) panel.showPopover();
+    else if (!isOpen() && shown) panel.hidePopover();
   };
   // Chat panels: jump to the newest message when one is added, and otherwise leave the scroll alone.
   // Charts in an answer draw a moment later, so the jump repeats briefly unless the user scrolls first.
