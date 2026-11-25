@@ -18,7 +18,7 @@ from voyage.dashboard import e, usd, profit_style, select_vessel, heading
 from voyage.dashboard_data import suggested_lift
 from voyage.decision import OBJECTIVES
 from voyage.data import index, load_tables
-from voyage.map_view import locations, render_candidate_map
+from voyage.map_view import render_candidate_map
 from voyage.search import open_cargoes, search
 
 MAP_LIMIT = 3  # vessels drawn on the map; the cards and table still list every candidate
@@ -43,12 +43,6 @@ def _sign_style(value):
     return profit_style(1 if value > 0 else -1 if value < 0 else 0)
 
 
-def _dms(value, positive, negative):
-    degrees = abs(value)
-    whole = int(degrees)
-    return f'{whole}°{round((degrees - whole) * 60):02d}′{positive if value >= 0 else negative}'
-
-
 def _laycan(cargo):
     opens, closes = _utc(cargo["laycan_start_utc"]), _utc(cargo["laycan_end_utc"])
     return f'{opens:%d}–{closes:%d %b %Y}' if opens.month == closes.month else f'{opens:%d %b} – {closes:%d %b %Y}'
@@ -56,6 +50,14 @@ def _laycan(cargo):
 
 def _ranks(rows):
     return {r["vessel_id"]: i for i, r in enumerate((r for r in rows if r["ranking_eligible"]), 1)}
+
+
+def rank_tag(rank):
+    """Rank as a tag: gold, silver and bronze for the top three, the plain tag otherwise."""
+    if not rank:
+        return '<span class="tag rank">Not ranked</span>'
+    medal = {1: " gold", 2: " silver", 3: " bronze"}.get(rank, "")
+    return f'<span class="tag rank{medal}">Rank {rank}</span>'
 
 
 def _value(cc, value):
@@ -161,7 +163,7 @@ def candidate_card(row, cc, rank, focus_id):
     vessel = cc["vessels"][row["vessel_id"]]
     port = cc["ports"][vessel["current_port"]]["port_name"]
     feasible = row["feasible"]
-    tags = f'<span class="tag">Rank {rank}</span>' if rank else ""
+    tags = rank_tag(rank) if rank else ""
     hired = row["vessel_id"].startswith("MV")
     if rank == 1:
         tags += f'<span class="tag info">{e(_highest(cc))}</span>'
@@ -208,18 +210,23 @@ def candidate_card(row, cc, rank, focus_id):
             st.button(f'Select {row["vessel_id"]}', key=f'pick_{row["vessel_id"]}', on_click=select_vessel, args=(row["vessel_id"],))
 
 
-def ticker_items(cc, focus):
-    """Ticker segments: port positions, the focused route, then each vessel's load-port ETA."""
+def ticker_items(cc, focus, rank=None):
+    """Ticker segments for one vessel only: the selected one, else the top ranked (the page's focus)."""
     cargo, ports = cc["cargo"], cc["ports"]
-    where = locations()
-    items = [f'{ports[code]["port_name"].upper()} {_dms(where[code]["lat"], "N", "S")} {_dms(where[code]["lon"], "E", "W")}'
-             for code in (cargo["load_port"], cargo["discharge_port"])]
     vessel = cc["vessels"][focus["vessel_id"]]
-    items.append(f'{focus["vessel_id"]} BALLAST {focus["ballast_distance_nm"]:,.0f} NM + LADEN {focus["laden_distance_nm"]:,.0f} NM')
-    items.append(f'ECONOMICAL SPEED {vessel["economical_ballast_speed_knots"]} / {vessel["economical_laden_speed_knots"]} KN')
-    for row in cc["rows"]:
-        items.append(f'{row["vessel_id"]} ETA {_when(row["arrival_at_load_utc"]).upper()} · SLACK {_signed(row["laycan_slack_days"])} DAYS')
-    return items
+    vid = focus["vessel_id"]
+    status = "FEASIBLE" if focus["feasible"] else "FAILS " + ", ".join(CHECK_NAMES.get(c, c) for c in focus["failed_checks"]).upper()
+    return [
+        f'{vid} · {f"RANK {rank}" if rank else "NOT RANKED"} · {status}',
+        f'{vid} OPEN {ports[vessel["current_port"]]["port_name"].upper()} {_utc(vessel["available_from_utc"]).strftime("%d %b").upper()}',
+        f'{vid} {ports[cargo["load_port"]]["port_name"].upper()} TO {ports[cargo["discharge_port"]]["port_name"].upper()}',
+        f'{vid} BALLAST {focus["ballast_distance_nm"]:,.0f} NM + LADEN {focus["laden_distance_nm"]:,.0f} NM',
+        f'{vid} ECONOMICAL SPEED {vessel["economical_ballast_speed_knots"]} / {vessel["economical_laden_speed_knots"]} KN',
+        f'{vid} LOAD ETA {_when(focus["arrival_at_load_utc"]).upper()} · SLACK {_signed(focus["laycan_slack_days"])} DAYS',
+        f'{vid} VOYAGE {focus["voyage_days"]:.1f} DAYS · LIFT {focus["selected_lift_tonnes"]:,.0f} T',
+        f'{vid} TCE {usd(focus["tce_usd_per_day"])}/DAY · CONTRIBUTION {usd(focus["voyage_contribution_usd"])}',
+        f'{vid} SUMMER-DRAFT HEADROOM {focus["draft_margin_m"]:.2f} M',
+    ]
 
 
 def ticker(items):
@@ -235,13 +242,12 @@ def matrix(rows, cc, ranks, focus_id):
     for r in rows:
         v = cc["vessels"][r["vessel_id"]]
         port = cc["ports"][v["current_port"]]["port_name"]
-        rank = f'Rank {ranks[r["vessel_id"]]}' if r["vessel_id"] in ranks else "Not ranked"
         status = ('<span class="tag good">Feasible</span>' if r["feasible"] else
                   f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in r["failed_checks"]))}</span>')
         slack_style = _sign_style(r["laycan_slack_days"])
         pick = "" if r["vessel_id"] == st.session_state.get("selected_vessel") else f' data-pick="{e(r["vessel_id"])}"'
         body += (f'<tr class="{"selected" if r["vessel_id"] == focus_id else ""}"{pick}>'
-                 f'<td>{vessel_link(r["vessel_id"])}<small>{e(rank)} · {float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}{f" · lift {r['selected_lift_tonnes']:,.0f} t" if cc["per_vessel"] else ""}</small></td>'
+                 f'<td><span class="matrix-id">{vessel_link(r["vessel_id"])}{rank_tag(ranks.get(r["vessel_id"]))}</span><small>{float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}{f" · lift {r['selected_lift_tonnes']:,.0f} t" if cc["per_vessel"] else ""}</small></td>'
                  f'<td>{status}</td>'
                  f'<td class="num">{e(_when(r["arrival_at_load_utc"]))}<small class="signed-metric" style="{slack_style}"><strong>{_signed(r["laycan_slack_days"])} days slack</strong></small></td>'
                  f'<td class="num">{r["ballast_days"]:.1f} / {r["laden_days"]:.1f} days<small>{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm</small></td>'
@@ -425,7 +431,7 @@ def voyages_page(cc):
                     note += f' · top {MAP_LIMIT} of {len(rows)} on map'
                 heading("Ballast and laden legs", note)
                 render_candidate_map(cc["cargo"], drawn, focus["vessel_id"], cc["ports"], cc["vessels"])
-                st.html(ticker(ticker_items(cc, focus)))
+                st.html(ticker(ticker_items(cc, focus, ranks.get(focus["vessel_id"]))))
             with st.container(border=True, key="matrix_panel"):
                 title, action = st.columns([1, .28], vertical_alignment="center")
                 with title:

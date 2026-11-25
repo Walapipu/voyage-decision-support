@@ -16,6 +16,19 @@ import streamlit as st
 
 # (version, pushed at, title, intro, sections). sections: [(SECTION, [(subsection or None, [items])])]
 PATCHES = [
+    ("1.24", "2026-11-26 03:55", "Medal ranks, one-vessel ticker", "Ranks read at a glance and the ticker follows one vessel", [
+        ("OVERVIEW", [("UI/UX", [
+            "KPI values count up again each time you come back to Overview",
+        ])]),
+        ("VOYAGES", [("UI/UX", [
+            ("Ranks", ["Rank 1, 2 and 3 are gold, silver and bronze; later ranks and Not ranked stay plain",
+                       "The specifications and feasibility table shows each rank as a tag beside the vessel code"]),
+            "The ticker board shows only the selected vessel, or the rank 1 vessel when none is selected",
+        ])]),
+        ("DOCUMENTS", [("UI/UX", [
+            "Patch notes show one block per date with its version range and every change, without push times",
+        ])]),
+    ]),
     ("1.23", "2026-11-26 03:37", "Click to select, counting KPIs", "Whole cards and table rows select a vessel, and Overview KPIs count up", [
         ("GLOBAL", [("Bug fixes", [
             "Updating a page no longer blanks it for a moment; it stays in place while it updates",
@@ -451,14 +464,12 @@ def _merge(patches):
 
 
 def day_html(date, patches):
-    """One date's note: date heading, a row per push (version, title, time, intro), then merged sections."""
+    """One date's note: date heading, the versions it covers, then every change that day, merged."""
     day = datetime.strptime(date, "%Y-%m-%d")
-    parts = [f'<article class="pn"><h2 class="pn-date">{day:%B} {day.day}, {day:%Y}</h2><ul class="pn-pushes">']
-    for patch in patches:
-        number, _, title, intro, _ = patch
-        parts.append(f'<li><span class="pn-v">v{html.escape(number)}</span><b class="pn-title">{_text(title)}</b>'
-                     f'<span class="pn-time">{_when(patch):%H:%M} SGT</span><p class="pn-intro">{_text(intro)}</p></li>')
-    parts.append("</ul>")
+    newest, oldest = patches[0][0], patches[-1][0]
+    versions = f"v{oldest} to v{newest}" if len(patches) > 1 else f"v{newest}"
+    parts = [f'<article class="pn"><h2 class="pn-date">{day:%B} {day.day}, {day:%Y}</h2>'
+             f'<p class="pn-v">{html.escape(versions)}</p>']
     for name, groups in _merge(patches).items():
         parts.append(f'<section><h3 class="pn-section">{html.escape(name)}</h3>')
         for sub, items in groups.items():

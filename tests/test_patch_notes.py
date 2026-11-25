@@ -27,8 +27,8 @@ class PatchNotesTests(unittest.TestCase):
         date, patches = next((d, p) for d, p in dated if len(p) > 1)
         body = day_html(date, patches)
         self.assertEqual(body.count('class="pn-date"'), 1)
-        for patch in patches:
-            self.assertIn(f'v{patch[0]}<', body)
+        self.assertIn(f'<p class="pn-v">v{patches[-1][0]} to v{patches[0][0]}</p>', body)
+        self.assertNotIn("SGT", body)
         names = [n for p in patches for n, _ in p[4]]
         for name in set(names):
             self.assertEqual(body.count(f'<h3 class="pn-section">{name}</h3>'), 1)

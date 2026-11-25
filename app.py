@@ -208,7 +208,13 @@ st.html("""<script>(() => {
   // Overview KPIs: a value counts up to its figure when it first shows or changes. Only the first
   // number moves ("5 of 7" counts the 5); a change of unit, such as $ to $M, counts up from zero.
   const kpiLast = new Map(), still = matchMedia('(prefers-reduced-motion: reduce)'), NUM = /-?[0-9][0-9,]*([.][0-9]+)?/;
-  const countKpis = () => document.querySelectorAll('.kpi strong').forEach(el => {
+  // Leaving Overview forgets the figures, so coming back to it counts them up from zero again.
+  const countKpis = () => {
+    const tiles = document.querySelectorAll('.kpi strong');
+    if (!tiles.length) { kpiLast.clear(); return; }
+    tiles.forEach(countKpi);
+  };
+  const countKpi = el => {
     const text = el.textContent;
     if (el.dataset.kfShown === text) return;
     const label = el.parentElement.querySelector('h4')?.textContent || '';
@@ -229,7 +235,7 @@ st.html("""<script>(() => {
     };
     el.dataset.kfShown = head + fmt.format(start) + tail; el.textContent = el.dataset.kfShown;
     requestAnimationFrame(step);
-  });
+  };
   new MutationObserver(() => { relabel(); untitle(); syncDrawer(); followChat(); countKpis(); }).observe(body, {childList: true, subtree: true, characterData: true});
   new MutationObserver(syncDrawer).observe(body, {attributes: true, attributeFilter: ['class']});
   untitle(); syncDrawer(); countKpis();

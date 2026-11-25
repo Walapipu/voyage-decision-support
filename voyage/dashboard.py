@@ -36,14 +36,18 @@ def apply_theme(dark):
                 "text":"#e8ebf0", "text2":"#a3a9b5", "muted":"#858c98",
                 "blue":"#5aa9f0", "bluewash":"rgba(90,169,240,.13)", "onblue":"#0d0f13",
                 "green":"#4cc38a", "greenwash":"rgba(76,195,138,.12)", "amber":"#e0b263", "amberwash":"rgba(224,178,99,.12)",
-                "red":"#e5484d", "redwash":"rgba(229,72,77,.12)"}
+                "red":"#e5484d", "redwash":"rgba(229,72,77,.12)",
+                "gold":"#e3b341", "goldwash":"rgba(227,179,65,.14)", "silver":"#c5ccd6", "silverwash":"rgba(197,204,214,.12)",
+                "bronze":"#d48a56", "bronzewash":"rgba(212,138,86,.14)"}
                if dark else
                {"rail":"#13263d", "bg":"#f6f7f9", "panel":"#ffffff", "field":"#f1f3f6", "raised":"#e8ebf0",
                 "line":"rgba(17,24,39,.09)", "linestrong":"rgba(17,24,39,.16)",
                 "text":"#111827", "text2":"#4b5565", "muted":"#6b7487",
                 "blue":"#0a6fd6", "bluewash":"rgba(10,111,214,.08)", "onblue":"#ffffff",
                 "green":"#16803c", "greenwash":"rgba(22,128,60,.08)", "amber":"#9a6410", "amberwash":"rgba(154,100,16,.09)",
-                "red":"#c62828", "redwash":"rgba(198,40,40,.08)"})
+                "red":"#c62828", "redwash":"rgba(198,40,40,.08)",
+                "gold":"#7a5800", "goldwash":"rgba(234,179,8,.2)", "silver":"#56606e", "silverwash":"rgba(86,96,110,.1)",
+                "bronze":"#9a4c18", "bronzewash":"rgba(154,76,24,.1)"})
     # The rail follows the theme: graphite in dark mode, harbour navy in light mode.
     palette.update({"railtext":"#e8ebf0", "railtext2":"#a3a9b5", "railmuted":"#858c98", "railfield":"#16191e",
                     "railraised":"#1d2127", "railline":"rgba(232,236,242,.08)", "railaccent":"#5aa9f0"}
