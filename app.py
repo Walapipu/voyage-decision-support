@@ -193,17 +193,46 @@ st.html("""<script>(() => {
       if ((touched.get(box) || 0) < asked) box.scrollTop = box.scrollHeight;
     }, delay));
   });
-  // Voyages: a vessel code in a candidate card or the specifications table selects that vessel
-  // through its hidden per-vessel button, so the selection runs the same Streamlit callback.
+  // Voyages: clicking a candidate card or a specifications-table row selects that vessel through its
+  // hidden per-vessel button, so the selection runs the same Streamlit callback. A drag that selected
+  // text is left alone.
   document.addEventListener('click', event => {
-    const link = event.target.closest ? event.target.closest('[data-pick]') : null;
+    const t = event.target;
+    if (!t.closest || String(getSelection())) return;
+    const host = t.closest('[data-pick], [class*="st-key-cand_"]');
+    const link = host && (host.dataset.pick ? host : host.querySelector('[data-pick]'));
     if (!link) return;
     const pick = document.querySelector('.st-key-pick_' + CSS.escape(link.dataset.pick) + ' button');
     if (pick) pick.click();
   });
-  new MutationObserver(() => { relabel(); untitle(); syncDrawer(); followChat(); }).observe(body, {childList: true, subtree: true, characterData: true});
+  // Overview KPIs: a value counts up to its figure when it first shows or changes. Only the first
+  // number moves ("5 of 7" counts the 5); a change of unit, such as $ to $M, counts up from zero.
+  const kpiLast = new Map(), still = matchMedia('(prefers-reduced-motion: reduce)'), NUM = /-?[0-9][0-9,]*([.][0-9]+)?/;
+  const countKpis = () => document.querySelectorAll('.kpi strong').forEach(el => {
+    const text = el.textContent;
+    if (el.dataset.kfShown === text) return;
+    const label = el.parentElement.querySelector('h4')?.textContent || '';
+    const from = kpiLast.get(label), m = text.match(NUM);
+    kpiLast.set(label, text); el.dataset.kfShown = text;
+    if (!m || still.matches) return;
+    const end = parseFloat(m[0].replace(/,/g, '')), prev = from && from.match(NUM);
+    const start = prev && from.replace(prev[0], '#') === text.replace(m[0], '#') ? parseFloat(prev[0].replace(/,/g, '')) : 0;
+    if (start === end) return;
+    const places = m[1] ? m[1].length - 1 : 0, head = text.slice(0, m.index), tail = text.slice(m.index + m[0].length);
+    const fmt = new Intl.NumberFormat('en-US', {minimumFractionDigits: places, maximumFractionDigits: places, useGrouping: m[0].includes(',')});
+    const t0 = performance.now(), ms = 700;
+    const step = now => {
+      const k = Math.min(1, (now - t0) / ms), eased = 1 - Math.pow(1 - k, 3);
+      const shown = k === 1 ? text : head + fmt.format(start + (end - start) * eased) + tail;
+      el.dataset.kfShown = shown; el.textContent = shown;
+      if (k !== 1) requestAnimationFrame(step);
+    };
+    el.dataset.kfShown = head + fmt.format(start) + tail; el.textContent = el.dataset.kfShown;
+    requestAnimationFrame(step);
+  });
+  new MutationObserver(() => { relabel(); untitle(); syncDrawer(); followChat(); countKpis(); }).observe(body, {childList: true, subtree: true, characterData: true});
   new MutationObserver(syncDrawer).observe(body, {attributes: true, attributeFilter: ['class']});
-  untitle(); syncDrawer();
+  untitle(); syncDrawer(); countKpis();
 })();</script>""".replace("__COMMANDS__", json.dumps(COMMANDS)), unsafe_allow_javascript=True)
 # First-visit product tour for this page; "Replay page tour" in the profile menu shows it again.
 tour(page, replay=st.session_state.pop("tour_replay", False))

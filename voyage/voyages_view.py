@@ -239,7 +239,8 @@ def matrix(rows, cc, ranks, focus_id):
         status = ('<span class="tag good">Feasible</span>' if r["feasible"] else
                   f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in r["failed_checks"]))}</span>')
         slack_style = _sign_style(r["laycan_slack_days"])
-        body += (f'<tr class="{"selected" if r["vessel_id"] == focus_id else ""}">'
+        pick = "" if r["vessel_id"] == st.session_state.get("selected_vessel") else f' data-pick="{e(r["vessel_id"])}"'
+        body += (f'<tr class="{"selected" if r["vessel_id"] == focus_id else ""}"{pick}>'
                  f'<td>{vessel_link(r["vessel_id"])}<small>{e(rank)} · {float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}{f" · lift {r['selected_lift_tonnes']:,.0f} t" if cc["per_vessel"] else ""}</small></td>'
                  f'<td>{status}</td>'
                  f'<td class="num">{e(_when(r["arrival_at_load_utc"]))}<small class="signed-metric" style="{slack_style}"><strong>{_signed(r["laycan_slack_days"])} days slack</strong></small></td>'

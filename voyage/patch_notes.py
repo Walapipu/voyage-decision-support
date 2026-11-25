@@ -16,6 +16,18 @@ import streamlit as st
 
 # (version, pushed at, title, intro, sections). sections: [(SECTION, [(subsection or None, [items])])]
 PATCHES = [
+    ("1.23", "2026-11-26 03:37", "Click to select, counting KPIs", "Whole cards and table rows select a vessel, and Overview KPIs count up", [
+        ("GLOBAL", [("Bug fixes", [
+            "Updating a page no longer blanks it for a moment; it stays in place while it updates",
+        ])]),
+        ("OVERVIEW", [("UI/UX", [
+            "KPI values count up when they first show and count to the new figure when they change",
+        ])]),
+        ("VOYAGES", [("UI/UX", [
+            ("Vessel selection", ["Clicking anywhere on a candidate card selects that vessel",
+                                  "Clicking a row in the specifications and feasibility table selects that vessel"]),
+        ])]),
+    ]),
     ("1.22", "2026-11-26 00:18", "Steadier plan, vessel links", "Plan rows hold still while they update, and vessel codes on Voyages select the vessel", [
         ("OVERVIEW", [("Bug fixes", [
             "Picking a row in The plan no longer pushes the rows above and below while the page updates",

@@ -551,6 +551,13 @@ body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible
 .vessel-link:hover{color:var(--blue);text-decoration-color:currentColor;}
 .vessel-link:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:2px;}
 .matrix-table .vessel-link{font-size:12px;}
+/* The whole card or table row selects the vessel (app.py); the selected one is not clickable. */
+[class*="st-key-cand_"]:has([data-pick]){cursor:pointer;transition:border-color 150ms var(--ease),background-color 150ms var(--ease);}
+[class*="st-key-cand_"]:has([data-pick]):hover{border-color:var(--linestrong)!important;}
+[class*="st-key-cand_"]:has([data-pick]):hover .vessel-link{color:var(--blue);text-decoration-color:currentColor;}
+.matrix-table tr[data-pick]{cursor:pointer;}
+.matrix-table tr[data-pick]:hover td{background:var(--field);}
+.matrix-table tr[data-pick]:hover .vessel-link{color:var(--blue);text-decoration-color:currentColor;}
 
 /* Map and matrix */
 .st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-voyage_map_panel){flex:0 0 58%!important;min-height:0!important;}
@@ -644,8 +651,9 @@ body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible
  background:linear-gradient(100deg,var(--field) 30%,var(--raised) 50%,var(--field) 70%);background-size:300% 100%;
  animation:kf-appear 150ms 350ms both,kf-shimmer 1.4s linear infinite;}
 /* Page change: once the incoming page starts streaming in, the outgoing page (now entirely stale) is
-   removed instead of sitting above it. Same-page reruns never match, because no other wrapper is fresh. */
-.stMainBlockContainer>[data-testid="stVerticalBlock"]:has(>[data-testid="stLayoutWrapper"] [data-stale="false"])>[data-testid="stLayoutWrapper"]:has([data-stale="true"]):not(:has([data-stale="false"])){display:none!important;}
+   removed instead of sitting above it. Only fresh content inside a page container counts: the top bar
+   redraws first on every rerun, and counting it hid the whole page for a frame on same-page reruns. */
+.stMainBlockContainer>[data-testid="stVerticalBlock"]:has(>[data-testid="stLayoutWrapper"]>:is(.st-key-home,.st-key-assistant_page,.st-key-page_content) [data-stale="false"])>[data-testid="stLayoutWrapper"]:has([data-stale="true"]):not(:has([data-stale="false"])){display:none!important;}
 
 /* Slash-shortcut menu above the chat box (built by the page script, attached to the page body). Never write angle brackets in this file: the sanitiser drops the whole sheet. */
 .slash-menu{position:fixed;z-index:1000200;box-sizing:border-box;padding:4px;border:1px solid var(--linestrong);border-radius:var(--r-md);background:var(--panel);box-shadow:0 8px 24px rgba(0,0,0,.28);}
