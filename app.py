@@ -193,6 +193,14 @@ st.html("""<script>(() => {
       if ((touched.get(box) || 0) < asked) box.scrollTop = box.scrollHeight;
     }, delay));
   });
+  // Voyages: a vessel code in a candidate card or the specifications table selects that vessel
+  // through its hidden per-vessel button, so the selection runs the same Streamlit callback.
+  document.addEventListener('click', event => {
+    const link = event.target.closest ? event.target.closest('[data-pick]') : null;
+    if (!link) return;
+    const pick = document.querySelector('.st-key-pick_' + CSS.escape(link.dataset.pick) + ' button');
+    if (pick) pick.click();
+  });
   new MutationObserver(() => { relabel(); untitle(); syncDrawer(); followChat(); }).observe(body, {childList: true, subtree: true, characterData: true});
   new MutationObserver(syncDrawer).observe(body, {attributes: true, attributeFilter: ['class']});
   untitle(); syncDrawer();

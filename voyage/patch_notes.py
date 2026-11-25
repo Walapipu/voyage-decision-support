@@ -16,6 +16,17 @@ import streamlit as st
 
 # (version, pushed at, title, intro, sections). sections: [(SECTION, [(subsection or None, [items])])]
 PATCHES = [
+    ("1.22", "2026-11-26 00:18", "Steadier plan, vessel links", "Plan rows hold still while they update, and vessel codes on Voyages select the vessel", [
+        ("OVERVIEW", [("Bug fixes", [
+            "Picking a row in The plan no longer pushes the rows above and below while the page updates",
+            "The map's view switcher stays in its corner while the map updates",
+        ])]),
+        ("VOYAGES", [("UI/UX", [
+            ("Vessel links", ["Each vessel code in a candidate card is an underlined link that selects it, replacing Select vessel",
+                              "Vessel codes in the specifications and feasibility table select the vessel too"]),
+            "The line under Evaluated vessels is removed",
+        ])]),
+    ]),
     ("1.21", "2026-11-24 05:28", "Paged patch notes", "Patch notes are grouped by date and paged, five dates at a time", [
         ("DOCUMENTS", [("UI/UX", [
             ("Patch notes", ["Pushes made on the same date are combined into one note, with a row per push",

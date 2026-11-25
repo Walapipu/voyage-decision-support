@@ -149,6 +149,14 @@ def stage_legend():
         f'<span><i style="background:{STAGE_COLOURS[name]}"></i>{e(name)}</span>' for name in STAGES) + '</div>'
 
 
+def vessel_link(vessel_id):
+    """The vessel code as an underlined link that selects it (app.py clicks the hidden pick button);
+    the vessel already selected stays plain text, since it has no pick button."""
+    if vessel_id == st.session_state.get("selected_vessel"):
+        return f'<b class="code" aria-current="true">{e(vessel_id)}</b>'
+    return f'<button type="button" class="vessel-link code" data-pick="{e(vessel_id)}" title="Select {e(vessel_id)}">{e(vessel_id)}</button>'
+
+
 def candidate_card(row, cc, rank, focus_id):
     vessel = cc["vessels"][row["vessel_id"]]
     port = cc["ports"][vessel["current_port"]]["port_name"]
@@ -160,7 +168,7 @@ def candidate_card(row, cc, rank, focus_id):
     status = ('<span class="tag good">Feasible</span>' if feasible else
               f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in row["failed_checks"]))}</span>')
     head = (f'<div class="cand-head"><span class="cand-id"><i class="dot {"good" if feasible else "bad"}"></i>'
-            f'<b class="code">{e(row["vessel_id"])}</b>{tags}</span>{status}</div>'
+            f'{vessel_link(row["vessel_id"])}{tags}</span>{status}</div>'
             f'<p class="cand-spec">{"Chartered in" if hired else "Capesize"} · <span class="num">{float(vessel["dwt_tonnes"]):,.0f}</span> DWT · '
             + (f'Best lift <span class="num">{row["selected_lift_tonnes"]:,.0f}</span> t · ' if cc["per_vessel"] else "") +
             f'Open {e(port)} · {e(_utc(vessel["available_from_utc"]).strftime("%d %b"))}'
@@ -196,7 +204,8 @@ def candidate_card(row, cc, rank, focus_id):
         if row["vessel_id"] == st.session_state.get("selected_vessel"):
             st.html('<p class="cand-selected"><i class="dot info"></i>Selected · shown on the map and below</p>')
         else:
-            st.button("Select vessel", key=f'pick_{row["vessel_id"]}', on_click=select_vessel, args=(row["vessel_id"],))
+            # Hidden: the vessel code in the card head and in the specifications table clicks it.
+            st.button(f'Select {row["vessel_id"]}', key=f'pick_{row["vessel_id"]}', on_click=select_vessel, args=(row["vessel_id"],))
 
 
 def ticker_items(cc, focus):
@@ -231,7 +240,7 @@ def matrix(rows, cc, ranks, focus_id):
                   f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in r["failed_checks"]))}</span>')
         slack_style = _sign_style(r["laycan_slack_days"])
         body += (f'<tr class="{"selected" if r["vessel_id"] == focus_id else ""}">'
-                 f'<td><b class="code">{e(r["vessel_id"])}</b><small>{e(rank)} · {float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}{f" · lift {r['selected_lift_tonnes']:,.0f} t" if cc["per_vessel"] else ""}</small></td>'
+                 f'<td>{vessel_link(r["vessel_id"])}<small>{e(rank)} · {float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}{f" · lift {r['selected_lift_tonnes']:,.0f} t" if cc["per_vessel"] else ""}</small></td>'
                  f'<td>{status}</td>'
                  f'<td class="num">{e(_when(r["arrival_at_load_utc"]))}<small class="signed-metric" style="{slack_style}"><strong>{_signed(r["laycan_slack_days"])} days slack</strong></small></td>'
                  f'<td class="num">{r["ballast_days"]:.1f} / {r["laden_days"]:.1f} days<small>{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm</small></td>'
@@ -401,8 +410,7 @@ def voyages_page(cc):
             choice = st.radio("Vessel filter", list(labels), format_func=labels.get, horizontal=True,
                               key="voyage_filter", label_visibility="collapsed")
             shown = [r for r in rows if r["feasible"]] if choice == "feasible" else rows
-            heading(f"Evaluated vessels ({len(rows)})", f"{cc['feasible_count']} feasible · ranked by {_phrase(cc['objective']['label'])}"
-                    + (" · each at its best lift" if cc["per_vessel"] else ""))
+            heading(f"Evaluated vessels ({len(rows)})")
             st.html(stage_legend())
             with st.container(key="candidates_scroll"):
                 for row in shown:
