@@ -9,7 +9,7 @@ which tonnage each pairing is evaluated at:
 """
 from functools import lru_cache
 
-from voyage.data import load_tables
+from voyage.data import derived, load_tables
 from voyage.market import all_cargoes
 from voyage.plan import _row, best_voyage
 
@@ -47,6 +47,7 @@ def pairing(vessel_id, cargo_id, period, basis="best"):
     return _row(vessel_id, cargo_id, float(_cargo(cargo_id)[QUANTITY[basis]]), period)
 
 
+@derived
 @lru_cache(maxsize=64)
 def _grid(period, basis):
     return tuple(pairing(v, c, period, basis) for v in vessel_ids() for c in cargo_ids())
@@ -64,6 +65,7 @@ def month_series(basis="best", vessels=None, cargoes=None):
     return {p: grid(p, basis, vessels, cargoes) for p in periods()}
 
 
+@derived
 @lru_cache(maxsize=128)
 def lift_curve(vessel_id, cargo_id, period, steps=24):
     """Engine rows across the contract range, contract quantities included, for the lift-sensitivity chart."""

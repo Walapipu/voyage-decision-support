@@ -13,7 +13,7 @@ flowchart TD
     Interpret --> Validate["Python dispatcher: validate allowed operation and inputs"]
     Validate --> Decision["3. Decision logic: compare and check feasibility"]
     Decision --> Engine["Decimal Python engine: time, fuel, draft, TCE, contribution"]
-    Data["4. Data layer: frozen CSVs, joins, assumptions"] --> Engine
+    Data["4. Data layer: CSV files or SQL database, validated joins"] --> Engine
     Engine --> Results["Structured results: numbers, failed checks, conventions"]
     Results --> Explain["OpenRouter call 3: explain returned results"]
     Explain --> UI
@@ -27,7 +27,7 @@ flowchart TD
 | Interface | `app.py`, `voyage/dashboard.py`, `voyage/dashboard_data.py`, `voyage/dashboard.css`, `voyage/chat_view.py`, `voyage/ui.py` | Dashboard, dark/light themes, selection controls, chat, tables, charts and exports |
 | Interaction | `voyage/chat.py`, `voyage/scope.py`, `voyage/tools.py`, `voyage/openrouter.py` | Prompt, model calls, schema validation, allowlisted tools |
 | Decision and calculation | `voyage/decision.py`, `voyage/engine.py` | Feasibility, comparison, Decimal calculations, structured output |
-| Data | `voyage/data.py`, `data/raw/` | Read-only records, unique keys, required joins, baseline price coverage |
+| Data | `voyage/data.py`, `voyage/sources.py`, `voyage/schema.py`, `voyage/db_load.py`, `data/raw/` | Reads the CSV files or a SQL database, checks unique keys, required joins and baseline price coverage, refreshes from the database. See [data_sources.md](data_sources.md) |
 
 Decision and calculation are separate modules within layer 3. This preserves the brief's calculation, decision and interaction responsibilities. Module boundaries support future expansion without needing additional servers now.
 

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from itertools import permutations, product
 
-from voyage.data import index, load_tables
+from voyage.data import derived, index, load_tables
 from voyage.decision import max_loadable_lift, present, within_load_limits
 from voyage.engine import calculate
 from voyage.market import all_cargoes, all_vessels
@@ -30,11 +30,13 @@ def _utc(value):
 _cargoes, _vessels = all_cargoes, all_vessels
 
 
+@derived
 @lru_cache(maxsize=8192)
 def _row(vessel_id, cargo_id, lift, period):
     return present(calculate(vessel_id, cargo_id, lift, period, load_policy()))
 
 
+@derived
 @lru_cache(maxsize=1024)
 def best_voyage(vessel_id, cargo_id, period):
     """Highest-contribution feasible lift inside the contract range, or None.
@@ -86,6 +88,7 @@ def _voyage(row, vessel, cargo, ports):
             "row": row}
 
 
+@derived
 @lru_cache(maxsize=16)
 def _options(period):
     """Best feasible voyage for every pairing the plan may use, keyed (vessel, cargo)."""
@@ -103,6 +106,7 @@ def _contribution(row):
     return float(row["voyage_contribution_usd"])
 
 
+@derived
 @lru_cache(maxsize=4096)
 def optimise(period, exclude=frozenset(), force=None):
     """Best assignment {vessel_id: cargo_id} with its score (committed covered, total contribution).
@@ -151,6 +155,7 @@ def optimise(period, exclude=frozenset(), force=None):
     return best
 
 
+@derived
 @lru_cache(maxsize=16)
 def build_plan(period=None):
     tables = load_tables()
@@ -194,6 +199,7 @@ def why_not(vessel_id, cargo_id, period):
     return list(row["failed_checks"]) or ["no feasible lift"]
 
 
+@derived
 @lru_cache(maxsize=512)
 def what_if(period, vessel_id, cargo_id):
     """The best plan that includes this pairing, against the recommended plan."""
@@ -207,6 +213,7 @@ def what_if(period, vessel_id, cargo_id):
             "covers_all": forced[0][0] == base[0][0], "changes": _changes(base[1], forced[1])}
 
 
+@derived
 @lru_cache(maxsize=16)
 def alternatives(period=None):
     """What each planned pairing is worth (the best plan without it) and owned-vessel swaps."""

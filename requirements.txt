@@ -4,3 +4,4 @@ jsonschema==4.26.0
 altair==6.3.0
 numpy==2.5.4
 plotly==7.1.0
+SQLAlchemy==2.0.58

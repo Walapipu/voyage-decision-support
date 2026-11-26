@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from statistics import mean
 
-from voyage.data import index, load_tables
+from voyage.data import derived, index, load_tables
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "market_rates.toml"
 SPEC = ("economical_laden_speed_knots", "economical_laden_vlsfo_tpd", "economical_laden_mgo_tpd",
@@ -56,6 +56,7 @@ def benchmark_voyage(cargo, laden_nm, ship, prices, period, location):
             "net_tonnes": q * (1 - float(cargo["commission_rate"]))}
 
 
+@derived
 @lru_cache(maxsize=1)
 def market_rates():
     tables, config = load_tables(), load_config()
@@ -145,6 +146,7 @@ def quote_table():
 
 
 
+@derived
 @lru_cache(maxsize=1)
 def all_vessels():
     """Managed and market vessels by id; market rows carry the assumed hire."""
@@ -152,6 +154,7 @@ def all_vessels():
     return index(tables["managed_vessels"] + [priced_vessel(v) for v in tables["market_vessels"]], "vessel_id")
 
 
+@derived
 @lru_cache(maxsize=1)
 def all_cargoes():
     """Committed and market cargoes by id; market rows carry the assumed freight."""

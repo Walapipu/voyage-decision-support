@@ -3,7 +3,7 @@
 import json
 
 from voyage.openrouter import api_request, load_settings
-from voyage.tools import TOOLS, execute_tool
+from voyage.tools import execute_tool, tool_definitions
 from voyage.briefing import COMMENTARY_INSTRUCTION, parse_commentary, calculated_briefing
 from voyage.scope import is_in_scope, OFF_TOPIC_REPLY
 
@@ -63,7 +63,7 @@ MAX_TOKENS = 8192
 
 def _request(key, model, messages, tool_choice):
     result = api_request("/chat/completions", key, {
-        "model": model, "messages": messages, "tools": TOOLS,
+        "model": model, "messages": messages, "tools": tool_definitions(),
         "tool_choice": tool_choice, "max_tokens": MAX_TOKENS, "stream": False,
         "provider": {"max_price": {"prompt": 0, "completion": 0}, "require_parameters": True},
     })

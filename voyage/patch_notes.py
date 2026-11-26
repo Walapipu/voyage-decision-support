@@ -16,6 +16,19 @@ import streamlit as st
 
 # (version, pushed at, title, intro, sections). sections: [(SECTION, [(subsection or None, [items])])]
 PATCHES = [
+    ("1.25", "2026-11-27 03:38", "Database-ready data layer", "The app can read its data from a SQL database as well as the data-pack files", [
+        ("GLOBAL", [("Data", [
+            ("Database connection", ["The data can come from a SQL database instead of the CSV files, chosen in the app's secrets",
+                                     "The database is re-read every 10 minutes by default, so new rows appear without a restart",
+                                     "If the database is briefly unreachable, the app keeps the last good data",
+                                     "`python -m voyage.db_load` creates the tables and loads them from the CSV files"]),
+            "Database data passes the same checks as the files, and incomplete data is rejected with the problem named",
+        ])]),
+        ("AI ASSISTANT", [("UI/UX", [
+            "The vessels, cargoes and price months the assistant accepts now come from the data, so new records work straight away",
+        ])]),
+        ("DOCUMENTS", [(None, ["New data sources guide in docs/data_sources.md"])]),
+    ]),
     ("1.24", "2026-11-26 03:55", "Medal ranks, one-vessel ticker", "Ranks read at a glance and the ticker follows one vessel", [
         ("OVERVIEW", [("UI/UX", [
             "KPI values count up again each time you come back to Overview",

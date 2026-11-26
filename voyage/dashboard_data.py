@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 from functools import lru_cache
 
-from voyage.data import index, load_tables
+from voyage.data import derived, index, load_tables
 from voyage.decision import OBJECTIVES, compare_vessels
 from voyage.market import all_cargoes, all_vessels
 
@@ -65,6 +65,7 @@ def _reference_period(period, available):
     return quarter if quarter in available else None
 
 
+@derived
 @lru_cache(maxsize=128)
 def suggested_lift(cargo_id, period, objective="contribution"):
     """The lift the ranking recommends: the top-ranked vessel's best lift within the cargo tolerance.
