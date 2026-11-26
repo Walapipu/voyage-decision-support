@@ -73,10 +73,6 @@ def select_vessel(vessel_id):
 
 def voyage_summary(case, compact=False):
     r, v, c = case["row"], case["vessel"], case["cargo"]
-    best = next((x for x in case["comparison"]["rows"] if x["feasible"]), None)
-    verdict = f'Highest contribution at this lift: <b>{e(best["vessel_id"])}</b>.' if best else "No vessel is feasible at this lift."
-    pool = len(case["comparison"]["rows"])
-    st.html(f'<div class="callout"><b>{e(v["vessel_id"])} / {e(c["cargo_id"])}</b> · {r["selected_lift_tonnes"]:,.0f} tonnes<br>{verdict} {case["feasible_count"]} of {pool} vessels pass all checks. This compares one cargo; the Overview plan allocates the fleet.</div>')
     if not r["feasible"]:
         st.warning("Selected voyage is infeasible: " + ", ".join(r["failed_checks"]) + ". Its economics are hypothetical, not a recommendation.")
     if not r["fuel_pass"]:

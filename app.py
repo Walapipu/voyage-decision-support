@@ -198,13 +198,54 @@ st.html("""<script>(() => {
   // text is left alone.
   document.addEventListener('click', event => {
     const t = event.target;
-    if (!t.closest || String(getSelection())) return;
+    if (!t.closest || String(getSelection()) || t.closest('[data-tip]')) return;
     const host = t.closest('[data-pick], [class*="st-key-cand_"]');
     const link = host && (host.dataset.pick ? host : host.querySelector('[data-pick]'));
     if (!link) return;
     const pick = document.querySelector('.st-key-pick_' + CSS.escape(link.dataset.pick) + ' button');
     if (pick) pick.click();
   });
+  // Tooltips: any element with data-tip shows it in one fixed box on hover or keyboard focus.
+  // Fixed positioning keeps it clear of the scrolling table that holds the check dots.
+  let tip = null;
+  const showTip = el => {
+    if (!tip) { tip = document.createElement('div'); tip.className = 'kf-tip'; tip.setAttribute('role', 'tooltip'); body.append(tip); }
+    tip.textContent = el.dataset.tip; tip.hidden = false;
+    const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    const left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8));
+    const below = r.bottom + 6 + h > innerHeight - 8;
+    Object.assign(tip.style, {left: left + 'px', top: (below ? r.top - h - 6 : r.bottom + 6) + 'px'});
+  };
+  const hideTip = () => { if (tip) tip.hidden = true; };
+  document.addEventListener('pointerover', event => { const el = event.target.closest && event.target.closest('[data-tip]'); if (el) showTip(el); });
+  document.addEventListener('pointerout', event => { if (event.target.closest && event.target.closest('[data-tip]')) hideTip(); });
+  document.addEventListener('focusin', event => { const el = event.target.closest && event.target.closest('[data-tip]'); if (el) showTip(el); else hideTip(); });
+  document.addEventListener('scroll', hideTip, true);
+  // Voyages layout: the grid fills the view under the top bar, or grows so the first candidate card
+  // shows in full; the table shows its header and the top three rows. Measured here because both
+  // depend on rendered content. Batched to one measurement per frame.
+  const root = document.documentElement;
+  const setVar = (name, px) => { if (root.style.getPropertyValue(name) !== px + 'px') root.style.setProperty(name, px + 'px'); };
+  let sizing = 0;
+  const sizeVoyages = () => {
+    sizing = 0;
+    const grid = document.querySelector('.st-key-voyages_grid'), page = document.querySelector('.st-key-page_content');
+    if (!grid || !page) return;
+    const pageBox = page.getBoundingClientRect(), gridTop = grid.getBoundingClientRect().top;
+    let height = page.clientHeight - (gridTop - pageBox.top + page.scrollTop) - 16;
+    const list = grid.querySelector('.st-key-candidates_scroll'), first = list && list.querySelector('[class*="st-key-cand_"]');
+    if (first) height = Math.max(height, list.getBoundingClientRect().top - gridTop + first.offsetHeight + 16);
+    setVar('--voyage-grid-h', Math.round(height));
+    const wrap = grid.querySelector('.matrix-wrap');
+    if (wrap) {
+      const head = wrap.querySelector('thead');
+      let rows = (head ? head.offsetHeight : 0) + wrap.offsetHeight - wrap.clientHeight;
+      [...wrap.querySelectorAll('tbody tr')].slice(0, 3).forEach(row => { rows += row.offsetHeight; });
+      setVar('--voyage-matrix-h', Math.ceil(rows));
+    }
+  };
+  const queueSize = () => { if (!sizing) sizing = requestAnimationFrame(sizeVoyages); };
+  addEventListener('resize', queueSize);
   // Overview KPIs: a value counts up to its figure when it first shows or changes. Only the first
   // number moves ("5 of 7" counts the 5); a change of unit, such as $ to $M, counts up from zero.
   const kpiLast = new Map(), still = matchMedia('(prefers-reduced-motion: reduce)'), NUM = /-?[0-9][0-9,]*([.][0-9]+)?/;
@@ -236,7 +277,7 @@ st.html("""<script>(() => {
     el.dataset.kfShown = head + fmt.format(start) + tail; el.textContent = el.dataset.kfShown;
     requestAnimationFrame(step);
   };
-  new MutationObserver(() => { relabel(); untitle(); syncDrawer(); followChat(); countKpis(); }).observe(body, {childList: true, subtree: true, characterData: true});
+  new MutationObserver(() => { relabel(); untitle(); syncDrawer(); followChat(); countKpis(); queueSize(); }).observe(body, {childList: true, subtree: true, characterData: true});
   new MutationObserver(syncDrawer).observe(body, {attributes: true, attributeFilter: ['class']});
   untitle(); syncDrawer(); countKpis();
 })();</script>""".replace("__COMMANDS__", json.dumps(COMMANDS)), unsafe_allow_javascript=True)
@@ -315,7 +356,6 @@ with st.container(key={"Overview": "home", "AI Assistant": "assistant_page"}.get
         voyages_page(cc)
         if cc and not (st.session_state.get("voyage_port") or st.session_state.get("voyage_query")):
             if case:
-                heading("Selected voyage · " + case["vessel"]["vessel_id"], "Economics, checks and schedule")
                 voyage_summary(case)
                 with st.container(border=True):
                     economics(case)

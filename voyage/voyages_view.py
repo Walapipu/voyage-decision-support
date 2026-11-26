@@ -52,6 +52,40 @@ def _ranks(rows):
     return {r["vessel_id"]: i for i, r in enumerate((r for r in rows if r["ranking_eligible"]), 1)}
 
 
+def check_reasons(row):
+    """Why a voyage fails, one line per failed check, with the figures behind it."""
+    lines = []
+    for check in row["failed_checks"]:
+        if check == "quantity":
+            lines.append(f'Lift {row["selected_lift_tonnes"]:,.0f} t is outside the cargo quantity range')
+        elif check == "laycan":
+            lines.append(f'Laycan missed: arrives {_when(row["arrival_at_load_utc"])}, '
+                         f'{abs(row["laycan_slack_days"]):.2f} days after the laycan closes')
+        elif check == "deadweight":
+            lines.append(f'Over deadweight by {abs(row["deadweight_margin_tonnes"]):,.0f} t')
+        elif check == "draft":
+            lines.append(f'Summer-draft headroom {row["draft_margin_m"]:.2f} m, needs {row["required_summer_draft_margin_m"]:.2f} m')
+        elif check == "fuel":
+            lines.append(f'Fuel: {row.get("fuel_status", "not covered")}')
+        elif check == "port_draft":
+            for port in row.get("port_draft_checks", []):
+                if not port["passes"]:
+                    lines.append(f'{port["port_role"].title()} port {port["port_code"]} draft headroom '
+                                 f'{port["headroom_m"]:.2f} m, needs {port["required_margin_m"]:.2f} m')
+        else:
+            lines.append(CHECK_NAMES.get(check, check))
+    return lines
+
+
+def check_dot(row):
+    """Green dot when every check passes; red dot whose tooltip (app.py) lists each failure."""
+    if row["feasible"]:
+        return '<span class="check-dot good" tabindex="0" data-tip="Passes every check" aria-label="Passes every check"></span>'
+    reasons = check_reasons(row)
+    return (f'<span class="check-dot bad" tabindex="0" data-tip="{e(chr(10).join(reasons))}" '
+            f'aria-label="Fails: {e("; ".join(reasons))}"></span>')
+
+
 def rank_tag(rank):
     """Rank as a tag: gold, silver and bronze for the top three, the plain tag otherwise."""
     if not rank:
@@ -242,13 +276,10 @@ def matrix(rows, cc, ranks, focus_id):
     for r in rows:
         v = cc["vessels"][r["vessel_id"]]
         port = cc["ports"][v["current_port"]]["port_name"]
-        status = ('<span class="tag good">Feasible</span>' if r["feasible"] else
-                  f'<span class="tag bad">{e(", ".join(CHECK_NAMES.get(c, c) for c in r["failed_checks"]))}</span>')
         slack_style = _sign_style(r["laycan_slack_days"])
         pick = "" if r["vessel_id"] == st.session_state.get("selected_vessel") else f' data-pick="{e(r["vessel_id"])}"'
         body += (f'<tr class="{"selected" if r["vessel_id"] == focus_id else ""}"{pick}>'
                  f'<td><span class="matrix-id">{vessel_link(r["vessel_id"])}{rank_tag(ranks.get(r["vessel_id"]))}</span><small>{float(v["dwt_tonnes"]):,.0f} DWT · {e(port)}{f" · lift {r['selected_lift_tonnes']:,.0f} t" if cc["per_vessel"] else ""}</small></td>'
-                 f'<td>{status}</td>'
                  f'<td class="num">{e(_when(r["arrival_at_load_utc"]))}<small class="signed-metric" style="{slack_style}"><strong>{_signed(r["laycan_slack_days"])} days slack</strong></small></td>'
                  f'<td class="num">{r["ballast_days"]:.1f} / {r["laden_days"]:.1f} days<small>{r["ballast_distance_nm"]:,.0f} / {r["laden_distance_nm"]:,.0f} nm</small></td>'
                  f'<td class="num">{r["voyage_days"]:.1f} days<small>wait {r["laycan_wait_days"]:.1f} days</small></td>'
@@ -257,10 +288,11 @@ def matrix(rows, cc, ranks, focus_id):
                  f'<small>buy {r["vlsfo_purchase_tonnes"]:,.0f} / {r["mgo_purchase_tonnes"]:,.0f} t</small></td>'
                  f'<td class="num">{r["draft_margin_m"]:.2f} m<small>{r["estimated_sailing_draft_m"]:.2f} m sailing</small></td>'
                  f'<td class="num">{usd(r["tce_usd_per_day"])}</td>'
-                 f'<td class="num">{usd(r["voyage_contribution_usd"])}</td></tr>')
-    head = ("<th>Vessel</th><th>Checks</th><th class='num'>Load ETA / slack</th><th class='num'>Ballast / laden</th>"
+                 f'<td class="num">{usd(r["voyage_contribution_usd"])}</td>'
+                 f'<td class="check-cell">{check_dot(r)}</td></tr>')
+    head = ("<th>Vessel</th><th class='num'>Load ETA / slack</th><th class='num'>Ballast / laden</th>"
             "<th class='num'>Total</th><th class='num'>Speed b / l</th><th class='num'>ROB VLSFO / MGO</th>"
-            "<th class='num'>Draft headroom</th><th class='num'>TCE/day</th><th class='num'>Contribution</th>")
+            "<th class='num'>Draft headroom</th><th class='num'>TCE/day</th><th class='num'>Contribution</th><th class='check-cell'>Checks</th>")
     if not body:
         body = '<tr><td colspan="10">No vessels match this filter.</td></tr>'
     return f'<div class="table-wrap matrix-wrap"><table class="ocean-table matrix-table"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'

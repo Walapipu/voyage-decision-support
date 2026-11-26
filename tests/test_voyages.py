@@ -68,7 +68,7 @@ class VoyagesTests(unittest.TestCase):
         self.assertIn("Highest contribution after hire", body)
         app.button(key="pick_MF-01").click().run()
         self.assertFalse(app.exception)
-        self.assertIn("170,600 tonnes", html(app))  # the selected voyage uses that vessel's best lift
+        self.assertIn("170.6k / ", html(app))  # the selected voyage details use that vessel's best lift
         # A new rank method re-suggests the lift while it is still the suggestion.
         app.selectbox(key="ranking_objective").set_value("tce").run()
         self.assertFalse(app.exception)
@@ -116,7 +116,8 @@ class VoyagesTests(unittest.TestCase):
         app.button(key="pick_MF-01").click().run()
         self.assertFalse(app.exception)
         self.assertEqual(app.selectbox(key="selected_vessel").value, "MF-01")
-        self.assertIn("Selected voyage · MF-01", html(app))
+        self.assertNotIn("Selected voyage", html(app))
+        self.assertIn('class="cand-selected"', html(app))
         app.radio(key="voyage_filter").set_value("feasible").run()
         self.assertFalse(app.exception)
         self.assertNotIn('class="cand-head"><span class="cand-id"><i class="dot bad"', html(app))

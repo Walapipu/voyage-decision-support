@@ -16,6 +16,18 @@ import streamlit as st
 
 # (version, pushed at, title, intro, sections). sections: [(SECTION, [(subsection or None, [items])])]
 PATCHES = [
+    ("1.26", "2026-11-27 04:19", "Check dots, full-screen Voyages", "Voyages fits the screen and the checks read as dots with reasons", [
+        ("VOYAGES", [("UI/UX", [
+            ("Checks", ["The Checks column is a green or red dot and sits last in the specifications and feasibility table",
+                        "Hovering or focusing a red dot lists every failed check with its figures, such as how late the laycan is missed"]),
+            ("Layout", ["The search card, route map and specifications table fill the screen; the market strip and voyage details sit below",
+                        "The table shows its top three ranks and scrolls inside for the rest; the map takes the remaining height",
+                        "On shorter screens the panels grow so the first vessel card is never cut off"]),
+            "The Selected voyage heading and its summary card are removed",
+        ])]),
+        ("SETTINGS", [("Bug fixes", ["The active policy and assumptions follow dark mode instead of showing on a light panel"])]),
+        ("DOCUMENTS", [("Bug fixes", ["Inline code and the engine policy follow dark mode"])]),
+    ]),
     ("1.25", "2026-11-27 03:38", "Database-ready data layer", "The app can read its data from a SQL database as well as the data-pack files", [
         ("GLOBAL", [("Data", [
             ("Database connection", ["The data can come from a SQL database instead of the CSV files, chosen in the app's secrets",

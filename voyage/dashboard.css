@@ -492,7 +492,10 @@ body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible
 
 /* ---------- Voyages: candidate vessels, map and specification matrix ---------- */
 /* The grid fills the view under the selection strip; the list, map and table own their scrolling. */
-.st-key-voyages_grid{height:calc(100dvh - 150px)!important;min-height:600px!important;}
+/* Height set by app.py: the grid fills the view below the top bar, but never so short that the
+   first candidate card is cut off. The market strip and voyage details sit below, reached by scrolling. */
+.st-key-voyages_grid{flex:0 0 auto!important;height:var(--voyage-grid-h,calc(100dvh - 85px))!important;min-height:520px!important;}
+[data-testid="stLayoutWrapper"]:has(>.st-key-voyages_grid){flex-shrink:0!important;}
 .st-key-voyages_grid>[data-testid="stLayoutWrapper"],.st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{height:100%!important;min-height:0!important;}
 .st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:minmax(300px,1fr) minmax(0,1.9fr);gap:8px!important;}
 .st-key-voyages_grid>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{width:100%!important;min-width:0!important;height:100%!important;}
@@ -567,7 +570,7 @@ body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible
 .matrix-table tr[data-pick]:hover .vessel-link{color:var(--blue);text-decoration-color:currentColor;}
 
 /* Map and matrix */
-.st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-voyage_map_panel){flex:0 0 58%!important;min-height:0!important;}
+.st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-voyage_map_panel){flex:1 1 0!important;min-height:0!important;}
 .st-key-voyage_right>[data-testid="stLayoutWrapper"]>.st-key-voyage_map_panel{height:100%!important;min-height:0!important;gap:6px!important;overflow:hidden;}
 .st-key-voyage_map_panel [data-testid="stElementContainer"]:has(iframe){flex:1 1 0!important;height:auto!important;min-height:0!important;max-height:none!important;}
 .st-key-voyage_map_panel [data-testid="stIFrame"],.st-key-voyage_map_panel iframe{height:100%!important;min-height:0!important;max-height:none!important;}
@@ -586,12 +589,23 @@ body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible
 @media(prefers-reduced-motion:reduce){.ticker-track{animation:none;}.ticker-run[aria-hidden]{display:none;}.ticker{overflow-x:auto;contain:none;}}
 .ticker-run span{font-family:var(--mono);font-size:11px;line-height:28px;letter-spacing:.02em;color:var(--text2);white-space:nowrap;padding:0 12px;font-variant-numeric:tabular-nums;}
 .ticker-run span:before{content:'';display:inline-block;width:5px;height:5px;margin:0 12px 1px 0;border-radius:50%;background:var(--blue);vertical-align:middle;}
-.st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-matrix_panel){flex:1 1 0!important;height:auto!important;min-height:0!important;overflow:hidden;}
-.st-key-matrix_panel{height:100%!important;min-height:0!important;overflow:hidden!important;gap:6px!important;}
+/* The table shows its header and the top three ranks (height measured in app.py); the rest scroll inside it. */
+.st-key-voyage_right>[data-testid="stLayoutWrapper"]:has(>.st-key-matrix_panel){flex:0 0 auto!important;height:auto!important;min-height:0!important;overflow:hidden;}
+.st-key-matrix_panel{height:auto!important;min-height:0!important;overflow:hidden!important;gap:6px!important;}
 .st-key-matrix_panel>[data-testid="stLayoutWrapper"]:first-child>[data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;}
 .st-key-matrix_panel [data-testid="stColumn"]:last-child{display:flex;justify-content:flex-end;flex:0 0 auto!important;width:auto!important;min-width:0!important;}
 .st-key-matrix_panel [data-testid="stColumn"]:first-child{flex:1 1 0!important;min-width:0!important;}
-.st-key-matrix_panel [data-testid="stElementContainer"]:has(.matrix-wrap){flex:1 1 0!important;min-height:0!important;overflow:hidden;}
+.st-key-matrix_panel [data-testid="stElementContainer"]:has(.matrix-wrap){flex:0 0 auto!important;min-height:0!important;overflow:hidden;}
+.st-key-matrix_panel .matrix-wrap{height:auto;max-height:var(--voyage-matrix-h,220px);}
+/* Checks: a dot per vessel; the red dot's tooltip lists every failed check (app.py). */
+.matrix-table .check-cell{text-align:center;width:1%;}
+.check-dot{display:inline-block;width:10px;height:10px;margin-top:4px;border-radius:50%;cursor:help;}
+.check-dot.good{background:var(--green);}
+.check-dot.bad{background:var(--red);}
+.check-dot:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+.kf-tip{position:fixed;z-index:1000300;max-width:320px;padding:8px 10px;border:1px solid var(--linestrong);border-radius:var(--r-md);
+ background:var(--raised);color:var(--text);font-size:12px;line-height:1.5;white-space:pre-line;box-shadow:0 8px 24px rgba(0,0,0,.28);pointer-events:none;}
+.kf-tip[hidden]{display:none;}
 .matrix-wrap{height:100%;overflow:auto;scrollbar-width:thin;}
 .matrix-table thead th{position:sticky;top:0;background:var(--panel);z-index:1;}
 .matrix-table td small{color:var(--muted);}
@@ -665,6 +679,14 @@ body.shippy-open .st-key-shippy:not([popover]){transform:none;visibility:visible
 /* Slash-shortcut menu above the chat box (built by the page script, attached to the page body). Never write angle brackets in this file: the sanitiser drops the whole sheet. */
 .slash-menu{position:fixed;z-index:1000200;box-sizing:border-box;padding:4px;border:1px solid var(--linestrong);border-radius:var(--r-md);background:var(--panel);box-shadow:0 8px 24px rgba(0,0,0,.28);}
 .slash-menu[hidden]{display:none;}
+/* JSON viewer and inline code: Streamlit draws these from its light base theme with inline colours,
+   so they are restyled from the app's own theme variables to follow dark mode. */
+[data-testid="stJson"] .react-json-view{background:var(--field)!important;border:1px solid var(--line);border-radius:var(--r-md);padding:8px 12px;font-family:var(--mono)!important;font-size:12px!important;}
+[data-testid="stJson"] .react-json-view span,[data-testid="stJson"] .react-json-view div{color:var(--text2)!important;border-color:var(--line)!important;}
+[data-testid="stJson"] .react-json-view .object-key,[data-testid="stJson"] .react-json-view .object-key span{color:var(--text)!important;}
+[data-testid="stJson"] .react-json-view .variable-value div,[data-testid="stJson"] .react-json-view .string-value{color:var(--text2)!important;}
+[data-testid="stJson"] .react-json-view svg{color:var(--muted)!important;}
+[data-testid="stMarkdownContainer"] code{background:var(--field)!important;color:var(--text)!important;border:1px solid var(--line);border-radius:4px;padding:0 4px;}
 .slash-menu[popover]{margin:0;inset:auto;color:inherit;overflow:visible;}
 .slash-item{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:2px 10px;padding:6px 8px;border-radius:6px;cursor:pointer;}
 .slash-item:hover,.slash-item:first-child{background:var(--field);}
